@@ -1211,8 +1211,9 @@ end
 -- A tick of a heal over time you put on yourself (Rejuvenation, Renew): a heal on you on its
 -- beat (a whole number of periods since the cast, give or take TICK_SLACK), within SELF_HOT_TIME
 -- of the cast. A heal of another magic school isn't it (a paladin's Holy Light); one with no
--- school or Physical may be: the game doesn't always give a heal on you its spell's school
--- (a player's debug log: Regrowth and Rejuvenation ticks on their beats, left unnamed).
+-- school or Physical may be: the game doesn't always give a heal its spell's school (a player's
+-- debug log: Regrowth and Rejuvenation ticks on their beats, left unnamed). The same goes for
+-- heals on others (TickFor, AreaFor).
 local SELF_HOT_TIME = 25
 local function SameHealSchool(school, hotSchool)
     return not school or school == hotSchool or school <= 1
@@ -2487,7 +2488,8 @@ function BT:TickFor(h, close)
             local beats = math.floor(since / dot.period + 0.5)
             local off = math.abs(since - beats * dot.period)
             local slack = (close and dot.last) and TICK_CLOSE or TICK_SLACK
-            if beats >= 1 and off <= slack and (not mask or mask == dot.school) and (h.kind == "heal") == dot.heal
+            if beats >= 1 and off <= slack and (h.kind == "heal") == dot.heal
+                    and (dot.heal and SameHealSchool(mask, dot.school) or not mask or mask == dot.school)
                     and (not best or off < bestOff) then
                 best, bestOff = dot, off
             end
@@ -2643,6 +2645,8 @@ function BT:AreaFor(h, splash)
                 fits = (mask ~= nil and mask == a.school) or SPELL_MISSES[how or ""] == true
             else
                 fits = mask ~= nil and mask == a.school and not (h.kind == "damage" and self:KnownShield(h))
+                -- (a heal on someone may come with no school or Physical: see SameHealSchool)
+                if h.kind == "heal" then fits = SameHealSchool(mask, a.school) end
             end
             if fits and (not best or a.at > best.at) then best = a end
         end
@@ -2886,7 +2890,8 @@ function BT:ResolveFrame(seq, first, last)
                             end
                         end
                     else
-                        vouched = mask ~= nil and mask ~= 1   -- without the lines, a bleed's tick looks just like a swing
+                        -- without the lines, a bleed's tick looks just like a swing; a heal can't be a swing
+                        vouched = (mask ~= nil and mask ~= 1) or h.kind == "heal"
                     end
                     if vouched then
                         what, spell = "tick", dot

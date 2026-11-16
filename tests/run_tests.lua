@@ -4418,6 +4418,22 @@ assertEq(last("outgoing"), "Rejuvenation +40 |cffc9f7ccInvisibly|r", "your Rejuv
 Advance(0.5)
 fire("UNIT_COMBAT", "target", "HEAL", "", 7, 1)
 assertEq(last("outgoing"), "Rejuvenation +40 |cffc9f7ccInvisibly|r", "but not another heal between its ticks")
+Advance(2.5)
+fire("UNIT_COMBAT", "target", "HEAL", "", 41, 1)
+assertEq(last("outgoing"), "Rejuvenation +41 |cffc9f7ccInvisibly|r",
+    "its tick with Physical as its school (the game doesn't always give a heal its school)")
+Advance(3)
+fire("UNIT_COMBAT", "target", "HEAL", "", 42, 2)
+assert(not tostring(last("outgoing")):find("Rejuvenation +42", 1, true), "a Holy heal on its beat isn't it")
+-- Tranquility's heals the same way
+do
+    local now = GetTime()
+    BT.areaOn = { Tranquility = { id = 740, name = "Tranquility", at = now, ends = now + 10, heal = true, school = 8 } }
+    assertEq(BT:AreaFor({ kind = "heal", school = 1, time = now + 2 }) ~= nil, true, "Tranquility's heal with Physical")
+    assertEq(BT:AreaFor({ kind = "heal", school = 2, time = now + 2 }), nil, "not a Holy one")
+    assertEq(BT:AreaFor({ kind = "damage", school = 1, time = now + 2 }), nil, "nor a swing")
+    BT.areaOn = nil
+end
 STATE.unit.friend.name = nil
 STATE.who.target = nil
 BT.db.healNames, BT.db.healIcons = namesWas, iconsWas

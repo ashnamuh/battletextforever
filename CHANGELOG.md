@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.3
+
+- **Your heal-over-time ticks on others, and Tranquility, show their icon and name.** The same thing 1.18.1 fixed for ticks on yourself: the game doesn't always say a heal is Nature, so Rejuvenation, Regrowth and Renew ticks on your target, and Tranquility's heals, could show as a plain number or not at all. They're now named whatever school the game gives, as long as it isn't another magic school (a paladin's Holy heal still isn't taken for yours).
+
 ## 1.18.2
 
 - **Regrowth's first heal on yourself shows its icon and name.** Its ticks were named in 1.18.1, but the heal as Regrowth lands still showed only "+number". Regrowth leaves a buff on you, so BattleText had learned it as a buff, and buffs never name a heal. A heal over time that also heals as it lands now counts as a heal.
