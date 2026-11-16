@@ -1143,6 +1143,8 @@ function BT:ShowCombat(info)
             if pet and not db.outPet then return true end
             if mine and (info.melee or self:IsRangedName(info.spell)) and not db.outSwings then return true end
             if info.periodic and not db.outTicks then return true end
+            -- (a readable line of a damage shield of yours: "Damage shields" off hides it too)
+            if info.event == "DAMAGE_SHIELD" and not db.outShields then return true end
             if not db.outDamage or info.amount < db.minDamage then return true end
             local rule = self:SpellRule(info.spell)
             if rule and rule.hide then return true end
@@ -1484,6 +1486,9 @@ local SEAL_SPELLS = {
     { 20166, "Seal of Wisdom" },
 }
 local JUDGEMENT = { 20271, "Judgement" }
+-- Forever's Retribution talent: your swings store your seal, and a swing under another seal
+-- sets the stored one off (Holy, with that swing): { spell ID, English name, school }
+local UNSEALED_WRATH = { 1310735, "Unsealed Wrath", 2 }
 -- Buffs you cast on yourself, for when the game doesn't say so (C_Spell.IsSelfBuff):
 -- { first rank's ID, English name }
 local SELF_BUFFS = {
@@ -1778,17 +1783,21 @@ function BT:HasReactive(e)
         level = okLevel and Num(level) or nil
         return level == nil or level >= e[5]
     end
-    -- C_SpellBook's is the supported one; the globals exist only with the game's
-    -- deprecation fallbacks loaded (a setting)
+    return self:KnowsSpell(e[1])
+end
+
+-- Whether the game says you know a spell or talent. C_SpellBook's is the supported
+-- one; the globals exist only with the game's deprecation fallbacks loaded (a setting)
+function BT:KnowsSpell(id)
     local spellBook = C_SpellBook and C_SpellBook.IsSpellKnown
     local checks = {
-        spellBook and function(id) return spellBook(id, Enum and Enum.SpellBookSpellBank
+        spellBook and function(spell) return spellBook(spell, Enum and Enum.SpellBookSpellBank
             and Enum.SpellBookSpellBank.Player or 0) end or false,
         IsPlayerSpell or false, IsSpellKnown or false,
     }
     for _, known in ipairs(checks) do
         local okKnown, yes = false, nil
-        if known then okKnown, yes = pcall(known, e[1]) end
+        if known then okKnown, yes = pcall(known, id) end
         if okKnown and not IsSecret(yes) and yes == true then return true end
     end
     return false
@@ -2007,12 +2016,22 @@ end
 -- (SEAL_AFTER_SWING, unless frameOnly), and a hit with neither waits for one (WaitForSwing).
 local SEAL_SWING_TIME = 1.2   -- how long a seal's hit waits for the swing's
 local SEAL_AFTER_SWING = 0.5  -- how long after the swing's hit the seal's can come
+-- With Unsealed Wrath, a Holy hit with your swing that the seal on you doesn't explain (it
+-- adds no damage, or there's none) is the talent's stored seal going off. Until 1.19.1 it was
+-- taken for Retribution Aura's answer to the mob's blow, and hidden with "Damage shields" off.
 function BT:SealOn(h)
     local seal = self.seal
     if not self.db.outSeals then return nil end
-    if not seal or not seal.school or h.kind ~= "damage" or GetTime() > seal.ends + 1 then return nil end
-    if Num(h.school) ~= seal.school then return nil end
-    return seal
+    if h.kind ~= "damage" then return nil end
+    local mask = Num(h.school)
+    if seal and seal.school and GetTime() <= seal.ends + 1 then
+        if mask == seal.school then return seal end
+    end
+    if mask == UNSEALED_WRATH[3] and self:KnowsSpell(UNSEALED_WRATH[1]) then
+        return { id = UNSEALED_WRATH[1], name = SpellName(UNSEALED_WRATH[1]) or UNSEALED_WRATH[2],
+            school = UNSEALED_WRATH[3] }
+    end
+    return nil
 end
 
 function BT:SealFor(h, seq, first, last, at, frameOnly)
@@ -2087,6 +2106,10 @@ end
 function BT:Resolved(key, at)
     local list = self.sealWait
     if not list then return end
+    -- One blow is answered once by each damage shield on you (Thorns and Retribution Aura both
+    -- answer it). Until 1.19.1 it named one hit in all, and the other shield's was shown
+    -- unnamed, even with "Damage shields" off.
+    local answered = {}
     local i = 1
     while list[i] do
         local e = list[i]
@@ -2094,18 +2117,18 @@ function BT:Resolved(key, at)
         if at - e.h.time <= SEAL_SWING_TIME then
             if key and e.seal and e.h.key == key then
                 what, spell = "seal", e.seal
-            elseif not key and e.shield then
+            elseif not key and e.shield and not answered[e.shield.name] then
                 what, spell = "shield", e.shield
             end
         end
         if what then
+            if not key then answered[spell.name] = true end
             table.remove(list, i)
             local why = self:ShowUnitHit(e.h, what, spell)
             if self.db.debug then
                 self:Record(("  %s %s: %s"):format(e.h.unit, tostring(e.h.amount), why or (what .. " of " .. spell.name)),
                     e.h.time)
             end
-            if not key then return end   -- one blow, one answer
         else
             i = i + 1
         end

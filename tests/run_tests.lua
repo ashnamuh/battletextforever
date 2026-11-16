@@ -425,6 +425,18 @@ Advance(1)
 log(hit("Fireball", 133, 1234, "Fire"))
 assertEq(last("outgoing"), "Fireball 1,234", "thousands")
 assertEq(BT.areas.outgoing.active[#BT.areas.outgoing.active].text.__color[2], 0.5, "tinted by its school (fire)")
+-- A damage shield's readable line ("Your Thorns damages <mob> 11 Nature.") obeys "Damage shields"
+local thornsLine = ME .. "Your|h |Hspell:467:0:DAMAGE_SHIELD|h|cffffffffThorns|r|h |Haction:DAMAGE_SHIELD|hdamages|h "
+    .. MOB .. " |cffffffff11|r |cffffffffNature|r. "
+Advance(1)
+log(thornsLine)
+assertEq(last("outgoing"), "Thorns 11", "a damage shield's line")
+clear()
+BT.db.outShields = false
+Advance(1)
+log(thornsLine)
+assertEq(#lines("outgoing"), 0, "\"Damage shields\" off: its line is hidden too")
+BT.db.outShields = true
 clear()
 
 step("rapid hits add up")
@@ -2114,6 +2126,93 @@ Advance(0.5)
 blow()
 Advance(1)
 assertEq(last("outgoing"), "<secret fmt>", "not a hit of another school than your shields'")
+-- Two damage shields answer one blow (a CurseForge comment: a paladin with Retribution Aura
+-- and a druid's Thorns; one blow named only one of them, and the other showed unnamed, even
+-- with "Damage shields" off)
+do
+    clear()
+    BT.db.debug, BT.recorded = true, {}
+    STATE.buffs = { { name = "Thorns", spellId = 782 }, { name = "Retribution Aura", spellId = 10301 } }
+    fire("PLAYER_REGEN_ENABLED")
+    BT.db.shieldAmounts = {}
+    Advance(2)
+    wound(Secret(11), 8) wound(Secret(9), 2)
+    Advance(0.6) blow() Advance(1.5)
+    local named = {}
+    for _, r in ipairs(BT.recorded) do
+        local what = r:match(": (shield of .+)$") or r:match(": (nothing came for it: shown)$")
+        if what then named[#named + 1] = what end
+    end
+    table.sort(named)
+    assertEq(table.concat(named, " / "), "shield of Retribution Aura / shield of Thorns",
+        "one blow: each shield's answer is named")
+    clear()
+    BT.db.outShields = false
+    Advance(2)
+    wound(Secret(11), 8) wound(Secret(9), 2)
+    Advance(0.6) blow() Advance(1.5)
+    assertEq(#lines("outgoing"), 0, "\"Damage shields\" off: both hidden")
+    -- but one shield answers a blow only once: two Thorns hits and one blow leave one unnamed
+    BT.db.outShields = true
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(11), 8) Advance(0.1) wound(Secret(11), 8)
+    Advance(0.5) blow() Advance(1.5)
+    named = {}
+    for _, r in ipairs(BT.recorded) do
+        local what = r:match(": (shield of .+)$") or r:match(": (nothing came for it: shown)$")
+        if what then named[#named + 1] = what end
+    end
+    table.sort(named)
+    assertEq(table.concat(named, " / "), "nothing came for it: shown / shield of Thorns",
+        "the same shield twice for one blow: the second isn't its answer")
+
+    -- Unsealed Wrath (Forever's Retribution talent; same comment's author: it showed no damage).
+    -- A Holy hit with your swing, no seal that hurts on you, is the talent's, not Retribution
+    -- Aura's answer to the mob's blow (that was hidden with "Damage shields" off)
+    BT.db.outShields = false
+    STATE.knownSpells[1310735] = true
+    STATE.spellNames[1310735] = "Unsealed Wrath"
+    BT.recorded = {}
+    clear()
+    Advance(2)
+    fire("PLAYER_SWING", 2.6, 0)
+    wound(Secret(40), 1) wound(Secret(20), 2)
+    Advance(0.3) blow() Advance(1.5)
+    local uw
+    for _, r in ipairs(BT.recorded) do uw = uw or r:match(": (seal of Unsealed Wrath)$") end
+    assertEq(uw, "seal of Unsealed Wrath", "a Holy hit with your swing: Unsealed Wrath")
+    assertEq(#lines("outgoing"), 2, "shown with \"Damage shields\" off (the swing and the talent)")
+    -- its hit can come ahead of the swing's, just after a blow on you: it waits for the swing
+    BT.recorded = {}
+    clear()
+    Advance(2)
+    blow() Advance(0.2)
+    wound(Secret(20), 2)
+    Advance(0.3)
+    fire("PLAYER_SWING", 2.6, 0)
+    wound(Secret(40), 1)
+    Advance(1.5)
+    uw = nil
+    for _, r in ipairs(BT.recorded) do uw = uw or r:match(": (seal of Unsealed Wrath)$") end
+    assertEq(uw, "seal of Unsealed Wrath", "ahead of the swing, after a blow: still Unsealed Wrath")
+    -- without the talent, it's Retribution Aura's as before
+    STATE.knownSpells[1310735] = nil
+    BT.db.outShields = true
+    BT.recorded = {}
+    clear()
+    Advance(2)
+    fire("PLAYER_SWING", 2.6, 0)
+    wound(Secret(40), 1) wound(Secret(20), 2)
+    Advance(0.3) blow() Advance(1.5)
+    uw = nil
+    for _, r in ipairs(BT.recorded) do uw = uw or r:match(": (shield of Retribution Aura)$") end
+    assertEq(uw, "shield of Retribution Aura", "no talent: the aura's answer")
+    BT.db.debug, BT.recorded = false, nil
+    STATE.buffs = {}
+    fire("PLAYER_REGEN_ENABLED")
+    clear()
+end
 clear()
 BT.buffShields, BT.itemShields, BT.dots = nil, nil, nil
 STATE.buffs, STATE.equipped = {}, {}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.19.1
+
+- **Thorns and Retribution Aura together show properly.** When two damage shields answered the same blow (say a druid's Thorns on a paladin with Retribution Aura), only one of them was named. The other showed as a plain number, even with "Damage shields" turned off. Now each shield's hit is named, and "Damage shields" off hides them both.
+- **Unsealed Wrath's damage shows.** The Retribution talent's extra Holy hit with your swing was taken for Retribution Aura hitting back, so with "Damage shields" off it disappeared. It now shows as Unsealed Wrath, with its icon, like your seal's hits.
+- **"Damage shields" off also hides damage shield hits** read from the combat lines, not just the ones read off your target.
+
 ## 1.19.0
 
 - **New: "Reset all"** (General tab, or type `/btf resetall`). Puts every setting back to how it started, colors, places and your Spells list included, after asking first. With "Settings for this character only" on, it resets just that character.
