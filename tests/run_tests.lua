@@ -564,6 +564,72 @@ assertEq(BT.areas.outgoing.active[1].style, nil, "an unknown style scrolls")
 BT.db.outStyle = "scroll"
 clear()
 
+step("keep Pop numbers apart")
+assertEq(BT.DEFAULTS.popApart, false, "off to start with")
+local realRandom = math.random
+math.random = function() return 0.5 end   -- every Pop line picks the same spot
+local function boxes(area)
+    local out = {}
+    for _, o in ipairs(BT.areas[area].active) do
+        local w = o.boxW
+        local left = (o.anchor == "LEFT" and o.px) or (o.anchor == "RIGHT" and o.px - w) or o.px - w / 2
+        out[#out + 1] = { left, left + w, o.py + o.size / 2, o.py - o.size / 2, o }
+    end
+    return out
+end
+local function overlapping(area)
+    local b, n = boxes(area), 0
+    for i = 1, #b do
+        for j = i + 1, #b do
+            local p, q = b[i], b[j]
+            if p[1] < q[2] and q[1] < p[2] and p[4] < q[3] and q[4] < p[3] then n = n + 1 end
+        end
+    end
+    return n
+end
+for _, area in ipairs({ "outgoing", "incoming", "notify", "heal" }) do
+    local prefix = BT.AREAS[area].prefix
+    BT.db[prefix .. "Style"] = "pop"
+    BT.db.popApart = false
+    for i = 1, 4 do BT:Emit(area, tostring(1000 + i), { 1, 1, 1 }) end
+    assert(overlapping(area) > 0, area .. ": without it, four hits at once land on one another")
+    clear()
+    BT.db.popApart = true
+    for i = 1, 4 do BT:Emit(area, tostring(1000 + i), { 1, 1, 1 }) end
+    assertEq(overlapping(area), 0, area .. ": with it, four hits at once all readable")
+    local first = BT.areas[area].active[1]
+    assertEq(first.px == 0 and first.py == -BT:AreaHeight(BT.areas[area]) * 0.475, true,
+        area .. ": the first keeps its own spot")
+    for _, o in ipairs(BT.areas[area].active) do
+        local h = BT:AreaHeight(BT.areas[area])
+        assert(o.py < 0 and o.py > -h, area .. ": moved, but still in the area")
+    end
+    -- Gone ones leave room: once they've faded, the next lands on its own spot again
+    Advance(BT.areas[area].active[1].duration + 0.1)
+    BT:Emit(area, "2000", { 1, 1, 1 })
+    assertEq(BT.areas[area].active[1].py, -BT:AreaHeight(BT.areas[area]) * 0.475, area .. ": room again")
+    clear()
+    BT.db[prefix .. "Style"] = "scroll"
+end
+-- A crit holding in place counts as taken too (centered Outgoing text: they'd share the middle)
+BT.db.outStyle, BT.db.popApart, BT.db.outAlign = "pop", true, "CENTER"
+BT:Emit("outgoing", "999", { 1, 1, 1 }, { crit = true })
+BT:Emit("outgoing", "123", { 1, 1, 1 })
+local crit, pop = BT.areas.outgoing.active[1], BT.areas.outgoing.active[2]
+assertEq(crit.sticky and pop.style == "pop", true, "a crit and a Pop line")
+local h = BT:AreaHeight(BT.areas.outgoing)
+local apartUp = math.abs(pop.py - -h / 2) >= (crit.size + pop.size) / 2
+local apartSide = math.abs(pop.px - -14) >= (crit.boxW + pop.boxW) / 2
+assert(apartUp or apartSide, "the Pop line keeps off the crit")
+BT.db.outAlign = "LEFT"
+-- A crowd: more than fit still all show, none lost
+clear()
+for i = 1, 40 do BT:Emit("outgoing", tostring(i), { 1, 1, 1 }) end
+assertEq(#BT.areas.outgoing.active, 40, "a crowd: every line still shows")
+math.random = realRandom
+BT.db.outStyle, BT.db.popApart = "scroll", false
+clear()
+
 step("share settings")
 local saved = {}
 for k, v in pairs(BT.db) do saved[k] = v end
@@ -2504,7 +2570,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 53, "the switches are there")
+assertEq(switches, 54, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then

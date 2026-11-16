@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.0
+
+- **New: "Keep Pop numbers apart"** (Motion tab). With Pop movement, three or four hits at once could land on the same spot and turn into an unreadable pile. Turn this on and a number that would land on top of one still showing moves to the nearest free spot instead, so every number stays readable. Pop still looks random, and crits that stay in place are kept clear too. Off to start with, so nothing changes unless you turn it on. (Thanks to Jarrique01 for the idea.)
+
 ## 1.16.5
 
 - **"Add up rapid hits" now works when the game hides the numbers.** Arcane Explosion, Blizzard and other area spells showed one number for every mob they hit, even with "Add up rapid hits" on. The game now hides most damage numbers from addons, so BattleText can't add them together, but hits of one spell that land together now share one line: it shows the latest hit's number and how many hits there were, like "Arcane Explosion 52 (3 hits)". When the numbers can be read, they're added up as before, like "Arcane Explosion 156 (x3)". "Ticks and area hits add up for" sets how long the line keeps counting. (Thanks to Farsenur for the report.)

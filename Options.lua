@@ -345,6 +345,9 @@ local function BuildMotion(p)
         fmt = "%.1f", zero = "Off", enabledIf = function() return BT.db.merge end,
         tip = "Ticks of your bleeds and DoTs, and the hits of an area spell, keep adding up on one line for this "
             .. "long. Off: as quickly as other hits. Needs Add up rapid hits." })
+    Setting(card, "Keep Pop numbers apart", COL2, -120, "popApart",
+        "With Pop movement, a number that would land on top of one still showing moves to the nearest "
+        .. "free spot instead, so every number stays readable.")
     CardNote(card, "How each area's lines move (Scroll, Pop, Fountain or Horizontal), which way, and whether they "
         .. "curve, is under Appearance on that area's own tab.", -156)
 end

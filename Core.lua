@@ -73,6 +73,7 @@ local DEFAULTS = {
     outline = "OUTLINE",      -- the outline round normal lines (one of BT.OUTLINES)
     critOutline = "OUTLINE",  -- and round crits
     sticky = true,            -- crits pop and hold in place
+    popApart = false,         -- Pop lines that would land on one another move to the nearest free spot
     iconZoom = false,         -- crop icons' edges so their art fills the square
     sizeByHit = false,        -- a big hit shows bigger than the hits before it, a small one smaller
     -- Spell (and skill) icons and names, per section of the options
@@ -614,6 +615,7 @@ function BT:Emit(areaKey, text, color, opts)
         local slot = 0
         while taken[slot] do slot = slot + 1 end
         o.slot = slot
+        o.boxW = self:LineWidth(o, size)
     elseif self:AreaStyle(a) ~= "scroll" then
         -- Each line its own place, so none waits for room
         local style, h = self:AreaStyle(a), self:AreaHeight(a)
@@ -627,6 +629,8 @@ function BT:Emit(areaKey, text, color, opts)
             duration = math.max(1.2, duration * 0.6)
             o.px = (math.random() - 0.5) * (a.def.dir == 0 and 120 or 50)
             o.py = -h * (0.25 + math.random() * 0.45)
+            o.boxW = self:LineWidth(o, size)
+            if self.db.popApart then o.px, o.py = self:FreeSpot(a, o, now) end
         elseif style == "fountain" then
             o.spread = 0.6 + math.random() * 0.6
         else
@@ -663,6 +667,66 @@ function BT:Emit(areaKey, text, color, opts)
         a.recent[opts.key] = { line = o, time = now, born = now, total = opts.amount or 0, count = 1, hidden = hidden }
     end
     return o
+end
+
+-- How wide a line's text is. A number the game hides can't be measured: then a guess.
+function BT:LineWidth(o, size)
+    local ok, w = pcall(o.text.GetStringWidth, o.text)
+    if ok and not IsSecret(w) and type(w) == "number" and w > 0 then return w end
+    return size * 3
+end
+
+-- A line's box at a place in its area: left, right, top, bottom (y up from the area's top, so
+-- negative), with a little room round it. Pop lines all drift up at the same pace, so where
+-- they started is enough to tell whether two of them cover each other.
+local function LineBox(o, x, y)
+    local w, half = o.boxW or o.size * 3, o.size / 2 + 2
+    local left = (o.anchor == "LEFT" and x) or (o.anchor == "RIGHT" and x - w) or x - w / 2
+    return left - 4, left + w + 4, y + half, y - half
+end
+
+local function Overlaps(l1, r1, t1, b1, l2, r2, t2, b2)
+    return l1 < r2 and l2 < r1 and b1 < t2 and b2 < t1
+end
+
+-- Keep Pop numbers apart: the line's own random spot if nothing's there, else the free spot
+-- nearest to it. Spots inside Pop's usual band come first; then the rest of the area, and a
+-- little wider. With no room anywhere it keeps its own spot.
+function BT:FreeSpot(a, o, now)
+    local h = self:AreaHeight(a)
+    local taken = {}
+    for _, other in ipairs(a.active) do
+        if now - other.start < other.duration then
+            if other.style == "pop" then
+                taken[#taken + 1] = { LineBox(other, other.px, other.py) }
+            elseif other.sticky then
+                -- (a crit that holds, where Animate puts it; it doesn't drift, so a little room below it)
+                local x, y = 0, other.size + other.slot * (other.size + 4)
+                if a.def.dir ~= 0 then x, y = -a.def.dir * 14, -h / 2 + other.slot * (other.size + 4) end
+                local l, r, t, b = LineBox(other, x, y)
+                taken[#taken + 1] = { l, r, t, b - 20 }
+            end
+        end
+    end
+    local function free(x, y)
+        local l, r, t, b = LineBox(o, x, y)
+        for _, box in ipairs(taken) do
+            if Overlaps(l, r, t, b, box[1], box[2], box[3], box[4]) then return false end
+        end
+        return true
+    end
+    if free(o.px, o.py) then return o.px, o.py end
+    local wide = a.def.dir == 0 and 60 or 25
+    local bestX, bestY, best
+    for y = -h * 0.05, -h * 0.95, -6 do
+        for x = -(wide + 60), wide + 60, 10 do
+            local cost = (x - o.px) ^ 2 + (y - o.py) ^ 2
+            if y > -h * 0.25 or y < -h * 0.70 or math.abs(x) > wide then cost = cost + 1e6 end
+            if (not best or cost < best) and free(x, y) then bestX, bestY, best = x, y, cost end
+        end
+    end
+    if best then return bestX, bestY end
+    return o.px, o.py
 end
 
 -- Moves every line to where it belongs at time `now`
