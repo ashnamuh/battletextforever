@@ -13,3 +13,4 @@ ignore:
   - DEVNOTES.md
   - CURSEFORGE.md
   - art
+  - .gitignore

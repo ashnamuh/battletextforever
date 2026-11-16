@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.19.0
+
+- **New: "Reset all"** (General tab, or type `/btf resetall`). Puts every setting back to how it started, colors, places and your Spells list included, after asking first. With "Settings for this character only" on, it resets just that character.
+- **Group healing is more accurate.** In a group, other players' heals on your party could take the place of your own and show as yours, while some of your hits went unshown. A heal on someone else now only shows as yours when it's your spell, your heal over time or your Tranquility.
+- **Hits on the mobs around you show again in some zones.** On maps where the game hides more from addons, BattleText couldn't tell which mob was attacking you or your pet, so hits on them could be missed. It now asks the game in another way that still works there.
+- **Your hits on other mobs aren't skipped when one of your lines is readable.** A readable combat line for your target no longer hides your numbers on the other mobs you're hitting.
+- **A spell that showed with no name for the rest of the session is fixed.** One unlucky moment (a Thorns answer landing right behind your Claw) could make BattleText think the spell was of the wrong school, and from then on it showed unnamed until you reloaded. It now waits to be sure, and corrects itself if it was wrong.
+- **Healing yourself with a vendor or quest giver targeted** names the heal (and follows your heal over time) as it should.
+- **Lots of crits at once stay in their area.** A burst of crits (Blizzard, Hurricane, Volley on a pack) used to pile up past the top of the area. Now as many stay as fit, and the oldest makes way.
+- **"Show sample text" in a fight** no longer adds its numbers to your fight summary or fires Overpower.
+- **Your own heals count in the fight summary** even when "Heals you get" is off or the spell is hidden on the Spells tab, as the tab says.
+- **Buffs you cast on friends** (like Power Word: Fortitude) aren't mistaken for buffs you put on yourself.
+- **Talent alerts (Riposte, Counterattack) work** without the game's old spellbook functions turned on.
+- **A druid's power gains don't name the wrong power** (mana in cat form said "Energy"). They show the number alone.
+- **Your pet's heals on you** no longer stop other players' heals on you from showing for a while.
+- **Spell icons that didn't load** the first time are looked up again a little later, instead of staying missing until /reload.
+- **The game's own numbers come back** properly when you turn "Hide the game's own numbers" off, even after a crash.
+- **"Show who you healed"** now also works on heals BattleText reads from the combat lines.
+- **Switching back to a target that still has combo points** no longer shows them again as a gain.
+- **`/btf debug` turns itself off** when you log in, so it can't be left recording by mistake.
+- Smoother in big fights: less work per line for fonts, Pop spots and group checks, and nothing keeps the combat lines on before you click Start.
+- Tooltips fixed: Seals (Judgement leaves your seal on), Add up rapid hits (hidden amounts show the latest hit and how many), Damage shields (named straight away), and Hide the game's own numbers / Experience (hiding the game's "+XP" hides all of its pop-up text in the world).
+
 ## 1.18.4
 
 - **Other players' hits on your target no longer show as yours when you're alone.** The game doesn't tell addons who hit what, so BattleText reads the numbers off your target. In a group, Start BattleText already left other people's hits out, but alone every hit on your target counted as yours, so a player outside your group hitting the same mob (or the same enemy player) showed up as your numbers. Now, once you've clicked Start BattleText, a hit alone also needs the game to say you did something just then: one of your attacks or spells, or your swing. Your damage shields (Thorns, Retribution Aura...) still show as before. One exception: on a mob your pet is fighting, every hit still shows, because the game gives no way to tell your pet's hits from anyone else's. Before you click Start, nothing changes. (Thanks to x4r3n for asking.)

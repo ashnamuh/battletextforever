@@ -146,6 +146,18 @@ local function AreaLook(p, y, prefix, curved, enabledIf, offNote)
     return d
 end
 
+-- Opens the game's color picker on color c ({ r, g, b }): pick(r, g, b) as it changes,
+-- cancel() if the player cancels
+local function PickColor(c, pick, cancel)
+    local picker = ColorPickerFrame
+    if not (picker and picker.SetupColorPickerAndShow) then return end
+    picker:SetupColorPickerAndShow({
+        r = c[1], g = c[2], b = c[3], hasOpacity = false,
+        swatchFunc = function() pick(picker:GetColorRGB()) end,
+        cancelFunc = cancel,
+    })
+end
+
 -- A color square that opens the game's color picker (its label works the same)
 local function Swatch(parent, text, x, y, key)
     local b = CreateFrame("Button", nil, parent)
@@ -162,22 +174,14 @@ local function Swatch(parent, text, x, y, key)
         b.fill:SetColorTexture(c[1], c[2], c[3], 1)
     end
     b:SetScript("OnClick", function()
-        local picker = ColorPickerFrame
-        if not (picker and picker.SetupColorPickerAndShow) then return end
-        local c = BT.TEXT_COLORS[key]
         local before = BT.db.colors[key]
-        picker:SetupColorPickerAndShow({
-            r = c[1], g = c[2], b = c[3], hasOpacity = false,
-            swatchFunc = function()
-                local r, g, bl = picker:GetColorRGB()
-                BT:SetColor(key, r, g, bl)
-                paint()
-            end,
-            cancelFunc = function()
-                if before then BT:SetColor(key, before[1], before[2], before[3]) else BT:SetColor(key) end
-                paint()
-            end,
-        })
+        PickColor(BT.TEXT_COLORS[key], function(r, g, bl)
+            BT:SetColor(key, r, g, bl)
+            paint()
+        end, function()
+            if before then BT:SetColor(key, before[1], before[2], before[3]) else BT:SetColor(key) end
+            paint()
+        end)
     end)
     T.Tooltip(b, text, "Click to pick a color.")
     AddRefresher(paint)
@@ -227,6 +231,17 @@ function BT:Confirm(text, yesLabel, onYes)
     return f
 end
 
+-- "Reset all" (the button and /btf resetall) asks first
+function BT:ConfirmResetAll()
+    local what = self:OwnSettings() and "this character's settings back to how they started"
+        or "every setting back to how it started"
+    self:Confirm(("Put %s? Colors, places and your Spells list too."):format(what),
+        "Reset all", function()
+            BT:ResetAll()
+            Print("every setting is back to how it started.")
+        end)
+end
+
 ---------------------------------------------------------------------------
 -- The pages. refs collects the widgets the window keeps a name for.
 ---------------------------------------------------------------------------
@@ -239,7 +254,8 @@ local function BuildGeneral(p, refs)
         .. "Closing the options locks them again.")
     Setting(card, "Hide the game's own numbers", 12, -56, "hideBlizzard",
         "Turns off the game's floating combat text so numbers aren't shown twice (and its \"+XP\" while Experience "
-        .. "is on in Notifications). Turn it off to bring them back. "
+        .. "is on in Notifications: the game has no setting for that alone, so all of its pop-up text in the world "
+        .. "goes with it). Turn it off to bring them back. "
         .. "During a fight, the change waits until the fight ends.")
     Setting(card, "Minimap button", COL2, -56, "minimap",
         "The BattleText button on the minimap: left-click opens the options, right-click shows sample text.")
@@ -267,7 +283,12 @@ local function BuildGeneral(p, refs)
         BT:Confirm("Move all four text areas back to where they started?", "Reset positions",
             function() BT:ResetPositions() end)
     end)
-    refs.sampleButton, refs.resetButton = sample, reset
+    local resetAll = FlatButton(card, "Reset all", 90)
+    resetAll:SetPoint("LEFT", reset, "RIGHT", 8, 0)
+    resetAll:SetScript("OnClick", function() BT:ConfirmResetAll() end)
+    T.Tooltip(resetAll, nil, "Every setting back to how it started: options, colors, places and the Spells list "
+        .. "(also /btf resetall). With \"Settings for this character only\" on, just this character's.")
+    refs.sampleButton, refs.resetButton, refs.resetAllButton = sample, reset, resetAll
 
     local know = Card(p, "Good to know", 0, -186, PAGE_W, 124)
     local text = Text(know, "Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
@@ -336,7 +357,8 @@ local function BuildMotion(p)
         "Critical hits jump out and stay in place for a moment instead of moving with the rest, "
         .. "whatever the area's movement.")
     Setting(card, "Add up rapid hits", COL2, -30, "merge",
-        "Hits from the same spell that land together are shown as one total, like \"Swipe 150 (x3)\".")
+        "Hits from the same spell that land together are shown as one line, like \"Swipe 150 (x3)\". When the game "
+            .. "hides the amounts, the line shows the latest hit and how many landed, like \"Swipe 50 (3 hits)\".")
     Slider(card, "Time on screen", 12, -64, "scrollTime", { suffix = " sec", step = 0.5, fmt = "%.1f",
         tip = "How long a line takes to cross its area. Notifications move a little faster, and Pop lines "
             .. "stay a little over half as long." })
@@ -369,7 +391,7 @@ local function BuildOutgoing(p)
         .. "lines; when it doesn't, your pet's hits can't be told from yours and show with them.")
     Setting(card, "Damage shields", 12, -82, "outShields",
         "What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura "
-        .. "(learned from their first two hits), and gear that stings back. Off: hidden.", damage)
+        .. "(named as soon as they hit), and gear that stings back. Off: hidden.", damage)
     Setting(card, "Name seal hits", COL2, -82, "outSeals",
         "Paladins: the Holy hit of Seal of Righteousness or Seal of Command that lands with your swing shows the "
         .. "seal's name and icon. Off: it shows as a plain number.", damage)
@@ -423,7 +445,8 @@ local function BuildNotifications(p, refs)
     Setting(card, "Killing blows", COL2, -30, "nKill",
         "\"Killing blow!\" when your hit kills. Only when the game lets BattleText read its combat lines "
         .. "(it often hides them).")
-    Setting(card, "Experience", 12, -56, "nXP", "The experience you gain, like \"+103 XP\".")
+    Setting(card, "Experience", 12, -56, "nXP", "The experience you gain, like \"+103 XP\". With \"Hide the game's own numbers\" on, the game's "
+        .. "own \"+XP\" goes, and with it all of the game's pop-up text in the world.")
     Setting(card, "Reputation", COL2, -56, "nRep", "Reputation you gain or lose with a faction.")
     Setting(card, "Honor", 12, -82, "nHonor", "Honor you gain.")
     Setting(card, "Loot", COL2, -82, "nLoot", "Items you loot, with how many.")
@@ -431,7 +454,7 @@ local function BuildNotifications(p, refs)
     Setting(card, "Skill ups", COL2, -108, "nSkill", "A skill going up, like First Aid or a weapon skill.")
     Setting(card, "Seals", 12, -134, "nSeals",
         "Paladins: a line when a seal goes on or comes off. In a fight the game hides your buffs, so a seal "
-        .. "coming off is worked out: Judgement uses it up, a new seal replaces it, or its 30 seconds run out.")
+        .. "coming off is worked out: a new seal replaces it, or its 30 seconds run out. Judgement leaves it on.")
     Setting(card, "Buffs", COL2, -134, "nBuffs",
         "A line when a buff goes on or comes off. The game hides your buffs during a fight: there, a buff you put on "
         .. "yourself (Slice and Dice, Evasion...) shows as you cast it, and the rest of what changed shows when the fight "
@@ -573,22 +596,14 @@ local function BuildSpells(p, refs)
                 render()
                 return
             end
-            local picker = ColorPickerFrame
-            if not (picker and picker.SetupColorPickerAndShow) then return end
-            local c = rule.color or BT.TEXT_COLORS.spell
             local before = rule.color
-            picker:SetupColorPickerAndShow({
-                r = c[1], g = c[2], b = c[3], hasOpacity = false,
-                swatchFunc = function()
-                    local r, g, bl = picker:GetColorRGB()
-                    BT:SetSpellRule(rule, "color", { r, g, bl })
-                    render()
-                end,
-                cancelFunc = function()
-                    BT:SetSpellRule(rule, "color", before)
-                    render()
-                end,
-            })
+            PickColor(rule.color or BT.TEXT_COLORS.spell, function(r, g, bl)
+                BT:SetSpellRule(rule, "color", { r, g, bl })
+                render()
+            end, function()
+                BT:SetSpellRule(rule, "color", before)
+                render()
+            end)
         end)
         T.Tooltip(sw, "Color", "Click to pick this spell's own color. Right-click: its usual color again.")
         row.swatch = sw

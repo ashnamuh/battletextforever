@@ -23,13 +23,21 @@ print("STEP logging in during a fight, with the Combat Log tab showing")
 ClickTab(ChatFrame2Tab)
 STATE.filterApplied = false
 COMBAT = true
-BattleTextForeverDB = { loginMessage = false }   -- (turned off: no line in chat)
+BattleTextForeverDB = { loginMessage = false, debug = true }   -- (turned off: no line in chat; debug left on last time)
 fire("ADDON_LOADED", ADDON)
 fire("PLAYER_LOGIN")
+assertEq(BT.db.debug, false, "debug from last session is off again (BT-024)")
 for _, line in ipairs(LOG) do assert(not line:find("loaded. Type /btf", 1, true), "login message turned off: " .. line) end
 fire("PLAYER_ENTERING_WORLD")
 fire("UNIT_COMBAT", "player", "WOUND", "", 23, 1)
-Advance(4)
+do   -- Before Start, nothing keeps the game writing lines all session (BT-026)
+    local was = STATE.filteredEvents
+    STATE.filteredEvents = false
+    Advance(4)
+    assertEq(BT.started or false, false, "(not started yet)")
+    assertEq(STATE.filteredEvents, false, "the lines aren't kept on before Start is clicked")
+    STATE.filteredEvents = was
+end
 assertEq(table.concat(BLOCKED, ", "), "", "protected frame touched in combat")
 assertEq(BT.startButton, nil, "no Start button yet")
 COMBAT = false

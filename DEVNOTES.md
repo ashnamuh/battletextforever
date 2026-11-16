@@ -61,7 +61,31 @@ Scrolling combat text for **World of Warcraft: Forever** (interface 16001, clien
 - `Bindings.xml` — keybindings (loaded automatically): `CLICK BattleTextForeverStart:LeftButton` and `BATTLETEXTFOREVER_OPTIONS`.
 - `Media/Icon.tga` — the logo mark (64×64 TGA). `art/` — logo sources (not shipped): `logo.svg`, `logo.png` (CurseForge and README), `icon.svg`.
 - `tests/` — offline tests and the layout renderer (not shipped).
-- `.github/` — `test.yml` (tests on every push), `release.yml` (on a `v*` tag: tests, package, upload to CurseForge; needs the `CF_API_KEY` secret), `add-to-project.yml` (new issues go to the GitHub project; needs `ADD_TO_PROJECT_PAT`), issue forms.
+- `.github/` — `test.yml` (tests on every push), `release.yml` (on a `v*` tag: tests, package, upload to CurseForge; needs the `CF_API_KEY` secret), `add-to-project.yml` (new issues go to the GitHub project; needs `ADD_TO_PROJECT_PAT`), `workflows/author-replied-trigger.yml` (needs `PROJECTS_TOKEN`; until 1.19.0 it sat in the repo root with a token written into it and shipped in the zip: **never put a token in a file**, and a test fails the build if one is found in a shipped file), issue forms. `.pkgmeta` also leaves out `.gitignore`.
+- 1.19.0 (a full code review; IDs from the review):
+  - Restricted maps (BT-003): `UnitIsUnit` on a compound token (`nameplate3target`, `pettarget`) can be secret there. `TargetIs(unit, who)` asks `UnitIsUnit(unit .. "target", who)` and, when that's secret, `UnitThreatSituation(who, unit) >= 2`; `PetsTarget` falls back to the pet having any threat on it. Used by `Fighting`, `PetOn`, `ShieldOn` and the other-mob check. The stub makes compound tokens secret with `STATE.restrictedMap`. `IsEnglish()` replaces the four locale checks.
+  - Group heals (BT-002): in `ResolveFrame`, a grouped heal that isn't your cast's, a tick of yours (`TickFor`) or an area heal of yours (`AreaFor`) takes no credit and isn't shown ("no heal of yours with it"). Other people's heals were eating your lines' credits.
+  - Readable lines (BT-015): `NoteReadLine(destGUID)` keeps `readOn[guid]` (pruned after `CREDIT_TIME`); `ReadLineHas(unit)` only skips `UNIT_COMBAT` on a unit whose GUID a line of yours just named (was: any line skipped every unit). No GUID: as before.
+  - Turned off (BT-004): `WHILE_ON` events return at once while `db.enabled` is off (combat, casts, swings, loot, XP chat...), and `PlayAlert` stays quiet. XP is still followed (`OnXP`) so turning it back on doesn't show a jump.
+  - Cost (BT-005, 022, 023, 026): `InGroup()` cached per `GetTime()`, cleared by `GROUP_ROSTER_UPDATE`. `OnUnitHit` does its cheap checks first. `FontPath` cached by font and list size; `Emit` skips `SetFont` when the pooled line has the same path, size and flags. `FreeSpot` sorts the candidate spots nearest first and checks at most `FREE_SPOT_CHECKS` (120). The 3s `KeepLogFlowing` ticker does nothing until `BT.started`.
+  - Spell school (BT-006): `NoteSchool(id, mask)` learns `spellSchool[id]` only after two frames in a row agree (`schoolSeen`). A first hit turned away only by the learned school (`otherSchool`) counts toward replacing it, so a wrong school no longer sticks for the session.
+  - `HealGoesToTarget` (BT-007) uses `UnitCanAssist("player", "target")` (a vendor or quest giver can't be healed: the game self-casts), else `not UnitCanAttack`.
+  - Sticky crits (BT-008): at most `floor(AreaHeight / (size + 4))` slots; past that the oldest holding crit ends (its `duration` cut to now) and the new one takes its slot.
+  - `self.testing` (BT-009): `CountFight`, `CountSpell` and `React` ignore sample text.
+  - Self heals named from a cast (BT-010) are counted before `inHeals` / a hide rule returns.
+  - `learnedBuffs` (BT-012): `lastCast.onFriend` (a friend targeted at cast time) blocks learning, and a learned name only counts in `IsSelfBuffCast` when `HealGoesToTarget()` is false. Reset all clears it.
+  - `HasReactive` (BT-013) asks `C_SpellBook.IsSpellKnown(id, Enum.SpellBookSpellBank.Player)` first; the globals only exist with `loadDeprecationFallbacks`.
+  - `ForgetOldDots` (BT-014) drops `self.struck` entries older than 10s.
+  - Pet heals on you (BT-016) no longer call `NoteLogIncoming("heal")`.
+  - Power word (BT-017): `PowerName` returns nil for druids (`UNIT_COMBAT ENERGIZE` doesn't say which power).
+  - Icons by name (BT-019): a miss is asked again after 10s (`iconMissAt`); by ID a miss is still kept.
+  - CVars (BT-020): with no saved original and the world text already at `XP_HIDDEN`, the original saved is `C_CVar.GetCVarDefault`. A "0" is left alone (players turn those off themselves).
+  - `ScanShield` runs once at `PLAYER_REGEN_ENABLED` (BT-021). `db.debug` is set false at `PLAYER_LOGIN` (BT-024).
+  - Reset all (BT-028): `BT:ResetAll()` restores the game's CVars (`ApplyBlizzardText(true)`), empties `BT.db` in place (shared or this character's own), `FillDefaults`, `ApplySettings`, `RefreshConfig`. `ConfirmResetAll` (Options.lua) asks first; the General tab's "Reset all" button and `/btf resetall`.
+  - Heal names on readable lines (BT-029): `UnitFromGUID(destGUID)` (`UnitTokenFromGUID`) then `HealedName`.
+  - Combo points (BT-030): `PLAYER_TARGET_CHANGED` sets `self.combo` to the current count quietly (`QuietComboPoints`).
+  - Options: `PickColor` shared by the color squares and the Spells rows; three tooltips corrected (Judgement leaves the seal on, hidden amounts merge as "(N hits)", shields are named without learning); the XP tooltips say all world text is hidden with it.
+  - Not changed: `T.List`'s full-screen click catcher in Theme.lua (BT-031), since Theme.lua is shared with the other three addons and it only exists while a list is open.
 
 ## Where the combat data comes from
 

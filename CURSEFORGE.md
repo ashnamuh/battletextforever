@@ -70,8 +70,9 @@ Go to **Options → Keybindings → BattleText Forever**:
 | `/btf test` | Show sample text |
 | `/btf lock` · `/btf unlock` | Lock or unlock the text areas |
 | `/btf reset` | Put the text areas back where they started |
+| `/btf resetall` | Put every setting back to how it started (asks first) |
 | `/btf on` · `/btf off` | Turn the text on or off |
-| `/btf debug` | Start or stop recording the combat lines the game sends (for bug reports) |
+| `/btf debug` | Start or stop recording the combat lines the game sends (for bug reports; it turns itself off when you log in) |
 | `/btf copy` | Show the recorded lines in a box you can copy from |
 | `/btf last` | Your last fight, spell by spell |
 | `/btf check` | Check the spells, texts and icons BattleText uses against your game, and report anything missing |

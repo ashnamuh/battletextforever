@@ -176,12 +176,12 @@ BT.OUTLINES = {
     { name = "Shadow", flags = "SHADOW" },   -- no outline: a drop shadow
 }
 
--- How the lines in an area move
 -- Which side the lines in an area line up on
 BT.ALIGNS = {
     { key = "LEFT", name = "Left" }, { key = "CENTER", name = "Center" }, { key = "RIGHT", name = "Right" },
 }
 
+-- How the lines in an area move
 BT.STYLES = {
     { key = "scroll", name = "Scroll" },           -- up or down the area, one after another
     { key = "pop", name = "Pop" },                 -- jump out somewhere in the area and fade
@@ -214,6 +214,36 @@ local function Flag(fn, ...)
     if not fn then return false end
     local ok, v = pcall(fn, ...)
     return ok and not IsSecret(v) and (v == true or v == 1)
+end
+
+-- Whether a unit's target is `who` ("player" or "pet"). On an addon-restricted map (dungeons,
+-- raids, PvP) the game hides every comparison of a compound token ("nameplate3target"); then the
+-- threat table answers instead: a mob you (or your pet) are tanking is after you.
+local function TargetIs(unit, who)
+    if not UnitIsUnit then return false end
+    local ok, v = pcall(UnitIsUnit, unit .. "target", who)
+    if ok and not IsSecret(v) then return v == true end
+    if not ok or not UnitThreatSituation then return false end
+    local okThreat, status = pcall(UnitThreatSituation, who, unit)
+    status = okThreat and Num(status) or nil
+    return status ~= nil and status >= 2
+end
+local function TargetsYou(unit) return TargetIs(unit, "player") end
+-- Whether a unit is your pet's target. Hidden on those maps too ("pettarget" is compound): then
+-- a unit that has your pet on its threat table is one your pet is fighting.
+local function PetsTarget(unit)
+    if not UnitIsUnit then return false end
+    local ok, v = pcall(UnitIsUnit, unit, "pettarget")
+    if ok and not IsSecret(v) then return v == true end
+    if not ok or not UnitThreatSituation then return false end
+    local okThreat, status = pcall(UnitThreatSituation, "pet", unit)
+    return okThreat and Num(status) ~= nil
+end
+BT.TargetIs = TargetIs
+
+-- The game's language is English (the spell lists' names are English)
+local function IsEnglish()
+    return not GetLocale or GetLocale() == "enUS" or GetLocale() == "enGB"
 end
 
 local function FillDefaults(t, defaults)
@@ -320,10 +350,16 @@ function BT:AddSharedSounds(lib)
 end
 
 function BT:FontPath()
+    -- (kept until the font or the list changes: every new line asks)
+    local cache = self.fontPathCache
+    if cache and cache.font == self.db.font and cache.count == #self.FONTS then return cache.path end
+    local path
     for _, f in ipairs(self.FONTS) do
-        if f.name == self.db.font and f.path then return f.path end
+        if f.name == self.db.font and f.path then path = f.path break end
     end
-    return Str(STANDARD_TEXT_FONT) or "Fonts\\FRIZQT__.TTF"
+    path = path or Str(STANDARD_TEXT_FONT) or "Fonts\\FRIZQT__.TTF"
+    self.fontPathCache = { font = self.db.font, count = #self.FONTS, path = path }
+    return path
 end
 
 -- The font flags for a line: crits have their own outline
@@ -386,7 +422,6 @@ function BT:StyleName(key)
     return self.STYLES[1].name
 end
 
--- How an area's lines move: a key of BT.STYLES
 -- Which side an area's lines line up on: its setting, else the area's own
 function BT:AreaJustify(a)
     local align = self:AreaSetting(a, "Align")
@@ -403,6 +438,7 @@ function BT:AlignName(key)
     return key
 end
 
+-- How an area's lines move: a key of BT.STYLES
 function BT:AreaStyle(a)
     local style = self:AreaSetting(a, "Style")
     for _, s in ipairs(self.STYLES) do
@@ -518,6 +554,13 @@ function BT:HealedName(unit)
     return " |cffc9f7cc" .. name .. "|r"
 end
 
+-- The unit a combat line's GUID belongs to (your target, a party member...), when the game says
+function BT:UnitFromGUID(guid)
+    if type(guid) ~= "string" or guid == "" or not UnitTokenFromGUID then return nil end
+    local ok, unit = pcall(UnitTokenFromGUID, guid)
+    return ok and Str(unit) or nil
+end
+
 -- Whether a heal of n is big enough to show (a hidden amount always is)
 function BT:HealShown(n)
     return type(n) ~= "number" or n >= (self.db.minHeal or 0)
@@ -575,8 +618,13 @@ function BT:Emit(areaKey, text, color, opts)
     local flags = self:OutlineFlags(opts.crit)
     local shadow = flags == "SHADOW"
     if shadow then flags = "" end
-    if not o.text:SetFont(self:FontPath(), size, flags) and STANDARD_TEXT_FONT then
-        o.text:SetFont(STANDARD_TEXT_FONT, size, flags)
+    -- A line from the pool often has this font already: setting it again is wasted work
+    local path = self:FontPath()
+    if o.fontPath ~= path or o.fontSize ~= size or o.fontFlags ~= flags then
+        if not o.text:SetFont(path, size, flags) and STANDARD_TEXT_FONT then
+            o.text:SetFont(STANDARD_TEXT_FONT, size, flags)
+        end
+        o.fontPath, o.fontSize, o.fontFlags = path, size, flags
     end
     if shadow then
         local d = math.max(1, math.floor(size / 12 + 0.5))
@@ -611,12 +659,22 @@ function BT:Emit(areaKey, text, color, opts)
     if o.sticky then
         o.start, o.duration = now, 1.7
         -- The lowest free place among the crits still holding
-        local taken = {}
+        local taken, oldest = {}, nil
         for _, other in ipairs(a.active) do
-            if other.sticky and now - other.start < other.duration then taken[other.slot] = true end
+            if other.sticky and now - other.start < other.duration then
+                taken[other.slot] = true
+                if not oldest or other.start < oldest.start then oldest = other end
+            end
         end
         local slot = 0
         while taken[slot] do slot = slot + 1 end
+        -- As many as fit in the area: past that, the oldest crit makes way (a burst of area
+        -- crits used to stack out of the area and over the next one)
+        local most = math.max(1, math.floor(self:AreaHeight(a) / (size + 4)))
+        if slot >= most and oldest then
+            slot = oldest.slot
+            oldest.duration = now - oldest.start
+        end
         o.slot = slot
         o.boxW = self:LineWidth(o, size)
     elseif self:AreaStyle(a) ~= "scroll" then
@@ -695,6 +753,7 @@ end
 -- Keep Pop numbers apart: the line's own random spot if nothing's there, else the free spot
 -- nearest to it. Spots inside Pop's usual band come first; then the rest of the area, and a
 -- little wider. With no room anywhere it keeps its own spot.
+local FREE_SPOT_CHECKS = 120
 function BT:FreeSpot(a, o, now)
     local h = self:AreaHeight(a)
     local taken = {}
@@ -718,17 +777,26 @@ function BT:FreeSpot(a, o, now)
         end
         return true
     end
+    self.freeSpotChecks = 1
     if free(o.px, o.py) then return o.px, o.py end
+    -- The places nearest the random one first, and the first free one wins. Checked at most
+    -- FREE_SPOT_CHECKS times: in a busy fight every place was checked against every line (thousands
+    -- of checks for one line); past that it stays where it landed.
     local wide = a.def.dir == 0 and 60 or 25
-    local bestX, bestY, best
+    local spots = {}
     for y = -h * 0.05, -h * 0.95, -6 do
         for x = -(wide + 60), wide + 60, 10 do
             local cost = (x - o.px) ^ 2 + (y - o.py) ^ 2
             if y > -h * 0.25 or y < -h * 0.70 or math.abs(x) > wide then cost = cost + 1e6 end
-            if (not best or cost < best) and free(x, y) then bestX, bestY, best = x, y, cost end
+            spots[#spots + 1] = { x, y, cost }
         end
     end
-    if best then return bestX, bestY end
+    table.sort(spots, function(p, q) return p[3] < q[3] end)
+    for i = 1, math.min(#spots, FREE_SPOT_CHECKS) do
+        self.freeSpotChecks = self.freeSpotChecks + 1
+        local spot = spots[i]
+        if free(spot[1], spot[2]) then return spot[1], spot[2] end
+    end
     return o.px, o.py
 end
 
@@ -817,6 +885,10 @@ function BT:IconText(spell)
     if not spell then return "" end
     self.iconCache = self.iconCache or {}
     local cached = self.iconCache[spell]
+    -- A name the game couldn't place just then (its data not loaded yet) is asked again
+    -- a little later, rather than left without an icon until /reload
+    local missAt = self.iconMissAt and self.iconMissAt[spell]
+    if cached == false and missAt and GetTime() - missAt >= 10 then cached = nil end
     if cached == nil then
         cached = false
         if C_Spell and C_Spell.GetSpellTexture then
@@ -824,6 +896,10 @@ function BT:IconText(spell)
             if ok and not IsSecret(tex) and tex then cached = Num(tex) or Str(tex) or false end
         end
         self.iconCache[spell] = cached
+        if type(spell) == "string" then
+            self.iconMissAt = self.iconMissAt or {}
+            self.iconMissAt[spell] = (not cached) and GetTime() or nil
+        end
     end
     return cached and self:IconTag(cached) or ""
 end
@@ -899,14 +975,14 @@ end
 
 -- The fight's totals, for the summary when it ends (only numbers the game lets be read)
 function BT:CountFight(what, n)
-    local f = self.fight
+    local f = not self.testing and self.fight   -- (sample text isn't the fight's)
     if f and type(n) == "number" and n > 0 then f[what] = f[what] + n end
 end
 
 -- The same, by spell, for /btf last. name: what the hit was named (or "Auto attack",
 -- "Unnamed Fire"); heal: a heal; icon: as text, for the window.
 function BT:CountSpell(name, n, crit, heal, icon)
-    local f = self.fight
+    local f = not self.testing and self.fight
     if not f or type(n) ~= "number" or n <= 0 or not name then return end
     f.spells = f.spells or {}
     local key = (heal and "heal:" or "damage:") .. name
@@ -1020,7 +1096,7 @@ end
 
 -- A sound for a crit or a killing blow (never more than one at a time)
 function BT:PlayAlert(what)
-    if self.testing then return end
+    if self.testing or not self.db.enabled then return end
     local now = GetTime()
     self.alertAt = self.alertAt or {}
     if self.alertAt[what] and now - self.alertAt[what] < 0.3 then return end
@@ -1094,8 +1170,8 @@ function BT:ShowCombat(info)
                 self:NoteSelfHeal(info.amount, info.overheal)
                 self:CountFight("heal", info.amount)
                 self:CountSpell(info.spell or "Unnamed heal", info.amount, info.crit, true, spellIcon)
-            else
-                self:NoteLogIncoming("heal")
+            elseif not pet then
+                self:NoteLogIncoming("heal")   -- (your pet's heal on you comes with "My actions" + Pet)
             end
             if nothing or not self:HealShown(info.amount) or (rule and rule.hide) then return true end
             if db.inHeals then
@@ -1113,7 +1189,9 @@ function BT:ShowCombat(info)
             if pet and not db.outPet then return true end
             if rule and rule.hide then return true end
             if db.outHeals and not nothing and self:HealShown(info.amount) then
-                self:Emit(self:HealArea("outgoing"), outLabel .. "+" .. Commas(info.amount) .. over, healColor,
+                -- Who you healed, as on the heals that come without a line (Show who you healed)
+                local who = mine and self:HealedName(self:UnitFromGUID(info.destGUID)) or ""
+                self:Emit(self:HealArea("outgoing"), outLabel .. "+" .. Commas(info.amount) .. who .. over, healColor,
                     { crit = info.crit, amount = info.amount })
             end
             return true
@@ -1204,8 +1282,10 @@ end
 
 -- A helpful spell goes to your target when it's a friend that isn't you; else it's on you
 function BT:HealGoesToTarget()
-    return Flag(UnitExists, "target") and not Flag(UnitIsUnit, "target", "player")
-        and not Flag(UnitCanAttack, "player", "target")
+    if not Flag(UnitExists, "target") or Flag(UnitIsUnit, "target", "player") then return false end
+    -- A vendor, a quest giver or a critter can't be healed: the game casts it on you instead
+    if UnitCanAssist then return Flag(UnitCanAssist, "player", "target") end
+    return not Flag(UnitCanAttack, "player", "target")
 end
 
 -- A tick of a heal over time you put on yourself (Rejuvenation, Renew): a heal on you on its
@@ -1246,8 +1326,12 @@ end
 
 -- UNIT_COMBAT for yourself: damage, heals and power you take, with no spell
 -- names. Used for whatever the combat log isn't delivering.
+-- (Not for a druid: UNIT_COMBAT doesn't say which power, and a druid's changes with the
+-- form: mana gained in cat form was called energy.)
 local function PowerName()
     if not UnitPowerType then return nil end
+    local okClass, _, class = pcall(UnitClass, "player")
+    if not okClass or Str(class) == "DRUID" then return nil end
     local ok, _, token = pcall(UnitPowerType, "player")
     token = ok and Str(token) or nil
     return token and Str(_G[token]) or nil
@@ -1302,9 +1386,10 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             end
         end
     elseif action == "HEAL" then
-        if self:LogCovers("heal") or not db.inHeals then return end
+        if self:LogCovers("heal") then return end
         -- Your own heals on yourself also come from the combat log, with the
         -- spell's name. Wait a moment to see whether this is one of those.
+        -- (Even with "Heals you get" off: a heal of yours still counts in the fight.)
         local at = GetTime()
         local function show()
             if BT:TakeSelfHeal(n) then return end   -- the log's line showed it, with the spell's name
@@ -1314,14 +1399,14 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             local after, color = "", C.heal
             if cast then
                 local rule = BT:SpellRule(cast.name)
-                if rule and rule.hide then return end
-                if rule and rule.color then color = rule.color end
-                if n and n > 0 then
+                if n and n > 0 then   -- counted before any setting hides it, as everywhere else
                     BT:CountFight("heal", n)
                     BT:CountSpell(cast.name, n, crit, true, BT:IconText(cast.id))
                 end
+                if not BT.db.inHeals or (rule and rule.hide) then return end
+                if rule and rule.color then color = rule.color end
                 after = SpellAfter(BT:SpellParts("heal", BT:IconText(cast.id), cast.name))
-            elseif not BT.db.inOtherHeals then
+            elseif not BT.db.inHeals or not BT.db.inOtherHeals then
                 return   -- (its number is often hidden, so "Hide heals below" can't catch it)
             end
             if secret then
@@ -1494,7 +1579,7 @@ end
 -- has given the ID to another spell, it's left out).
 function BT:SpellLists()
     if self.periodic then return self.periodic, self.shields end
-    local english = not GetLocale or GetLocale() == "enUS" or GetLocale() == "enGB"
+    local english = IsEnglish()
     local function names(entry)
         local out = { entry[2] }
         local name = SpellName(entry[1])
@@ -1540,7 +1625,7 @@ end
 -- Buffs you cast on yourself, by name (English, and the game's language)
 function BT:SelfBuffList()
     if self.selfBuffs then return self.selfBuffs end
-    local english = not GetLocale or GetLocale() == "enUS" or GetLocale() == "enGB"
+    local english = IsEnglish()
     self.selfBuffs = {}
     for _, e in ipairs(SELF_BUFFS) do
         self.selfBuffs[e[2]] = true
@@ -1557,13 +1642,16 @@ function BT:IsSelfBuffCast(id, name)
         local ok, yes = pcall(C_Spell.IsSelfBuff, id)
         if ok and yes == true then return true end
     end
-    return self:SelfBuffList()[name] == true or (self.db.learnedBuffs and self.db.learnedBuffs[name] == true) or false
+    if self:SelfBuffList()[name] == true then return true end
+    -- A learned one may be a buff you can put on others too (Power Word: Fortitude): with a
+    -- friend targeted, it went to them
+    return (self.db.learnedBuffs and self.db.learnedBuffs[name] == true and not self:HealGoesToTarget()) or false
 end
 
 -- The seals by name (English, and the game's language), and Judgement's names
 function BT:SealLists()
     if self.seals then return self.seals, self.judgement end
-    local english = not GetLocale or GetLocale() == "enUS" or GetLocale() == "enGB"
+    local english = IsEnglish()
     local function names(id, name)
         local out = { name }
         local own = SpellName(id)
@@ -1653,7 +1741,8 @@ function BT:SeenBuffs(now)
     self.fightBuffs = nil
     -- A buff that turns up as you cast a spell of its name is one you put on yourself
     local cast = self.lastCast
-    if before and cast and GetTime() - cast.at < 3 and now[cast.name] and not before[cast.name] then
+    -- (not when a friend was targeted: then it may be a buff for others that you also have)
+    if before and cast and not cast.onFriend and GetTime() - cast.at < 3 and now[cast.name] and not before[cast.name] then
         self.db.learnedBuffs = self.db.learnedBuffs or {}
         self.db.learnedBuffs[cast.name] = true
     end
@@ -1689,7 +1778,15 @@ function BT:HasReactive(e)
         level = okLevel and Num(level) or nil
         return level == nil or level >= e[5]
     end
-    for _, known in pairs({ IsPlayerSpell or false, IsSpellKnown or false }) do
+    -- C_SpellBook's is the supported one; the globals exist only with the game's
+    -- deprecation fallbacks loaded (a setting)
+    local spellBook = C_SpellBook and C_SpellBook.IsSpellKnown
+    local checks = {
+        spellBook and function(id) return spellBook(id, Enum and Enum.SpellBookSpellBank
+            and Enum.SpellBookSpellBank.Player or 0) end or false,
+        IsPlayerSpell or false, IsSpellKnown or false,
+    }
+    for _, known in ipairs(checks) do
         local okKnown, yes = false, nil
         if known then okKnown, yes = pcall(known, e[1]) end
         if okKnown and not IsSecret(yes) and yes == true then return true end
@@ -1700,7 +1797,7 @@ end
 -- Something happened that opens an ability of yours ("dodged", "avoided", "parried"
 -- as in REACTIVE_SPELLS): "Overpower!" in Notifications
 function BT:React(what)
-    if not self.db.nAlerts then return end
+    if self.testing or not self.db.nAlerts then return end   -- (a sample dodge isn't a real one)
     for _, e in ipairs(REACTIVE_SPELLS) do
         if e[4] == what and self:HasReactive(e) then self:Alert(e[1], SpellName(e[1]) or e[2]) end
     end
@@ -1847,6 +1944,12 @@ local function ComboPoints()
     return n, (most and most > 0) and most or 5
 end
 
+-- A new target: the points on it (back to one that still has some) aren't a gain
+function BT:QuietComboPoints()
+    local n = ComboPoints()
+    if n ~= nil then self.combo = n end
+end
+
 function BT:OnComboPoints()
     local n, most = ComboPoints()
     if n == nil then return end
@@ -1937,7 +2040,7 @@ function BT:ShieldOn(h)
     if h.kind ~= "damage" then return nil end   -- (with "Damage shields" off it's still named, then hidden)
     local mask = Num(h.school)
     if not mask or mask == 1 then return nil end
-    if not Flag(UnitIsUnit, h.unit .. "target", "player") then return nil end
+    if not TargetsYou(h.unit) then return nil end
     for name, shield in pairs(self.buffShields or {}) do
         -- (a readable amount that isn't the one it's known to hit for is something else)
         local known = self.db.shieldAmounts[name]
@@ -2012,19 +2115,25 @@ end
 function BT:SwingLanded(key, at) self:Resolved(key, at) end
 function BT:BlowLanded(at) self:Resolved(nil, at) end
 
+-- (asked once a frame: a raid sends many UNIT_COMBAT events in one)
 function BT:InGroup()
-    return Flag(IsInGroup) or Flag(IsInRaid) or Flag(UnitExists, "party1")
+    local now = GetTime()
+    if self.groupAt ~= now then
+        self.groupAt = now
+        self.grouped = Flag(IsInGroup) or Flag(IsInRaid) or Flag(UnitExists, "party1")
+    end
+    return self.grouped
 end
 
 -- A unit you're fighting: your target, or one that's after you or your pet
 local function Fighting(unit)
-    return Flag(UnitIsUnit, unit, "target") or Flag(UnitIsUnit, unit .. "target", "player")
-        or Flag(UnitIsUnit, unit, "pettarget") or Flag(UnitIsUnit, unit .. "target", "pet")
+    return Flag(UnitIsUnit, unit, "target") or TargetsYou(unit)
+        or PetsTarget(unit) or (Flag(UnitExists, "pet") and TargetIs(unit, "pet"))
 end
 
 -- A unit your pet is fighting: the pet's target, or one that's after the pet
 local function PetOn(unit)
-    return Flag(UnitExists, "pet") and (Flag(UnitIsUnit, unit, "pettarget") or Flag(UnitIsUnit, unit .. "target", "pet"))
+    return Flag(UnitExists, "pet") and (PetsTarget(unit) or TargetIs(unit, "pet"))
 end
 
 -- What to know a unit by from one moment to the next: its GUID, or "target"
@@ -2263,7 +2372,7 @@ function BT:OnSpellcast(spellId)
         self.buffShields = self.buffShields or {}
         self.buffShields[name] = { name = name, id = id, school = shields[name].school }
     end
-    self.lastCast = { name = name, at = GetTime() }
+    self.lastCast = { name = name, at = GetTime(), onFriend = self:HealGoesToTarget() }
     self:NoteHealCast(id, name)
     if self:IsDispelSpell(id, name) then self:DispelCast(id, name) end
     local seals = self:SealLists()
@@ -2470,6 +2579,10 @@ function BT:ForgetOldDots()
             if now - dot.at > DOT_TIME then list[name] = nil end
         end
         if next(list) == nil then self.dots[key] = nil end
+    end
+    -- The units you struck: only the last few seconds matter (a seal or a proc right after)
+    for key, at in pairs(self.struck or {}) do
+        if now - at > 10 then self.struck[key] = nil end
     end
     self:ForgetOldFlights()
     self:ForgetOldThrows()
@@ -2715,6 +2828,7 @@ function BT:ResolveFrame(seq, first, last)
     end
     if casts ~= 1 or not cast.id then cast = nil end   -- two casts in a frame: no telling which did what
     local castSchool   -- the school of the hits this frame's cast has been given
+    local otherSchool  -- or of a hit turned away only because of the school learned for the cast
     local castStruck = {}   -- and the units they were on
     -- A spell that flies: its school is known, and a miss is its own only if a spell's
     local castFlight = cast and (self.flights[cast.name or ""] or self.thrownItems[cast.name or ""]
@@ -2839,6 +2953,9 @@ function BT:ResolveFrame(seq, first, last)
                             and not (h.key and castStruck[h.key] and self:FlightFor(h)) then
                         spell, castSchool = cast, castSchool or mask
                         if h.key then castStruck[h.key] = true end
+                    elseif not castSchool and not otherSchool and mask and not self:KnownShield(h)
+                            and self.spellSchool and self.spellSchool[cast.id] == expect then
+                        otherSchool = mask   -- turned away only by the school learned for it: maybe learned wrong
                     end
                 end
                 if spell then
@@ -2853,12 +2970,20 @@ function BT:ResolveFrame(seq, first, last)
             -- In a group, a hit is yours only with a line of yours (see ClaimHit), a swing of yours
             -- (ClaimSwing), or as your cast's in its own frame (a miss of it has no line: "My actions"
             -- leaves misses out unless they're ticked)
+            -- A heal on a group member is yours only if it's a heal you have going there (your cast,
+            -- a heal over time of yours, Tranquility). Anyone's heals land on the group all the time:
+            -- without this they took your lines' credits, showed as your heals, and left your own
+            -- hits with none.
+            local healOfYours = true
+            if h.kind == "heal" and what ~= "cast" and h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
+                healOfYours = self:TickFor(h) ~= nil or self:AreaFor(h) ~= nil
+            end
             local claimed = not h.grouped
             if not claimed and what == "cast" then
                 self:ClaimHit(h.time)   -- (its line, if it has one, is used up)
                 claimed = true
             end
-            if not claimed then claimed = self:ClaimSwing(h) or self:ClaimHit(h.time) end
+            if not claimed and healOfYours then claimed = self:ClaimSwing(h) or self:ClaimHit(h.time) end
             -- A spell of yours that was on its way to the unit. A tick of yours on its beat
             -- comes first, unless its amount isn't what that spell's ticks have been.
             if not spell and claimed then
@@ -2928,7 +3053,7 @@ function BT:ResolveFrame(seq, first, last)
                 claimed = true
             end
             if not claimed then
-                why = "no line of yours with it"
+                why = healOfYours and "no line of yours with it" or "no heal of yours with it"
             elseif h.kind == "heal" and not spell and not h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
                 -- A heal on someone else that isn't your cast or your heal-over-time: anyone's (a
                 -- player regenerating, someone else's heal). In a group, a line of yours vouches for it.
@@ -2986,9 +3111,25 @@ function BT:ResolveFrame(seq, first, last)
         end
     end
     -- What this frame's cast turned out to be: the school, if every hit it was given agrees
-    if cast and castSchool then
+    if cast and (castSchool or otherSchool) then self:NoteSchool(cast.id, castSchool or otherSchool) end
+end
+
+-- A spell's school is learned once two frames in a row agree on it. One unlucky frame (a damage
+-- shield's answer landing right behind the cast) used to set it for the session, and every real
+-- hit of the spell after that went unnamed. A learned school is replaced the same way: by two
+-- frames in a row with the spell's hits of another school.
+function BT:NoteSchool(id, school)
+    self.schoolSeen = self.schoolSeen or {}
+    local seen = self.schoolSeen[id]
+    if seen and seen.school == school then
+        seen.n = seen.n + 1
+    else
+        seen = { school = school, n = 1 }
+        self.schoolSeen[id] = seen
+    end
+    if seen.n >= 2 then
         self.spellSchool = self.spellSchool or {}
-        self.spellSchool[cast.id] = self.spellSchool[cast.id] or castSchool
+        self.spellSchool[id] = school
     end
 end
 
@@ -3087,27 +3228,35 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
     elseif action and MISS_TEXT[action] then
         kind = "miss"
     end
+    -- The cheap answers first: most of a raid's events stop here, before any more questions to the game
+    local why
+    if not kind then
+        why = "not a hit"
+    elseif self:ReadLineHas(unit, now) then
+        why = "the combat log line has it"
+    end
+    if why then
+        if self.db.debug then self:RecordUnitHit(unit, action, flag, amount, secret, school, why) end
+        return
+    end
     local healing = kind == "heal"
     local enemy = Flag(UnitCanAttack, "player", unit)
     -- Once the combat log lines are arriving, they say which hits are yours: in a group, and
     -- alone too (a player outside your group hitting your target showed as your numbers). Alone,
     -- a unit your pet is on is the exception: "My actions" has no lines for the pet, and its hits
     -- can't be told from yours, so they show as before.
-    local grouped = self.hiddenSeen and (self:InGroup() or not PetOn(unit))
-    local solo = grouped and not self:InGroup()
+    local inGroup = self.hiddenSeen and self:InGroup()
+    local grouped = self.hiddenSeen and (inGroup or not PetOn(unit))
+    local solo = grouped and not inGroup
     -- A mob someone else tagged, and that isn't after you or your pet: its hits are theirs.
     -- Once the combat log lines are arriving, one of yours with a hit still makes it yours
     -- (helping someone out); without them, none are.
-    local othersMob = enemy and not healing and Flag(UnitIsTapDenied, unit)
-        and not Flag(UnitIsUnit, unit .. "target", "player") and not Flag(UnitIsUnit, unit .. "target", "pet")
+    local othersMob = enemy and not healing and Flag(UnitIsTapDenied, unit) and not TargetsYou(unit)
+        and not (Flag(UnitExists, "pet") and TargetIs(unit, "pet"))
     if othersMob and self.hiddenSeen then grouped = true end
 
-    local why, splash
-    if not kind then
-        why = "not a hit"
-    elseif self.readAt and now - self.readAt < CREDIT_TIME then
-        why = "the combat log line has it"
-    elseif healing and enemy then
+    local splash
+    if healing and enemy then
         why = "a heal on an enemy"
     elseif not healing and not enemy then
         why = "not an enemy"
@@ -3125,14 +3274,47 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
         splash = true
     end
     if self.db.debug then
-        self:Record(("UNIT_COMBAT %s %s %s %s school %s%s"):format(unit, tostring(action), tostring(flag),
-            secret and "(hidden amount)" or tostring(amount), IsSecret(school) and "(hidden)" or tostring(school),
-            why and (": " .. why) or (splash and ": not your fight, unless a hit of yours lands with it" or "")))
+        self:RecordUnitHit(unit, action, flag, amount, secret, school,
+            why or (splash and "not your fight, unless a hit of yours lands with it" or nil))
     end
     if why then return end
     self:Queue({ hit = true, unit = unit, key = UnitKey(unit), kind = kind, action = action, flag = flag,
         amount = amount, secret = secret, n = n, school = school, crit = flag == "CRITICAL", grouped = grouped,
         solo = solo, splash = splash })
+end
+
+-- A readable line of yours names the unit it happened to (its link's GUID): only that unit's hits
+-- are left to the line. Some lines can be read while others are hidden, so one readable line mustn't
+-- drop every unit's hits. With no GUID to go by (on the line or the unit), any unit's are.
+function BT:NoteReadLine(guid, now)
+    guid = Str(guid)
+    if not guid or guid == "" then
+        self.readAt = now
+        return
+    end
+    local on = self.readOn or {}
+    self.readOn = on
+    for g, at in pairs(on) do
+        if now - at >= CREDIT_TIME then on[g] = nil end
+    end
+    on[guid] = now
+    self.readAnyAt = now
+end
+
+function BT:ReadLineHas(unit, now)
+    if self.readAt and now - self.readAt < CREDIT_TIME then return true end
+    if not (self.readAnyAt and now - self.readAnyAt < CREDIT_TIME) then return false end
+    local ok, guid = pcall(UnitGUID, unit)
+    guid = ok and Str(guid) or nil
+    if not guid then return true end
+    local at = self.readOn[guid]
+    return at ~= nil and now - at < CREDIT_TIME
+end
+
+function BT:RecordUnitHit(unit, action, flag, amount, secret, school, why)
+    self:Record(("UNIT_COMBAT %s %s %s %s school %s%s"):format(unit, tostring(action), tostring(flag),
+        secret and "(hidden amount)" or tostring(amount), IsSecret(school) and "(hidden)" or tostring(school),
+        why and (": " .. why) or ""))
 end
 
 -- A finished combat log line from the game
@@ -3157,7 +3339,7 @@ function BT:OnCombatLogMessage(message, _, _, _, order)
     local info = Parser:Parse(message)
     -- A line of yours that can be read is shown from the line; the same hit from
     -- UNIT_COMBAT is then left out
-    if info and (info.fromMe or self:IsPetLine(info)) then self.readAt = GetTime() end
+    if info and (info.fromMe or self:IsPetLine(info)) then self:NoteReadLine(info.destGUID, GetTime()) end
     local shown = info ~= nil and self:ShowCombat(info)
     if self.db.debug then self:Record((shown and "read    " or "skipped ") .. message) end
 end
@@ -3257,7 +3439,7 @@ function BT:CheckGameData()
         if not ok then problems = problems + 1 end
         report[#report + 1] = (ok and "ok      " or "PROBLEM ") .. text
     end
-    local english = (GetLocale and (GetLocale() == "enUS" or GetLocale() == "enGB")) or false
+    local english = GetLocale ~= nil and IsEnglish()
     local function spell(id, expected, what)
         local ok, name = pcall(C_Spell.GetSpellName, id)
         name = ok and Str(name) or nil
@@ -3551,6 +3733,19 @@ function BT:SetOwnSettings(on)
     end
     self:ApplySettings()
     self:RefreshConfig()
+end
+
+-- Every setting back to how it started (this character's own, when it has them): the
+-- options, the areas' places, the colors, the Spells list, and what was learned in fights.
+-- The game's own numbers are put back first, as they were before BattleText hid them.
+function BT:ResetAll()
+    self:ApplyBlizzardText(true)
+    local db = self.db
+    for k in pairs(db) do db[k] = nil end
+    FillDefaults(db, DEFAULTS)
+    self.spellSchool, self.schoolSeen = nil, nil   -- (what was learned this session goes too)
+    self:ApplySettings()
+    if self.RefreshConfig then self:RefreshConfig() end
 end
 
 -- Picking a font shows a line in it straight away
@@ -3857,7 +4052,19 @@ function BT:ApplyBlizzardText(restore)
         value = ok and Str(value) or nil
         if value then
             db.savedCVars = db.savedCVars or {}
-            if db.savedCVars[cvar] == nil then db.savedCVars[cvar] = value end
+            if db.savedCVars[cvar] == nil then
+                -- The world text already drawn too big to see, with nothing saved: no player picks
+                -- that, so BattleText's note of the original was lost (a crash before the settings
+                -- were written). Then the game's own default is what to put back. (A "0" is left as
+                -- it is: someone may have turned those numbers off themselves.)
+                local original = value
+                if value == hidden and hidden == XP_HIDDEN and C_CVar and C_CVar.GetCVarDefault then
+                    local okDefault, default = pcall(C_CVar.GetCVarDefault, cvar)
+                    default = okDefault and Str(default) or nil
+                    if default then original = default end
+                end
+                db.savedCVars[cvar] = original
+            end
             if value ~= hidden then pcall(SetCVar, cvar, hidden) end
         end
     end
@@ -3973,6 +4180,7 @@ local function Help()
     print("  |cffffd100/btf test|r  show sample text")
     print("  |cffffd100/btf lock|r, |cffffd100/btf unlock|r  lock or unlock the text areas (unlock to drag them)")
     print("  |cffffd100/btf reset|r  put the text areas back where they started")
+    print("  |cffffd100/btf resetall|r  put every setting back to how it started")
     print("  |cffffd100/btf on|r, |cffffd100/btf off|r  turn the text on or off")
     print("  |cffffd100/btf debug|r  record the combat lines the game sends; |cffffd100/btf copy|r shows them (for bug reports)")
     print("  |cffffd100/btf last|r  your last fight, spell by spell")
@@ -3999,6 +4207,8 @@ SlashCmdList.BATTLETEXTFOREVER = function(msg)
     elseif cmd == "reset" then
         BT:ResetPositions()
         Print("text areas moved back to where they started.")
+    elseif cmd == "resetall" then
+        BT:ConfirmResetAll()
     elseif cmd == "on" or cmd == "off" then
         BT.db.enabled = cmd == "on"
         BT:ApplySettings()
@@ -4040,6 +4250,7 @@ pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_START", "player"
 pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_STOP", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_AURA", "player")
 pcall(events.RegisterEvent, events, "PLAYER_EQUIPMENT_CHANGED")
+pcall(events.RegisterEvent, events, "GROUP_ROSTER_UPDATE")   -- (InGroup asks again)
 pcall(events.RegisterEvent, events, "PLAYER_SWING")   -- your own auto attacks (vouches for them in a group)
 -- Ability alerts that the game's own buttons know about, and combo points
 for _, e in ipairs({ "SPELL_UPDATE_USABLE", "PLAYER_TARGET_CHANGED", "SPELL_ACTIVATION_OVERLAY_SHOW",
@@ -4048,6 +4259,12 @@ for _, e in ipairs({ "SPELL_UPDATE_USABLE", "PLAYER_TARGET_CHANGED", "SPELL_ACTI
 end
 pcall(events.RegisterUnitEvent, events, "UNIT_HEALTH", "target")
 pcall(events.RegisterUnitEvent, events, "UNIT_POWER_UPDATE", "player")
+
+-- Events only worth handling while BattleText is turned on
+local WHILE_ON = { UNIT_COMBAT = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_CHANNEL_START = true,
+    UNIT_SPELLCAST_CHANNEL_STOP = true, PLAYER_SWING = true, SPELL_UPDATE_USABLE = true, UNIT_HEALTH = true,
+    SPELL_ACTIVATION_OVERLAY_SHOW = true, SPELL_ACTIVATION_OVERLAY_GLOW_SHOW = true, CHAT_MSG_LOOT = true,
+    CHAT_MSG_MONEY = true, CHAT_MSG_SKILL = true, CHAT_MSG_COMBAT_FACTION_CHANGE = true, CHAT_MSG_COMBAT_HONOR_GAIN = true }
 
 events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     if event == "ADDON_LOADED" then
@@ -4068,6 +4285,9 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:ApplyColors()
         return
     elseif event == "PLAYER_LOGIN" then
+        -- /btf debug is for one session's bug report (the record isn't kept): left on, it would
+        -- write down every unit's every hit for good
+        BT.db.debug = false
         BT:AddSharedFonts()   -- (other addons have loaded by now)
         Parser:Init()
         BT:BuildAreas()
@@ -4079,7 +4299,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnXP()
         -- The game turns the lines off whenever the Combat Log window hides
         if C_Timer and C_Timer.NewTicker then
-            C_Timer.NewTicker(3, function() BT:KeepLogFlowing() end)
+            -- (only once they've started: before Start, there's no filter for them to follow)
+            C_Timer.NewTicker(3, function() if BT.started then BT:KeepLogFlowing() end end)
         end
         if BT.db.loginMessage then print(T.CHAT_PREFIX .. " loaded. Type /btf for options.") end
         if C_Timer and C_Timer.After then
@@ -4088,6 +4309,9 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         return
     end
     if not BT.built then return end
+    -- Turned off: the combat is left alone (nothing is worked out, no sounds). What keeps
+    -- the addon's own state right for when it's turned back on still runs.
+    if not BT.db.enabled and WHILE_ON[event] then return end
 
     if event == "COMBAT_LOG_MESSAGE" then
         BT:OnCombatLogMessage(a1, a2, a3, a4, a5)
@@ -4095,6 +4319,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnUnitCombat(a1, a2, a3, a4, a5)
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         BT:OnSpellcast(a3)
+    elseif event == "GROUP_ROSTER_UPDATE" then
+        BT.groupAt = nil
     elseif event == "PLAYER_SWING" then
         BT:OnSwing(a1, a2)
     elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
@@ -4110,6 +4336,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "SPELL_UPDATE_USABLE" or event == "UNIT_HEALTH" then
         BT:CheckUsable()
     elseif event == "PLAYER_TARGET_CHANGED" then
+        BT:QuietComboPoints()
         BT:CheckUsable(true)
     elseif event == "SPELL_ACTIVATION_OVERLAY_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
         BT:OnSpellOverlay(a1, event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
@@ -4132,7 +4359,6 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         end
         BT:SetStartMacro()
         BT:ApplyBlizzardText()
-        BT:ScanShield()
         BT:ScanItemShields()   -- (gear changed in the fight is read now)
     elseif event == "PLAYER_LOGOUT" then
         BT:ApplyBlizzardText(true)

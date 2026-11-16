@@ -251,19 +251,47 @@ local function who(token)
     return id and STATE.unit[id] and STATE.unit[id].target or nil
 end
 function UnitExists(unit) return who(unit) ~= nil end
+function UnitTokenFromGUID(guid)
+    for _, token in ipairs({ "player", "pet", "target", "focus", "party1", "party2", "party3", "party4" }) do
+        if UnitGUID(token) == guid then return token end
+    end
+    return nil
+end
 function UnitGUID(unit)
     if unit == "player" then return "Player-5555-0ABCDEF1" end
     if unit == "pet" and STATE.pet then return "Pet-0-1-2-3-4-000002" end
     local id = who(unit)
     return id and STATE.unit[id] and STATE.unit[id].guid or nil
 end
+-- STATE.restrictedMap: an addon-restricted map (dungeons, raids), where the game hides every
+-- comparison of a compound token ("nameplate3target", "pettarget")
+local function compound(token) return token ~= "target" and token:find(".target$") ~= nil end
 function UnitIsUnit(a, b)
     local x, y = who(a), who(b)
+    if STATE.restrictedMap and (compound(a) or compound(b)) then return Secret(x ~= nil and x == y) end
     return x ~= nil and x == y
+end
+-- The threat table: 3 (tanking) when the mob's target is `unit` ("player" or "pet"), 0 when it's
+-- fighting you some other way (STATE.unit[id].threat), else nil
+function UnitThreatSituation(unit, mob)
+    local id = who(mob)
+    local u = id and STATE.unit[id]
+    if not u then return nil end
+    local mine = (unit == "player" and "me") or (unit == "pet" and "pet") or nil
+    if mine and u.target == mine then return 3 end
+    if u.threat and u.threat[unit] then return 0 end
+    return nil
 end
 function UnitCanAttack(a, b)
     local id = who(b)
     return a == "player" and id ~= nil and STATE.unit[id] ~= nil and STATE.unit[id].enemy == true
+end
+-- A friend you can heal; not an enemy, and not an NPC you can't help (STATE.unit[id].npc: a vendor)
+function UnitCanAssist(a, b)
+    local id = who(b)
+    local u = id and STATE.unit[id]
+    if id == "me" or id == "pet" then return true end
+    return a == "player" and u ~= nil and not u.enemy and not u.npc
 end
 -- A mob someone outside your group tagged first (STATE.unit[id].tapDenied)
 function UnitIsTapDenied(unit)

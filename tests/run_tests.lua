@@ -50,6 +50,31 @@ for name in bindings:gmatch('<Binding name="([^"]+)"') do
 end
 assertEq(#bindingNames, 2, "two keybindings")
 
+-- What the packager ships: everything at the top of the repo that .pkgmeta doesn't leave out
+-- (the packager itself skips names starting with a dot). Nothing else, and no access tokens in it.
+do
+    local pkgmeta = read_file(ADDON_DIR .. "/.pkgmeta")
+    local ignored = {}
+    for name in pkgmeta:match("ignore:(.*)$"):gmatch("%-%s*(%S+)") do ignored[name] = true end
+    local SHIPPED = { ["BattleTextForever.toc"] = true, ["Theme.lua"] = true, ["Parse.lua"] = true, ["Core.lua"] = true,
+        ["Options.lua"] = true, ["Bindings.xml"] = true, ["CHANGELOG.md"] = true, ["README.md"] = true, ["LICENSE"] = true,
+        Fonts = true, Media = true }
+    local listing = io.popen('ls -A "' .. ADDON_DIR .. '"')
+    for name in listing:lines() do
+        if not name:find("^%.") and not ignored[name] then
+            assert(SHIPPED[name], "this would ship in the addon download: " .. name .. " (add it to .pkgmeta's ignore list)")
+        end
+    end
+    listing:close()
+    local files = io.popen('find "' .. ADDON_DIR .. '" -type f -not -path "*/.git/*" -not -name "*.ttf" -not -name "*.tga" -not -name "*.png"')
+    for path in files:lines() do
+        local text = read_file(path)
+        assert(not text:find("gh[pousr]_%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w%w") and not text:find("github_pat_%w"),
+            "an access token is written in " .. path .. ": revoke it and keep it in the repository's secrets instead")
+    end
+    files:close()
+end
+
 local function fire(event, ...)
     for _, f in ipairs(ALL_FRAMES) do
         if f.__events and f.__events[event] and f.__scripts.OnEvent then f.__scripts.OnEvent(f, event, ...) end
@@ -523,6 +548,28 @@ log(hit("Claw", 16827, 100, "Physical", "(Critical)"))
 assertEq(STATE.sounds[#STATE.sounds], 3175, "a crit then plays the ping instead")
 STATE.missingSounds = nil
 BT.db.critSound = BT.DEFAULTS.critSound
+-- Turned off (/btf off): no sounds, and the fight around you isn't worked out at all
+do
+Advance(1)
+BT.db.enabled = false
+local heard = #STATE.sounds
+local savedWho, savedUnits = STATE.who.target, STATE.unit.offMob
+STATE.unit.offMob = { enemy = true, guid = "Creature-0-1-2-3-4-000321", target = "me" }
+STATE.who.target = "offMob"
+BT.seq = nil
+fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 99, 1)
+assertEq(BT.seq == nil or #BT.seq == 0, true, "nothing is queued to work out while BattleText is turned off")
+BT:FlushHits(true)
+BT:ShowCombat({ kind = "kill", fromMe = true })
+assertEq(#STATE.sounds, heard, "and no sounds")
+STATE.xp = STATE.xp + 30
+fire("PLAYER_XP_UPDATE", "player")
+assertEq(BT.lastXP, STATE.xp, "your experience is still followed, so turning it on later doesn't show it all at once")
+BT.db.enabled = true
+STATE.xp = STATE.xp - 30
+BT.lastXP = STATE.xp
+STATE.who.target, STATE.unit.offMob = savedWho, savedUnits
+end
 BT.db.soundCrit, BT.db.soundKill = false, false
 clear()
 
@@ -631,6 +678,7 @@ BT.db.outAlign = "LEFT"
 clear()
 for i = 1, 40 do BT:Emit("outgoing", tostring(i), { 1, 1, 1 }) end
 assertEq(#BT.areas.outgoing.active, 40, "a crowd: every line still shows")
+assert(BT.freeSpotChecks <= 121, "and finding a spot for one stays a small job (BT-023): " .. BT.freeSpotChecks .. " checks")
 math.random = realRandom
 BT.db.outStyle, BT.db.popApart = "scroll", false
 clear()
@@ -724,6 +772,23 @@ for i = 1, 12 do
     Advance(1)
 end
 assert(highest <= 1, "crits a second apart stay in the bottom two places (got " .. highest .. ")")
+-- A burst of area crits: no more held than fit in the area (BT-008)
+do
+    clear()
+    local a = BT.areas.outgoing
+    local most = math.floor(BT:AreaHeight(a) / (30 + 4))
+    local top = 0
+    for i = 1, most + 6 do
+        log(hit("Blizzard", 10, 100 + i, "Frost", "(Critical)"))
+        for _, o in ipairs(a.active) do top = math.max(top, o.slot or 0) end
+    end
+    assert(top < most, "crits stay inside the area (top place " .. top .. " of " .. most .. ")")
+    Advance(0.1)
+    local held = 0
+    for _, o in ipairs(a.active) do if o.sticky then held = held + 1 end end
+    assertEq(held, most, "the oldest made way for the newest")
+    clear()
+end
 BT.db.sticky = false
 clear()
 log(hit("Claw", 16827, 100, "Physical", "(Critical)"))
@@ -835,7 +900,11 @@ fire("UNIT_COMBAT", "player", "ENERGIZE", "", 10, 1)
 assertEq(last("incoming"), "+120", "power gains are off by default")
 BT.db.inPower = true
 fire("UNIT_COMBAT", "player", "ENERGIZE", "", 10, 1)
-assertEq(last("incoming"), "+10 Rage", "a power gain")
+assertEq(last("incoming"), "+10", "a druid's power gain: no word, the game doesn't say which power (BT-017)")
+STATE.class = "WARRIOR"
+fire("UNIT_COMBAT", "player", "ENERGIZE", "", 10, 1)
+assertEq(last("incoming"), "+10 Rage", "a warrior's says what it is")
+STATE.class = "DRUID"
 BT.db.inPower = false
 BT.db.inMisses = false
 fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
@@ -911,6 +980,7 @@ fire("UNIT_COMBAT", "player", "HEAL", "", 240, 2)
 Advance(0.3)
 assertEq(last("incoming"), "+240 |T135920:0|t Holy Light", "with an enemy targeted")
 clear()
+STATE.unit.friendA = STATE.unit.friendA or { enemy = false }
 STATE.who.party1 = "friendA"
 STATE.who.target = "friendA"   -- a friend targeted: it went to them
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hl5", 635)
@@ -918,6 +988,14 @@ fire("UNIT_COMBAT", "player", "HEAL", "", 120, 2)
 Advance(0.3)
 assertEq(last("incoming"), "+120", "a heal on you while you heal a friend isn't your spell")
 STATE.who.party1 = nil
+clear()
+STATE.unit.vendor = { enemy = false, npc = true }
+STATE.who.target = "vendor"   -- a vendor can't be healed: the game casts it on you
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hl6", 635)
+fire("UNIT_COMBAT", "player", "HEAL", "", 230, 2)
+Advance(0.3)
+assertEq(last("incoming"), "+230 |T135920:0|t Holy Light", "with a vendor targeted, the heal is on you and named")
+STATE.unit.vendor = nil
 clear()
 STATE.who.target = nil
 STATE.helpful = {}
@@ -934,6 +1012,31 @@ Advance(0.3)
 assertEq(last("incoming"), "+250 Holy Light", "the name alone with icons off")
 SetIcons(true)
 clear()
+-- Hidden by a setting, a heal of yours still counts in the fight (BT-010)
+do
+    BT.fight = { start = GetTime(), damage = 0, heal = 0 }
+    BT.db.inHeals = false
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hl7", 635)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 200, 2)
+    Advance(0.3)
+    assertEq(#lines("incoming") + #lines("heal"), 0, "\"Heals you get\" off: not shown")
+    assertEq(BT.fight.heal, 200, "but counted in the fight")
+    BT.db.inHeals = true
+    BT.db.spellRules, BT.rulesByName = { { name = "Holy Light", hide = true } }, nil
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hl8", 635)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 100, 2)
+    Advance(0.3)
+    assertEq(#lines("incoming") + #lines("heal"), 0, "a hidden spell: not shown")
+    assertEq(BT.fight.heal, 300, "but counted too")
+    BT.db.spellRules, BT.rulesByName = {}, nil
+    BT.db.inHeals = false
+    fire("UNIT_COMBAT", "player", "HEAL", "", 80, 2)
+    Advance(0.3)
+    assertEq(#lines("incoming") + #lines("heal"), 0, "someone else's heal with \"Heals you get\" off: not shown")
+    BT.db.inHeals = true
+    BT.fight = nil
+    clear()
+end
 -- A heal over time on yourself: its ticks are heals on you with no name (a player's report:
 -- a druid's HoT ticks had no icon)
 STATE.spellNames[774], STATE.spellIcons[774] = "Rejuvenation", 136081
@@ -1406,6 +1509,10 @@ SetIcons(false)
 clear()
 
 -- A line that can be read is shown from the line, not a second time from the unit
+-- (the line's link names the mob: here the target is that mob)
+do
+local targetGuid = STATE.unit[STATE.who.target].guid
+STATE.unit[STATE.who.target].guid = "Creature-0-1-2-3-4-000001"
 log(hit("Claw", 16827, 50))
 fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
 assertEq(#lines("outgoing"), 1, "a readable line's hit isn't shown twice")
@@ -1416,9 +1523,39 @@ Advance(0.3)
 fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
 assertEq(last("outgoing"), "27", "after that, the unit's hits show again")
 clear()
+-- Only that mob's: a hit on another mob at the same moment (its line hidden) still shows
+STATE.unit.otherMob = { enemy = true, guid = "Creature-0-1-2-3-4-000777", target = "me" }
+STATE.who.nameplate7 = "otherMob"
+log(hit("Claw", 16827, 50))
+fire("UNIT_COMBAT", "nameplate7", "WOUND", "", 31, 1)
+assertEq(last("outgoing"), "31", "a readable line only stands in for the hits on the mob it names")
+fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
+assertEq(#lines("outgoing"), 2, "the named mob's hit is still left to the line")
+STATE.unit[STATE.who.target].guid = nil
+Advance(0.1)
+fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
+assertEq(#lines("outgoing"), 2, "a unit with no GUID to go by is left to the line too")
+STATE.who.nameplate7, STATE.unit.otherMob = nil, nil
+STATE.unit[STATE.who.target].guid = targetGuid
+end
+clear()
 log(hitMe("Fireball", 133, 84, "Fire"))
 fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
 assertEq(last("outgoing"), "27", "a readable line about someone else's hit doesn't stand in for yours")
+clear()
+
+-- Dungeons and raids (addon-restricted maps): the game hides "is nameplate5's target me?".
+-- The threat table says it instead, so a mob after you is still your fight.
+STATE.restrictedMap = true
+STATE.unit.packMob = { enemy = true, guid = "Creature-0-1-2-3-4-000555", target = "me" }
+STATE.who.nameplate5 = "packMob"
+fire("UNIT_COMBAT", "nameplate5", "DODGE", "", 0, 1)
+assertEq(last("outgoing"), "Dodge", "on a restricted map, a mob after you (not targeted) is still your fight")
+Advance(0.1)
+STATE.unit.packMob.target = "friend"
+fire("UNIT_COMBAT", "nameplate5", "PARRY", "", 0, 1)
+assertEq(last("outgoing"), "Dodge", "and one after someone else isn't")
+STATE.restrictedMap, STATE.who.nameplate5, STATE.unit.packMob = nil, nil, nil
 clear()
 
 -- In a group, anyone could have hit the mob. A hidden line says you did
@@ -1467,7 +1604,13 @@ assertEq(last("outgoing"), "31", "the first two")
 Advance(0.1)
 hidden(13)
 fire("UNIT_COMBAT", "party1", "HEAL", "", 120, 2)
-assertEq(last("outgoing"), "+120", "your heal on a party member you aren't targeting")
+assertEq(last("outgoing"), "31", "a heal on a party member with no heal of yours going is someone else's")
+assertEq(#BT.credits, 1, "and it leaves your line for your own hit")
+Advance(0.1)
+hidden(14)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-9-1", 5185)
+fire("UNIT_COMBAT", "party1", "HEAL", "", 120, 2)
+assertEq(last("outgoing"), "Healing Touch +120", "your heal on a party member you aren't targeting")
 -- The "My actions" lines don't come for every swing (issues #15, #16: white hits in a group
 -- went missing). The game's swing timer event says when you swing: each vouches for one
 -- physical hit or miss on your target.
@@ -1513,8 +1656,10 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 33, 1)
 assertEq(last("outgoing"), "33", "in a group before any line has arrived: hits on your target are shown")
 STATE.group = false
 STATE.who.party1 = nil
+fire("GROUP_ROSTER_UPDATE")   -- (the game says so when the group changes; the answer is kept for the frame)
 assertEq(BT:InGroup(), false, "not in a group")
 STATE.who.party1 = "friend"
+fire("GROUP_ROSTER_UPDATE")
 assertEq(BT:InGroup(), true, "a party member means a group, whatever the game says")
 STATE.who = {}
 clear()
@@ -1567,6 +1712,7 @@ step("ticks, and your damage shield")
 STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }
 STATE.who.target, STATE.who.nameplate1 = "mobA", "mobA"
 BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.dots, BT.spellSchool = nil, nil, nil, nil, nil
+    BT.schoolSeen = nil
 local function cast(id) fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-x", id) end
 local function wound(amount, school, flag) fire("UNIT_COMBAT", "target", "WOUND", flag or "", amount, school or 1) end
 -- With the hidden lines arriving, a tick is the hit with a line right behind it, on its spell's beat
@@ -2263,7 +2409,8 @@ same(out, {
     "Shred 131", "59", "31", "26", "Rake 35", "Dodge", "24", "60", "Rake 29", "Rip 17", "Parry", "27", "Rip 17", "27",
     "Rake 29",
 })
-assertEq(BT.spellSchool and BT.spellSchool[5221], 1, "Shred was learned as physical")
+assertEq(BT.schoolSeen and BT.schoolSeen[5221] and BT.schoolSeen[5221].school, 1, "Shred was seen as physical")
+assertEq(BT.spellSchool and BT.spellSchool[5221], nil, "but one frame isn't enough to learn it")
 BT.db.outShields = true
 -- The same fight with neither shield known yet: their answers still aren't taken for Shred
 freshFight()
@@ -2272,7 +2419,7 @@ assertEq(out[1], "Shred 131", "the hit with the line is Shred's")
 assertEq(out[2], "11", "the first shield answer is just a hit (the frame's second line vouches for it)")
 -- (alone with the lines, a hit no line vouches for and no shield of yours explains isn't shown: 1.18.4)
 assertEq(out[3], "59", "the second, with no line left for it, is left out")
-assertEq(BT.spellSchool and BT.spellSchool[5221], 1, "and Shred isn't taken for a nature spell")
+assertEq(BT.schoolSeen and BT.schoolSeen[5221] and BT.schoolSeen[5221].school, 1, "and Shred isn't taken for a nature spell")
 -- A swing landing in the frame of a cast whose own hit has the line: only that hit is the cast's
 freshFight()
 STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }
@@ -2292,6 +2439,71 @@ log("|Ky2|k")
 fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-t", 5221)
 assertEq(table.concat(lines("outgoing"), " / "), "Shred Dodge", "a dodged Shred says so")
+-- A spell's school takes two frames to learn, and two frames to unlearn (BT-006)
+do
+    local function clawFrame(school)
+        clear()
+        fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-6-" .. GetTime(), 1082)
+        fire("UNIT_COMBAT", "target", "WOUND", "", 20, school)
+        Advance(0.1)
+        return table.concat(lines("outgoing"), " / ")
+    end
+    freshFight()
+    STATE.who.target = "mobA"
+    clawFrame(8)   -- an unlucky first frame: a nature answer right behind the cast
+    assertEq(BT.spellSchool and BT.spellSchool[1082], nil, "one nature frame doesn't make Claw a nature spell")
+    assertEq(clawFrame(1), "Claw 20", "so Claw's real hit is still named")
+    clawFrame(1)
+    assertEq(BT.spellSchool and BT.spellSchool[1082], 1, "two physical frames: Claw is learned as physical")
+    -- Learned wrong anyway: two frames of the spell's own hits put it right
+    BT.spellSchool[1082], BT.schoolSeen[1082] = 8, { school = 8, n = 2 }
+    assertEq(clawFrame(1), "20", "learned wrong, the hit isn't named")
+    clawFrame(1)
+    assertEq(BT.spellSchool[1082], 1, "two frames of physical hits relearn it")
+    assertEq(clawFrame(1), "Claw 20", "and Claw is named again")
+end
+-- The units you struck are forgotten after a while (BT-014)
+do
+    BT.struck = { old = GetTime() - 60, new = GetTime() }
+    BT:ForgetOldDots()
+    assertEq(BT.struck.old, nil, "a unit struck a minute ago is forgotten")
+    assert(BT.struck.new, "one struck just now isn't")
+    BT.struck = nil
+end
+-- A line from the pool that has the font already isn't given it again; a new font is (BT-022)
+do
+    clear()
+    log(hit("Claw", 16827, 41))
+    local o = BT.areas.outgoing.active[1]
+    clear()
+    local calls = 0
+    local setFont = o.text.SetFont
+    o.text.SetFont = function(...) calls = calls + 1 return setFont(...) end
+    log(hit("Claw", 16827, 42))
+    assertEq(BT.areas.outgoing.active[1], o, "(the same line, from the pool)")
+    assertEq(calls, 0, "same font, size and outline: not set again")
+    clear()
+    local fontWas = BT.db.font
+    BT.db.font = BT.FONTS[3].name
+    log(hit("Claw", 16827, 43))
+    assertEq(BT.areas.outgoing.active[1] == o, true, "(the same line again)")
+    assertEq(calls, 1, "another font: set")
+    assertEq(o.text.__font[1], BT.FONTS[3].path, "to the new one")
+    BT.db.font = fontWas
+    o.text.SetFont = nil
+    clear()
+end
+-- An icon the game can't find by name yet is asked for again a little later (BT-019)
+do
+    BT.iconCache, BT.iconMissAt = nil, nil
+    assertEq(BT:IconText("Late Spell"), "", "no icon yet")
+    STATE.spellIcons["Late Spell"] = 135000
+    Advance(1)
+    assertEq(BT:IconText("Late Spell"), "", "not asked again straight away")
+    Advance(10)
+    assertEq(BT:IconText("Late Spell"), "|T135000:0|t ", "but a little later it's found")
+    STATE.spellIcons["Late Spell"], BT.iconCache, BT.iconMissAt = nil, nil, nil
+end
 -- Lines are arriving, but this frame's hit has none: it goes by order, as before
 freshFight()
 STATE.who.target = "mobA"
@@ -2509,6 +2721,19 @@ BT.db.outPet = false
 log(real("pet's spell"))
 assertEq(#lines("outgoing"), 2, "pet turned off")
 BT.db.outPet = true
+-- Your pet's heal on you comes with "My actions" + Pet: it doesn't mean the log is giving you
+-- other people's heals, so their heals still come from UNIT_COMBAT (BT-016)
+do
+    local PET = "|Hunit:Pet-0-1-2-3-4-000002:Fluffy Zapsu|hFluffy Zapsu|h"
+    BT.fromLog = nil
+    log(PET .. " |Hspell:27046:0:SPELL_HEAL|h|cffffffffMend Pet|r|h |Haction:SPELL_HEAL|h|cff7f7f7fhealed|r|h "
+        .. ME .. "You|h |cffffffff40|r |cffffffffNature|r. ")
+    assertEq(BT.fromLog and BT.fromLog.heal, nil, "a pet's heal on you isn't someone else's heal from the log")
+    clear()
+    fire("UNIT_COMBAT", "player", "HEAL", "", 55, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+55", "so a priest's heal on you still shows from UNIT_COMBAT")
+end
 STATE.pet = false
 clear()
 
@@ -2665,6 +2890,21 @@ BT:ApplySettings()
 assertEq(STATE.cvars.enableFloatingCombatText, "0", "one you had off stays off")
 assertEq(STATE.cvars.floatingCombatTextCombatHealing, "1", "the others come back")
 STATE.cvars.enableFloatingCombatText = "1"
+-- After a crash the game kept the world text hidden, but the note of what it was got lost:
+-- the game's default goes back, not the hidden size (BT-020)
+do
+    local GAME = getmetatable(_G).__index
+    local cvarWas = GAME.C_CVar
+    GAME.C_CVar = { GetCVarDefault = function(name) return name == "WorldTextScale_v2" and "1" or nil end }
+    STATE.cvars.WorldTextScale_v2 = "1000"
+    BT.db.savedCVars = nil
+    BT.db.hideBlizzard = true
+    BT:ApplySettings()
+    BT.db.hideBlizzard = false
+    BT:ApplySettings()
+    assertEq(STATE.cvars.WorldTextScale_v2, "1", "the world text's size is the game's own again")
+    GAME.C_CVar = cvarWas
+end
 
 step("combat lockdown")
 -- As after a /reload: not started, and you're already fighting
@@ -2819,6 +3059,43 @@ BT.confirmWindow.yes.__scripts.OnClick(BT.confirmWindow.yes)
 assertEq(BT.db.areas.notify.x, 0, "then moves them back")
 for k, v in pairs(before) do
     if type(v) ~= "table" then assertEq(BT.db[k], v, "setting unchanged: " .. k) end
+end
+-- Reset all: asks first, then every setting is as it started, and the game's numbers'
+-- originals are kept (BT-028)
+do
+    local function deep(t) local c = {} for k, v in pairs(t) do c[k] = type(v) == "table" and deep(v) or v end return c end
+    local saved, cvarsSaved = deep(BT.db), deep(STATE.cvars)
+    BT.db.fontSize, BT.db.colors.heal = 33, { 0, 0, 1 }
+    BT.db.spellRules, BT.rulesByName = { { name = "Claw", hide = true } }, nil
+    BT.db.learnedBuffs = { ["Power Word: Fortitude"] = true }
+    BT.db.hideBlizzard = true
+    BT:ApplySettings()
+    assertEq(STATE.cvars.floatingCombatTextCombatDamage, "0", "(the game's numbers hidden)")
+    win.resetAllButton.__scripts.OnClick(win.resetAllButton)
+    assertEq(BT.db.fontSize, 33, "Reset all asks first")
+    assert(BT.confirmWindow.text:GetText():find("every setting", 1, true), "saying what it resets")
+    BT.confirmWindow.yes.__scripts.OnClick(BT.confirmWindow.yes)
+    assertEq(BT.db.fontSize, BT.DEFAULTS.fontSize, "then the text size is as it started")
+    assertEq(BT.db.colors.heal, nil, "the colors")
+    assertEq(#BT.db.spellRules .. tostring(BT:SpellRule("Claw")), "0nil", "the Spells list")
+    assertEq(BT.db.learnedBuffs, nil, "and what was learned")
+    local hidden = BT.DEFAULTS.hideBlizzard and BT.DEFAULTS.enabled
+    assertEq(STATE.cvars.floatingCombatTextCombatDamage, hidden and "0" or "1", "the game's numbers follow the reset")
+    if hidden then
+        assertEq(BT.db.savedCVars.floatingCombatTextCombatDamage, "1", "with what they were before BattleText kept")
+    end
+    LOG = {}
+    SlashCmdList.BATTLETEXTFOREVER("resetall")
+    assertEq(BT.confirmWindow:IsShown(), true, "/btf resetall asks too")
+    BT.confirmWindow.no.__scripts.OnClick(BT.confirmWindow.no)
+    -- (back to the settings the rest of the tests use)
+    BT:ApplyBlizzardText(true)
+    for k in pairs(BT.db) do BT.db[k] = nil end
+    for k, v in pairs(saved) do BT.db[k] = v end
+    for k, v in pairs(cvarsSaved) do STATE.cvars[k] = v end
+    BT.rulesByName = nil
+    BT:ApplySettings()
+    BT:RefreshConfig()
 end
 -- Every slider writes the setting it's labelled with
 local sliders = 0
@@ -3917,6 +4194,19 @@ log(real("swing fails: DODGE"))
 assertEq(alerts(), "Overpower!", "a dodge in the combat lines")
 Advance(2)
 clear()
+-- Sample text in a fight: its dodge opens nothing, and its numbers aren't the fight's (BT-009)
+do
+    clear()
+    Advance(2)
+    BT.fight = { start = GetTime(), damage = 0, heal = 0 }
+    SlashCmdList.BATTLETEXTFOREVER("test")
+    Advance(4)
+    assertEq(alerts(), "Killing blow!", "the sample dodge doesn't say Overpower (the sample killing blow is all)")
+    assertEq(BT.fight.damage .. "/" .. BT.fight.heal, "0/0", "and the fight's totals have none of the samples")
+    assertEq(BT.fight.spells, nil, "nor its spells")
+    BT.fight = nil
+    clear()
+end
 -- Not a warrior, too low a level, or turned off
 STATE.level = 10
 BT.reactAt = nil
@@ -3940,6 +4230,21 @@ fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
 assertEq(alerts(), "Riposte!", "with Riposte: when you parry")
 fire("UNIT_COMBAT", "player", "DODGE", "", 0, 1)
 assertEq(alerts(), "Riposte!", "only a parry")
+-- Without the game's deprecation fallbacks there's no IsPlayerSpell: C_SpellBook knows (BT-013)
+do
+    local isPlayerSpell, spellBook, enum = IsPlayerSpell, C_SpellBook, Enum.SpellBookSpellBank
+    local GAME = getmetatable(_G).__index
+    GAME.IsPlayerSpell = nil   -- (the game's globals, changed as the game would have them)
+    local bank
+    GAME.C_SpellBook = { IsSpellKnown = function(id, b) bank = b return STATE.knownSpells[id] == true end }
+    Enum.SpellBookSpellBank = { Player = 0, Pet = 1 }
+    Advance(1.1)
+    fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
+    assertEq(alerts(), "Riposte! / Riposte!", "the talent is known from C_SpellBook")
+    assertEq(bank, 0, "asked about your own spells")
+    GAME.IsPlayerSpell, GAME.C_SpellBook, Enum.SpellBookSpellBank = isPlayerSpell, spellBook, enum
+    table.remove(shownAlerts)   -- (the checks below count from before this one)
+end
 STATE.knownSpells[14251] = nil
 STATE.class = "HUNTER"
 STATE.knownSpells[19306] = true
@@ -4135,6 +4440,13 @@ do
     BT.db.nCombo = true
     assertEq(cp(4), "1 CP", "turned back on: the count was kept, so the same 4 doesn't show")
     assertEq(cp(5), "1 CP / 5 CP: Finish it!", "and the next one does")
+    -- Back to a target that still has its points: no gain to show (BT-030)
+    cp(0)   -- (on another target, with none)
+    clear()
+    STATE.combo = 3
+    fire("PLAYER_TARGET_CHANGED")   -- back to the one with three
+    assertEq(cp(3), "", "switching back to points already on a target says nothing")
+    assertEq(cp(4), "4 CP", "the next real one does")
     STATE.combo, BT.combo = 0, 0
     clear()
 end
@@ -4367,6 +4679,33 @@ fire("UNIT_AURA", "player")
 assertEq(BT.db.learnedBuffs["Battle Trance"], true, "learned out of a fight")
 STATE.buffs = { MOTW, INTELLECT }
 fire("UNIT_AURA", "player")
+-- A buff cast on a friend that you happen to get too isn't learned as yours alone (BT-012)
+do
+    STATE.spellNames[1243] = "Power Word: Fortitude"
+    STATE.unit.friendA = STATE.unit.friendA or { enemy = false }
+    local was = STATE.who.target
+    STATE.who.target = "friendA"
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pwf", 1243)
+    STATE.buffs = { MOTW, INTELLECT, { name = "Power Word: Fortitude", spellId = 1243, duration = 1800 } }
+    fire("UNIT_AURA", "player")
+    assertEq(BT.db.learnedBuffs["Power Word: Fortitude"], nil, "cast with a friend targeted: not learned")
+    -- And one learned earlier isn't shown when it's cast on a friend in a fight
+    BT.db.learnedBuffs["Power Word: Fortitude"] = true
+    clear()
+    fire("PLAYER_REGEN_DISABLED")
+    COMBAT, STATE.buffsHidden = true, true
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pwf2", 1243)
+    assertEq(table.concat(lines("notify"), " / "), "+Combat", "learned, but cast on a friend: not your buff")
+    STATE.who.target = was
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pwf3", 1243)
+    assertEq(last("notify"), "+Power Word: Fortitude", "with no friend targeted, it is")
+    COMBAT, STATE.buffsHidden = false, false
+    fire("PLAYER_REGEN_ENABLED")
+    BT.db.learnedBuffs["Power Word: Fortitude"] = nil
+    STATE.buffs = { MOTW, INTELLECT }
+    fire("UNIT_AURA", "player")
+    clear()
+end
 clear()
 fire("PLAYER_REGEN_DISABLED")
 COMBAT, STATE.buffsHidden = true, true
@@ -4465,6 +4804,19 @@ STATE.unit.friend.secretName = true
 healedWho("target", "HEAL", "", 121, 2)
 assertEq(last("heal"), "+121", "a hidden name is left out")
 STATE.unit.friend.secretName = nil
+-- A heal of yours from a line the game lets you read says who too (BT-029)
+do
+    local guidWas = STATE.unit.friend.guid
+    STATE.unit.friend.guid = "Player-5555-0FRIEND1"
+    local FRIEND = "|Hunit:Player-5555-0FRIEND1:Mage|hMage|h"
+    if log(ME .. "Your|h |Hspell:5185:0:SPELL_HEAL|h|cffffffffHealing Touch|r|h |Haction:SPELL_HEAL|h|cff7f7f7fhealed|r|h "
+            .. FRIEND .. " |cffffffff150|r |cffffffffNature|r. ") then
+        assertEq(last("heal"), "+150 |cffc9f7ccMage|r", "a read heal on your target, named")
+    else
+        error("(the combat lines should be arriving here)")
+    end
+    STATE.unit.friend.guid = guidWas
+end
 BT.db.healWho = false
 healedWho("target", "HEAL", "", 122, 2)
 assertEq(last("heal"), "+122", "and none when it's turned off")
