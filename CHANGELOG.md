@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.4
+
+- **Other players' hits on your target no longer show as yours when you're alone.** The game doesn't tell addons who hit what, so BattleText reads the numbers off your target. In a group, Start BattleText already left other people's hits out, but alone every hit on your target counted as yours, so a player outside your group hitting the same mob (or the same enemy player) showed up as your numbers. Now, once you've clicked Start BattleText, a hit alone also needs the game to say you did something just then: one of your attacks or spells, or your swing. Your damage shields (Thorns, Retribution Aura...) still show as before. One exception: on a mob your pet is fighting, every hit still shows, because the game gives no way to tell your pet's hits from anyone else's. Before you click Start, nothing changes. (Thanks to x4r3n for asking.)
+
 ## 1.18.3
 
 - **Your heal-over-time ticks on others, and Tranquility, show their icon and name.** The same thing 1.18.1 fixed for ticks on yourself: the game doesn't always say a heal is Nature, so Rejuvenation, Regrowth and Renew ticks on your target, and Tranquility's heals, could show as a plain number or not at all. They're now named whatever school the game gives, as long as it isn't another magic school (a paladin's Holy heal still isn't taken for yours).

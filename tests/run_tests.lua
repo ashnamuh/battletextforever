@@ -1202,6 +1202,15 @@ assertEq(hidden(), true, "a hidden line arrives")
 assertEq(#lines("outgoing"), 0, "it can't be read, so it isn't shown")
 assertEq(BT.hiddenSeen, true, "but it's noticed")
 fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
+assertEq(last("outgoing"), "27", "your hit on your target, with your line")
+Advance(1.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 99, 1)
+assertEq(#lines("outgoing"), 1, "alone, once the lines arrive, a hit needs one of yours too: someone else's hit on your target")
+-- (what follows is about how hits are shown, so as before Start BattleText is clicked: alone, every hit is yours)
+BT.hiddenSeen, BT.credits, BT.hiddenAt = nil, nil, nil
+clear()
+Advance(0.1)
+fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
 assertEq(last("outgoing"), "27", "your hit on your target")
 assert(isColor(newest(), C.melee), "a physical hit is white")
 fire("UNIT_COMBAT", "nameplate1", "WOUND", "", 27, 1)
@@ -1416,7 +1425,7 @@ clear()
 -- something just then: each one vouches for one hit.
 STATE.group = true
 STATE.who.party1 = "friend"
-BT.credits = nil
+BT.credits, BT.hiddenSeen = nil, true
 fire("UNIT_COMBAT", "target", "WOUND", "", 99, 1)
 assertEq(#lines("outgoing"), 0, "in a group, a hit with no line of yours is someone else's")
 Advance(0.1)
@@ -1510,6 +1519,49 @@ assertEq(BT:InGroup(), true, "a party member means a group, whatever the game sa
 STATE.who = {}
 clear()
 
+-- Alone, once the lines arrive (Start BattleText clicked), the same goes: a player outside your
+-- group hitting your target showed as your numbers (a CurseForge comment, 1.18.4)
+STATE.group = false
+STATE.unit.soloMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000D1", target = "me" }
+STATE.who.target = "soloMob"
+BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.swings = true, nil, nil, nil
+Advance(2)
+fire("UNIT_COMBAT", "target", "WOUND", "", 99, 4)
+fire("UNIT_COMBAT", "target", "WOUND", "", 98, 1)
+fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
+assertEq(#lines("outgoing"), 0, "alone, with the lines arriving: someone else's hits on your target aren't yours")
+Advance(0.1)
+hidden(50)
+fire("UNIT_COMBAT", "target", "WOUND", "", 44, 4)
+assertEq(last("outgoing"), "44", "a hit with a line of yours is")
+Advance(0.1)
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.5)
+fire("UNIT_COMBAT", "target", "WOUND", "", 37, 1)
+assertEq(last("outgoing"), "37", "and so is a white hit with your swing")
+STATE.unit.soloPlayer = { enemy = true, guid = "Player-5555-0ENEMY01", target = "me" }
+STATE.who.target = "soloPlayer"
+Advance(1.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 97, 32)
+assertEq(last("outgoing"), "37", "an enemy player you're fighting: someone else's Shadow Bolt on them isn't yours")
+-- Your pet's hits have no line in "My actions": on a unit your pet is on, hits show as before
+STATE.who.target = "soloMob"
+STATE.pet, STATE.unit.pet = true, { target = "soloMob" }
+Advance(1.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 21, 1)
+assertEq(last("outgoing"), "21", "your pet on your target: its hits (and so any) still show")
+STATE.pet, STATE.unit.pet = false, nil
+Advance(1.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 96, 1)
+assertEq(last("outgoing"), "21", "pet gone: back to needing a line or a swing")
+-- Before any line has arrived (Start not clicked), alone, every hit on your target is yours, as before
+BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.swings = nil, nil, nil, nil
+Advance(1.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 22, 1)
+assertEq(last("outgoing"), "22", "no lines yet: alone, your target's hits are yours")
+STATE.who, STATE.unit.soloMob, STATE.unit.soloPlayer = {}, nil, nil
+clear()
+
 ---------------------------------------------------------------------------
 step("ticks, and your damage shield")
 STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }
@@ -1535,6 +1587,7 @@ hidden(24)
 assertEq(last("outgoing"), "Rake 14", "on the beat, with its line behind it: Rake's tick")
 assert(isColor(newest(), C.spell), "spell-colored")
 Advance(3)
+fire("PLAYER_SWING", 2.6, 0)   -- (alone with the lines, the white hit needs your swing too)
 wound(14) wound(27) hidden(124)
 assertEq(table.concat(lines("outgoing"), " / "):match("Rake 14 / 27$"), "Rake 14 / 27", "one line vouches for one tick")
 Advance(3)
@@ -1997,7 +2050,14 @@ local function replay(file, happenings)
         seen[token] = now
         return mobs[token]
     end
-    local frame
+    -- The older recordings came before BattleText listened to the swing timer (PLAYER_SWING),
+    -- which in the game fires for every swing: there, each white hit on the mob gets its swing
+    -- (once, under its first name). Alone with the lines arriving, a white hit needs it (1.18.4).
+    local swingsRecorded = false
+    for _, e in ipairs(events) do
+        if e.what:find("^SWING") then swingsRecorded = true end
+    end
+    local frame, before
     for _, e in ipairs(events) do
         if e.time ~= frame then
             -- A new frame: the one before is over (its timer runs)
@@ -2010,6 +2070,12 @@ local function replay(file, happenings)
                 if h.at and e.time >= h.at then h.at = nil h.fn() end
             end
         end
+        if not swingsRecorded and e.unit and e.unit ~= "player" and e.school == "1"
+            and (e.unit == e.targetIs or (e.unit == "target" and not (before and before.unit == e.targetIs
+                and before.time == e.time and before.amount == e.amount))) then
+            fire("PLAYER_SWING", 1.5, 0)
+        end
+        before = e
         local target = e.targetIs and mob(e.targetIs, e.time)
         STATE.who = { target = target, softenemy = target }
         for token, id in pairs(mobs) do STATE.who[token] = id end
@@ -2203,8 +2269,9 @@ BT.db.outShields = true
 freshFight()
 out = replay("real_fight4.txt")
 assertEq(out[1], "Shred 131", "the hit with the line is Shred's")
-assertEq(out[2], "11", "the first shield answer is just a hit")
-assertEq(out[3], "1", "and so is the second")
+assertEq(out[2], "11", "the first shield answer is just a hit (the frame's second line vouches for it)")
+-- (alone with the lines, a hit no line vouches for and no shield of yours explains isn't shown: 1.18.4)
+assertEq(out[3], "59", "the second, with no line left for it, is left out")
 assertEq(BT.spellSchool and BT.spellSchool[5221], 1, "and Shred isn't taken for a nature spell")
 -- A swing landing in the frame of a cast whose own hit has the line: only that hit is the cast's
 freshFight()
@@ -2214,6 +2281,8 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 30, 1)
 log("|Ky1|k")
 fire("UNIT_COMBAT", "target", "WOUND", "", 72, 1)
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-s", 5221)
+fire("PLAYER_SWING", 1.5, 0)   -- (the 30 and the 9 are swings: alone with the lines, they need theirs)
+fire("PLAYER_SWING", 1.5, 0)
 fire("UNIT_COMBAT", "target", "WOUND", "", 9, 1)
 assertEq(table.concat(lines("outgoing"), " / "), "30 / Shred 72 / 9", "one line, one hit for the cast")
 -- A miss with its line ahead of the cast is the cast's too
@@ -2228,6 +2297,7 @@ freshFight()
 STATE.who.target = "mobA"
 log("|Ky3|k")
 Advance(1)
+fire("PLAYER_SWING", 1.5, 0)
 fire("UNIT_COMBAT", "target", "WOUND", "", 7, 1)
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-u", 1082)
 fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
@@ -2482,6 +2552,7 @@ fire("UNIT_COMBAT", "target", "WOUND", "", Secret(31), 1)
 BT:FlushHits(true)
 STATE.group, STATE.who.party1 = false, nil
 BT.db.outDamage = false
+log("|Ky10|k")   -- (alone with the lines, a hit needs one of yours too)
 fire("UNIT_COMBAT", "target", "WOUND", "", 30, 1)
 BT:FlushHits(true)
 BT.db.outDamage = true

@@ -274,7 +274,7 @@ local function BuildGeneral(p, refs)
         .. "pet. Turn on enemy nameplates for the ones you aren't targeting.\n\n"
         .. "The game doesn't say whose hit it was: alone, your pet's hits show as yours.\n\n"
         .. "Click \"Start BattleText\" once after you log in. It lets BattleText name the ticks of your bleeds, "
-        .. "and in a group it leaves other people's hits out.", "GameFontHighlightSmall", C.muted)
+        .. "and it leaves other people's hits out.", "GameFontHighlightSmall", C.muted)
     text:SetPoint("TOPLEFT", 12, -34)
     text:SetWidth(PAGE_W - 24)
     text:SetWordWrap(true)

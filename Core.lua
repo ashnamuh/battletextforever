@@ -2022,6 +2022,11 @@ local function Fighting(unit)
         or Flag(UnitIsUnit, unit, "pettarget") or Flag(UnitIsUnit, unit .. "target", "pet")
 end
 
+-- A unit your pet is fighting: the pet's target, or one that's after the pet
+local function PetOn(unit)
+    return Flag(UnitExists, "pet") and (Flag(UnitIsUnit, unit, "pettarget") or Flag(UnitIsUnit, unit .. "target", "pet"))
+end
+
 -- What to know a unit by from one moment to the next: its GUID, or "target"
 -- when the game won't give one
 local function UnitKey(unit)
@@ -2917,6 +2922,11 @@ function BT:ResolveFrame(seq, first, last)
                 if proc then what, spell = "proc", proc end
             end
             local why
+            -- (alone, your damage shield's hit stands on its own: "My actions" has no line for it.
+            -- So does one that may be your shield's, still to be told by a blow on you: WaitForSwing.)
+            if not claimed and h.solo and (what == "shield" or (not spell and self:ShieldOn(h))) then
+                claimed = true
+            end
             if not claimed then
                 why = "no line of yours with it"
             elseif h.kind == "heal" and not spell and not h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
@@ -3079,8 +3089,12 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
     end
     local healing = kind == "heal"
     local enemy = Flag(UnitCanAttack, "player", unit)
-    -- In a group, once the combat log lines are arriving, they say which hits are yours
-    local grouped = self.hiddenSeen and self:InGroup()
+    -- Once the combat log lines are arriving, they say which hits are yours: in a group, and
+    -- alone too (a player outside your group hitting your target showed as your numbers). Alone,
+    -- a unit your pet is on is the exception: "My actions" has no lines for the pet, and its hits
+    -- can't be told from yours, so they show as before.
+    local grouped = self.hiddenSeen and (self:InGroup() or not PetOn(unit))
+    local solo = grouped and not self:InGroup()
     -- A mob someone else tagged, and that isn't after you or your pet: its hits are theirs.
     -- Once the combat log lines are arriving, one of yours with a hit still makes it yours
     -- (helping someone out); without them, none are.
@@ -3118,7 +3132,7 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
     if why then return end
     self:Queue({ hit = true, unit = unit, key = UnitKey(unit), kind = kind, action = action, flag = flag,
         amount = amount, secret = secret, n = n, school = school, crit = flag == "CRITICAL", grouped = grouped,
-        splash = splash })
+        solo = solo, splash = splash })
 end
 
 -- A finished combat log line from the game

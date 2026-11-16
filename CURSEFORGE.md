@@ -30,7 +30,7 @@ Install it with the CurseForge app, or download the file and unzip it into your 
 ## Using it
 
 - **Your hits show as soon as you log in**: on your target, and on the mobs attacking you or your pet.
-- **Click Start BattleText** (the button at the top of the screen) once after you log in. With it, BattleText can name the ticks of your bleeds and, in a group, tell your hits from everyone else's (see Good to know). You can also bind a key to it. If you haven't clicked it ten seconds after logging in, a line in chat reminds you (turn off **Remind me to click Start** in the options to stop that). Right-click the button to hide it until you log in again.
+- **Click Start BattleText** (the button at the top of the screen) once after you log in. With it, BattleText can name the ticks of your bleeds and tell your hits from everyone else's (see Good to know). You can also bind a key to it. If you haven't clicked it ten seconds after logging in, a line in chat reminds you (turn off **Remind me to click Start** in the options to stop that). Right-click the button to hide it until you log in again.
 - **Move the text.** Turn on **Move the text areas** in the options (or type `/btf unlock`) and drag the four boxes where you want them. Closing the options locks them again.
 - **See it without fighting.** Type `/btf test`, or right-click the minimap button.
 - **Open the options.** Type `/btf`, or left-click the minimap button.
@@ -84,8 +84,8 @@ Go to **Options → Keybindings → BattleText Forever**:
 WoW: Forever doesn't let addons read the combat log. The game tells an addon **what happened to a unit** (it took 27 damage, it dodged), but not **who did it** or **with which spell**. BattleText works from that:
 
 - **Your hits are read from the unit you hit**: your target, and the mobs attacking you or your pet. An area spell (Fire Nova, Arcane Explosion, Swipe...) also shows on every other mob it hits at the same moment. Turn on **enemy nameplates** to see your hits on the ones you aren't targeting.
-- **Alone, every hit on those units is shown as yours**, your pet's hits included (they can't be told apart, so they aren't marked). The exception is a mob someone else tagged that isn't after you or your pet: its hits are theirs and aren't shown (with Start BattleText clicked, your own hits on it still show).
-- **Click Start BattleText once per login.** It opens the Combat Log tab and switches back for you. From then on the game tells BattleText *when* you did something. In a group, only that many hits are shown, so other people's are left out (now and then a number may still be a groupmate's hit that landed at the same moment as yours). Keep the Combat Log's filter on **My actions** (the default).
+- **Alone, before you click Start BattleText, every hit on those units is shown as yours**, so another player hitting the same mob shows up too. The exception is a mob someone else tagged that isn't after you or your pet: its hits are theirs and aren't shown.
+- **Click Start BattleText once per login.** It opens the Combat Log tab and switches back for you. From then on the game tells BattleText *when* you did something, and only that many hits are shown, so other people's are left out, alone or in a group (now and then a number may still be someone else's hit that landed at the same moment as yours). Alone, on a mob your pet is fighting, every hit still shows: your pet's hits can't be told from anyone else's (they aren't marked). Keep the Combat Log's filter on **My actions** (the default).
 - **Spell names and icons** show for:
   - hits that land the instant you cast (instant attacks and spells with no travel time);
   - spells that fly to their target and land a moment later: Fireball, Frostbolt, Pyroblast, Shadow Bolt, Soul Fire, Wrath, Starfire, Lightning Bolt, Chain Lightning, Hammer of Wrath and Arcane Shot (and the burn Fireball and Pyroblast leave);
@@ -110,8 +110,8 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
 
 - **No numbers for your hits.** Target what you're hitting, or turn on enemy nameplates. In a group, click **Start BattleText**.
 - **A bleed's ticks have no name.** Click **Start BattleText**.
-- **Start BattleText does nothing.** A chat addon that replaces the game's chat window (like Chattynator) hides the game's Combat Log tab, which the button opens, and there's no real way around that. Alone, your hits still show without it; in a group, other people's hits may show as yours, and bleed ticks have no name. Right-click the button to hide it. The button also goes away by itself if the combat lines start some other way.
-- **Other people's hits show as mine.** In a group, click **Start BattleText** and keep the Combat Log's filter on **My actions**.
+- **Start BattleText does nothing.** A chat addon that replaces the game's chat window (like Chattynator) hides the game's Combat Log tab, which the button opens, and there's no real way around that. Your hits still show without it, but other people's hits on your target may show as yours, and bleed ticks have no name. Right-click the button to hide it. The button also goes away by itself if the combat lines start some other way.
+- **Other people's hits show as mine.** Click **Start BattleText** and keep the Combat Log's filter on **My actions**. Alone, a mob your pet is fighting still shows every hit on it.
 - **Numbers show twice.** Turn on **Hide the game's own numbers** in the options.
 - **Something isn't shown.** Type `/btf debug`, fight for a moment, then type `/btf copy` and copy the lines into a bug report. Type `/btf debug` again to stop.
 - **A spell or icon looks wrong.** Type `/btf check`, then `/btf copy`, and add the report to a bug report.
