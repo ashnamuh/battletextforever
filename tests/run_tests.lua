@@ -235,6 +235,10 @@ fire("PLAYER_LOGIN")
 fire("PLAYER_ENTERING_WORLD")
 assert(BT.areas.incoming and BT.areas.outgoing and BT.areas.notify, "three text areas")
 assertEq(BT.db.enabled, true, "on by default")
+assertEq(BT.DEFAULTS.loginMessage, true, "the login message is on to start with")
+local loadedLine = false
+for _, line in ipairs(LOG) do if line:find("loaded. Type /btf", 1, true) then loadedLine = true end end
+assert(loadedLine, "the login message is in chat")
 assertEq(BT.areas.outgoing.mover:IsShown(), false, "areas are locked by default")
 for _, name in ipairs(bindingNames) do
     local button = name:match("^CLICK (%S+):LeftButton$")
@@ -2642,7 +2646,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 55, "the switches are there")
+assertEq(switches, 56, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then

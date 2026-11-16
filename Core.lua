@@ -126,6 +126,7 @@ local DEFAULTS = {
     hideBlizzard = false,
     minimap = true,
     startReminder = true,   -- a line in chat after logging in, while Start hasn't been clicked
+    loginMessage = true,    -- "BattleText Forever loaded. Type /btf for options." in chat at login
     minimapAngle = 215,
     debug = false,
     areas = {
@@ -3548,7 +3549,7 @@ end
 ---------------------------------------------------------------------------
 local SHARE_PREFIX = "BTF1:"
 local NOT_SHARED = { enabled = true, locked = true, debug = true, minimap = true, minimapAngle = true,
-    startReminder = true, shieldAmounts = true }
+    startReminder = true, loginMessage = true, shieldAmounts = true }
 
 local function Serialize(v)
     local t = type(v)
@@ -4052,7 +4053,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         if C_Timer and C_Timer.NewTicker then
             C_Timer.NewTicker(3, function() BT:KeepLogFlowing() end)
         end
-        print(T.CHAT_PREFIX .. " loaded. Type /btf for options.")
+        if BT.db.loginMessage then print(T.CHAT_PREFIX .. " loaded. Type /btf for options.") end
         if C_Timer and C_Timer.After then
             C_Timer.After(REMIND_AFTER, function() BT:RemindStart() end)
         end

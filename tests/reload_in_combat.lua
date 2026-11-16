@@ -23,8 +23,10 @@ print("STEP logging in during a fight, with the Combat Log tab showing")
 ClickTab(ChatFrame2Tab)
 STATE.filterApplied = false
 COMBAT = true
+BattleTextForeverDB = { loginMessage = false }   -- (turned off: no line in chat)
 fire("ADDON_LOADED", ADDON)
 fire("PLAYER_LOGIN")
+for _, line in ipairs(LOG) do assert(not line:find("loaded. Type /btf", 1, true), "login message turned off: " .. line) end
 fire("PLAYER_ENTERING_WORLD")
 fire("UNIT_COMBAT", "player", "WOUND", "", 23, 1)
 Advance(4)

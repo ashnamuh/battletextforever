@@ -231,7 +231,7 @@ end
 -- The pages. refs collects the widgets the window keeps a name for.
 ---------------------------------------------------------------------------
 local function BuildGeneral(p, refs)
-    local card = Card(p, "Basics", 0, 0, PAGE_W, 150)
+    local card = Card(p, "Basics", 0, 0, PAGE_W, 176)
     Setting(card, "Show BattleText", 12, -30, "enabled",
         "Turns all of BattleText's text on or off (also /btf on and /btf off).")
     Setting(card, "Move the text areas", COL2, -30, "locked",
@@ -245,6 +245,8 @@ local function BuildGeneral(p, refs)
         "The BattleText button on the minimap: left-click opens the options, right-click shows sample text.")
     Setting(card, "Remind me to click Start", 12, -82, "startReminder",
         "Ten seconds after you log in, a line in chat reminds you to click Start BattleText if you haven't yet.")
+    Setting(card, "Login message", 12, -108, "loginMessage",
+        "\"BattleText Forever loaded. Type /btf for options.\" in chat when you log in or /reload.")
     local own = T.LabeledSwitch(card, "Settings for this character only", COL2, -82)
     own:SetScript("OnClick", function(self)
         self:SetOn(not self:IsOn())
@@ -256,7 +258,7 @@ local function BuildGeneral(p, refs)
     AddRefresher(function() own:SetOn(BT:OwnSettings()) end)
     refs.ownSwitch = own
     local sample = FlatButton(card, "Show sample text", 140)
-    sample:SetPoint("TOPLEFT", 12, -114)
+    sample:SetPoint("TOPLEFT", 12, -140)
     sample:SetScript("OnClick", function() BT:Test() end)
     T.Tooltip(sample, nil, "A few sample lines in every area, to see the look and where the areas are.")
     local reset = FlatButton(card, "Reset positions", 120)
@@ -267,7 +269,7 @@ local function BuildGeneral(p, refs)
     end)
     refs.sampleButton, refs.resetButton = sample, reset
 
-    local know = Card(p, "Good to know", 0, -160, PAGE_W, 130)
+    local know = Card(p, "Good to know", 0, -186, PAGE_W, 124)
     local text = Text(know, "Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
         .. "pet. Turn on enemy nameplates for the ones you aren't targeting.\n\n"
         .. "The game doesn't say whose hit it was: alone, your pet's hits show as yours.\n\n"
@@ -278,7 +280,7 @@ local function BuildGeneral(p, refs)
     text:SetWordWrap(true)
     text:SetJustifyH("LEFT")
 
-    local share = Card(p, "Share settings", 0, -300, PAGE_W, 90)
+    local share = Card(p, "Share settings", 0, -320, PAGE_W, 90)
     local export = FlatButton(share, "Export", 90)
     export:SetPoint("TOPLEFT", 12, -28)
     export:SetScript("OnClick", function() BT:OpenShareWindow("export") end)

@@ -3,6 +3,7 @@
 ## 1.18.0
 
 - **New: dispels in Notifications.** When you take something off, BattleText now says what: "Dispelled Deadly Poison" when you cleanse a friend or yourself (poison, curse, disease or magic), "Purged Power Word: Fortitude" when you strip a buff off an enemy, "Stole ..." with Spellsteal, with the icon of what came off. Mouseover dispels count too. **One step to turn it on:** right-click the Combat Log tab, then Settings, Message Types, Auras, tick **Dispels**, and Okay. Without that box, BattleText still shows the cure spell you cast ("Cleanse"), but it can't tell what it took off. On to start with; turn it off with "Dispels" on the Notifications tab, and pick its color on the Colors tab. (Thanks to user_iy4drbxtpt5r9noy4422 for the idea.)
+- **New: "Login message"** (General tab). Turn it off to stop "BattleText Forever loaded. Type /btf for options." showing in chat every time you log in or /reload. The "click Start BattleText" line has its own switch just above it, "Remind me to click Start". (Thanks to Richmundo for asking.)
 
 ## 1.17.1
 
