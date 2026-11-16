@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.1
+
+- **Regrowth and Rejuvenation ticks on yourself show their icon, overheals too.** 1.16.4 names a heal-over-time tick on you by when it lands, every 3 seconds after your cast. A debug log showed every tick landing right on time, but the game doesn't always say the heal is Nature, so BattleText thought it was someone else's heal and left it as a plain "+number". A tick with no school now counts too (a heal of another school, like a paladin's Holy Light, still doesn't). `/btf debug` now also records the school of heals and hits on you, for future reports.
+
 ## 1.18.0
 
 - **New: dispels in Notifications.** When you take something off, BattleText now says what: "Dispelled Deadly Poison" when you cleanse a friend or yourself (poison, curse, disease or magic), "Purged Power Word: Fortitude" when you strip a buff off an enemy, "Stole ..." with Spellsteal, with the icon of what came off. Mouseover dispels count too. **One step to turn it on:** right-click the Combat Log tab, then Settings, Message Types, Auras, tick **Dispels**, and Okay. Without that box, BattleText still shows the cure spell you cast ("Cleanse"), but it can't tell what it took off. On to start with; turn it off with "Dispels" on the Notifications tab, and pick its color on the Colors tab. (Thanks to user_iy4drbxtpt5r9noy4422 for the idea.)

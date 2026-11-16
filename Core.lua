@@ -1206,9 +1206,14 @@ function BT:HealGoesToTarget()
 end
 
 -- A tick of a heal over time you put on yourself (Rejuvenation, Renew): a heal on you on its
--- beat (a whole number of periods since the cast, give or take TICK_SLACK), of its school when
--- the game says, within SELF_HOT_TIME of the cast
+-- beat (a whole number of periods since the cast, give or take TICK_SLACK), within SELF_HOT_TIME
+-- of the cast. A heal of another magic school isn't it (a paladin's Holy Light); one with no
+-- school or Physical may be: the game doesn't always give a heal on you its spell's school
+-- (a player's debug log: Regrowth and Rejuvenation ticks on their beats, left unnamed).
 local SELF_HOT_TIME = 25
+local function SameHealSchool(school, hotSchool)
+    return not school or school == hotSchool or school <= 1
+end
 function BT:SelfHotFor(at, school)
     local best, bestOff
     for name, hot in pairs(self.selfHots or {}) do
@@ -1218,7 +1223,7 @@ function BT:SelfHotFor(at, school)
         else
             local beats = math.floor(since / hot.period + 0.5)
             local off = math.abs(since - beats * hot.period)
-            if beats >= 1 and off <= 0.25 and (not school or school == hot.school) and (not best or off < bestOff) then
+            if beats >= 1 and off <= 0.25 and SameHealSchool(school, hot.school) and (not best or off < bestOff) then
                 best, bestOff = hot, off
             end
         end
@@ -1251,7 +1256,8 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
     action, flag = Str(action), Str(flag)
     if self.db.debug then
         self:Record("UNIT_COMBAT player " .. tostring(action) .. " " .. tostring(flag) .. " "
-            .. (IsSecret(amount) and "(hidden amount)" or tostring(amount)))
+            .. (IsSecret(amount) and "(hidden amount)" or tostring(amount))
+            .. " school " .. (IsSecret(school) and "(hidden)" or tostring(school)))
     end
     if not action then return end
     if action == "WOUND" then

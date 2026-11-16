@@ -964,6 +964,35 @@ Advance(30)
 fire("UNIT_COMBAT", "player", "HEAL", "", 30, 8)
 Advance(0.3)
 assertEq(last("incoming"), "+30", "long after it ran out: not it")
+-- A player's debug log (Regrowth then Rejuvenation on themself, at full health): every
+-- tick on its beat, but the game doesn't give a heal on you its spell's school. A tick
+-- with Physical or no school is still named; another magic school still isn't (above).
+clear()
+BT.selfHots = nil
+STATE.spellNames[8938], STATE.spellIcons[8938] = "Regrowth", 136085
+STATE.spellNames[2090], STATE.spellIcons[2090] = "Rejuvenation", 136081
+BT.iconCache = nil
+STATE.helpful[8938], STATE.helpful[2090] = true, true
+do
+    local now = 315.05
+    local function at(t) Advance(t - now) now = t end
+    fire("UNIT_COMBAT", "player", "HEAL", "", 150, 1)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rg-log", 8938)
+    at(315.69)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rj-log", 2090)
+    local named = {}
+    for i, t in ipairs({ 317.99, 318.73, 320.98, 321.71, 324.03, 324.67 }) do
+        at(t)
+        fire("UNIT_COMBAT", "player", "HEAL", "", 20 + i, i % 2 == 1 and 1 or 0)
+        Advance(0.3) now = now + 0.3
+        named[#named + 1] = last("incoming")
+    end
+    assertEq(named[1], "+21 |T136085:0|t Regrowth", "Regrowth's tick with Physical as its school, from the log")
+    assertEq(named[2], "+22 |T136081:0|t Rejuvenation", "Rejuvenation's tick with no school")
+    assertEq(named[5], "+25 |T136085:0|t Regrowth", "Regrowth's third tick")
+    assertEq(named[6], "+26 |T136081:0|t Rejuvenation", "Rejuvenation's third tick")
+end
+BT.selfHots = nil
 clear()
 STATE.who.party1 = "friendA"
 STATE.who.target = "friendA"
@@ -1979,13 +2008,16 @@ local function replay(file, happenings)
             local amount = e.secret and Secret(100) or tonumber(e.amount)
             fire("UNIT_COMBAT", e.unit, e.action, e.flag, amount, tonumber(e.school))
         else
-            local action, flag, amount = e.what:match("^UNIT_COMBAT player (%S+) (%S*) (%S+)$")
+            -- (logs since 1.18.1 end in "school <n>")
+            local what, school = e.what:match("^(.-) school (%S+)$")
+            what = what or e.what
+            local action, flag, amount = what:match("^UNIT_COMBAT player (%S+) (%S*) (%S+)$")
             if not action then
-                action, flag = e.what:match("^UNIT_COMBAT player (%S+) (%S*) %(hidden amount%)$")
+                action, flag = what:match("^UNIT_COMBAT player (%S+) (%S*) %(hidden amount%)$")
                 amount = Secret(20)
             end
             assert(action, "what happened to you: " .. e.what)
-            fire("UNIT_COMBAT", "player", action, flag, tonumber(amount) or amount, 1)
+            fire("UNIT_COMBAT", "player", action, flag, tonumber(amount) or amount, tonumber(school) or 1)
         end
     end
     BT:FlushHits(true)
@@ -2408,7 +2440,7 @@ assertEq(BT.copyWindow:IsShown(), true, "the window opens")
 assert(copied:find("read    ||Hunit:Player-5555-0ABCDEF1:Abla||hYour||h ||Hspell:16827:0:SPELL_DAMAGE||h", 1, true),
     "a line that was shown, with its links readable")
 assert(copied:find("skipped ", 1, true) and copied:find("SPELL_CAST_SUCCESS", 1, true), "and one that wasn't")
-assert(copied:find("UNIT_COMBAT player WOUND CRITICAL 58", 1, true), "what happened to you")
+assert(copied:find("UNIT_COMBAT player WOUND CRITICAL 58 school", 1, true), "what happened to you, with its school")
 assert(copied:find("UNIT_COMBAT player WOUND  (hidden amount)", 1, true), "a hidden amount is named, not read")
 local _, newlines = copied:gsub("\n", "")
 assertEq(newlines, 3, "one line each")
