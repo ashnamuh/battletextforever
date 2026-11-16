@@ -111,7 +111,8 @@ assertEq(healMe("Healing Touch", 5185, 380, "(120 Overhealed)"), real("heal on m
 
 -- Everything BattleText acts on. A field left out of `expect` must be unset.
 local FIELDS = { "kind", "fromMe", "toMe", "melee", "spell", "spellId", "amount", "unit", "crit", "glancing", "crushing",
-    "periodic", "split", "blocked", "absorbed", "resisted", "overkill", "overheal", "missType" }
+    "periodic", "split", "blocked", "absorbed", "resisted", "overkill", "overheal", "missType",
+    "extraSpell", "extraSpellId", "aura", "stolen" }
 local function sameParse(got, expect, fields, id)
     if expect == nil then
         assertEq(got, nil, id .. ": nothing to show")
@@ -2641,7 +2642,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 54, "the switches are there")
+assertEq(switches, 55, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then
@@ -3684,6 +3685,66 @@ BT.flying = nil
 BT.db.merge = true
 SetIcons(false)
 BT.db.outNames = namesWere
+clear()
+
+step("dispels: what you took off, from the Combat Log line or from the cast")
+assertEq(BT.DEFAULTS.nDispels, true, "on to start with")
+BT.db.nDispels = true
+BT.dispelLineAt = nil
+clear()
+log(real("cleanse a friend"))
+assertEq(last("notify"), "Dispelled Corruption", "a debuff taken off a friend, by its name")
+log(real("cleanse myself"))
+assertEq(last("notify"), "Dispelled Corruption", "and off yourself")
+log(real("dispel"))
+assertEq(last("notify"), "Purged Power Word: Fortitude", "an enemy's buff")
+log(real("spell steal"))
+assertEq(last("notify"), "Stole Power Word: Fortitude", "Spellsteal")
+local dispelCount = #lines("notify")
+log(real("my buff is dispelled"))
+assertEq(#lines("notify"), dispelCount, "someone else's dispel isn't yours")
+BT.db.nDispels = false
+log(real("cleanse a friend"))
+assertEq(#lines("notify"), dispelCount, "off: nothing")
+BT.db.nDispels = true
+local rule = BT:AddSpellRule("Cleanse")
+BT:SetSpellRule(rule, "hide", true)
+log(real("cleanse a friend"))
+assertEq(#lines("notify"), dispelCount, "hidden on the Spells tab: nothing")
+BT:RemoveSpellRule(#BT.db.spellRules)
+BT.db.nIcons = true
+STATE.spellIcons[172] = 136118
+log(real("cleanse a friend"))
+assert(last("notify"):find("136118", 1, true) and last("notify"):find("Dispelled Corruption$"),
+    "with icons on, the icon of what came off: " .. last("notify"))
+SetIcons(false)
+-- No "Dispelled" lines (the box isn't ticked): the cast shows by itself
+BT.dispelLineAt = nil
+STATE.spellNames[4987], STATE.spellIcons[4987] = "Cleanse", 135949
+clear()
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-dsp1", 4987)
+assertEq(#lines("notify"), 0, "the cast waits for its line")
+Advance(0.6)
+assertEq(last("notify"), "Cleanse", "no line came: the cast shows")
+clear()
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-dsp2", 635)
+Advance(0.6)
+assertEq(#lines("notify"), 0, "a spell that takes nothing off says nothing")
+BT.db.nDispels = false
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-dsp3", 4987)
+Advance(0.6)
+assertEq(#lines("notify"), 0, "off: no cast either")
+BT.db.nDispels = true
+-- The line comes with the cast: only the line shows, and from then on casts wait for lines
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-dsp4", 4987)
+log(real("cleanse a friend"))
+Advance(0.6)
+assertEq(table.concat(lines("notify"), " / "), "Dispelled Corruption", "the line, not the cast as well")
+clear()
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-dsp5", 4987)
+Advance(0.6)
+assertEq(#lines("notify"), 0, "lines are arriving: a cast with no line took nothing off")
+BT.dispelLineAt = nil
 clear()
 
 step("ability alerts: Overpower, Revenge, Riposte")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.0
+
+- **New: dispels in Notifications.** When you take something off, BattleText now says what: "Dispelled Deadly Poison" when you cleanse a friend or yourself (poison, curse, disease or magic), "Purged Power Word: Fortitude" when you strip a buff off an enemy, "Stole ..." with Spellsteal, with the icon of what came off. Mouseover dispels count too. **One step to turn it on:** right-click the Combat Log tab, then Settings, Message Types, Auras, tick **Dispels**, and Okay. Without that box, BattleText still shows the cure spell you cast ("Cleanse"), but it can't tell what it took off. On to start with; turn it off with "Dispels" on the Notifications tab, and pick its color on the Colors tab. (Thanks to user_iy4drbxtpt5r9noy4422 for the idea.)
+
 ## 1.17.1
 
 - **Shadow Bolt is named again when your damage over time is ticking.** With Bane of Agony, Corruption or another shadow spell ticking on a mob, a Shadow Bolt landing close to one of its ticks was taken for a second tick: it showed with no name, or the two swapped names, the bolt shown as the tick and the tick as the bolt. The game hides the numbers, so BattleText can't tell them apart by size. It now knows each damage over time ticks only once per beat, and once it has ticked it knows when the next one is due, so a spell landing beside a tick keeps its own name. The same goes for any spell that flies to its target landing beside a tick of the same school. (Thanks to Ethn91081 for the report and the debug log.)

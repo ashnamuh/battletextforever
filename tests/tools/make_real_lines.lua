@@ -366,15 +366,20 @@ gen("interrupt", { kind = "interrupt", fromMe = true, spell = "Kick", spellId = 
     "SPELL_INTERRUPT", ME, MOB, 1766, "Kick", P, 133, "Fireball", F)
 gen("interrupted", { kind = "interrupt", toMe = true, spell = "Pummel", spellId = 6552 },
     "SPELL_INTERRUPT", MOB, ME, 6552, "Pummel", P, 133, "Fireball", F)
-gen("dispel", { kind = "dispel", fromMe = true, spell = "Purge", spellId = 370 },
+gen("dispel", { kind = "dispel", fromMe = true, spell = "Purge", spellId = 370,
+    extraSpell = "Power Word: Fortitude", extraSpellId = 1243, aura = "BUFF" },
     "SPELL_DISPEL", ME, MOB, 370, "Purge", N, 1243, "Power Word: Fortitude", HOLY, "BUFF")
-gen("cleanse a friend", { kind = "dispel", fromMe = true, spell = "Cleanse", spellId = 4987 },
+gen("cleanse a friend", { kind = "dispel", fromMe = true, spell = "Cleanse", spellId = 4987,
+    extraSpell = "Corruption", extraSpellId = 172, aura = "DEBUFF" },
     "SPELL_DISPEL", ME, FRIEND, 4987, "Cleanse", HOLY, 172, "Corruption", S, "DEBUFF")
-gen("cleanse myself", { kind = "dispel", fromMe = true, toMe = true, spell = "Cleanse", spellId = 4987 },
+gen("cleanse myself", { kind = "dispel", fromMe = true, toMe = true, spell = "Cleanse", spellId = 4987,
+    extraSpell = "Corruption", extraSpellId = 172, aura = "DEBUFF" },
     "SPELL_DISPEL", ME, ME, 4987, "Cleanse", HOLY, 172, "Corruption", S, "DEBUFF")
-gen("my buff is dispelled", { kind = "dispel", toMe = true, spell = "Purge", spellId = 370 },
+gen("my buff is dispelled", { kind = "dispel", toMe = true, spell = "Purge", spellId = 370,
+    extraSpell = "Power Word: Fortitude", extraSpellId = 1243, aura = "BUFF" },
     "SPELL_DISPEL", MOB, ME, 370, "Purge", N, 1243, "Power Word: Fortitude", HOLY, "BUFF")
-gen("spell steal", { kind = "dispel", fromMe = true, spell = "Spellsteal", spellId = 30449 },
+gen("spell steal", { kind = "dispel", fromMe = true, spell = "Spellsteal", spellId = 30449,
+    extraSpell = "Power Word: Fortitude", extraSpellId = 1243, aura = "BUFF", stolen = true },
     "SPELL_STOLEN", ME, MOB, 30449, "Spellsteal", A, 1243, "Power Word: Fortitude", HOLY, "BUFF")
 
 -- Lines BattleText has nothing to show for

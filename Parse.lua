@@ -255,6 +255,18 @@ function Parser:ParseLinks(line)
     if event == "DAMAGE_SPLIT" then info.split = true end
 
     local tailFrom = links[verb].last
+    if kind == "dispel" then
+        -- A buff or a debuff: the game words them differently ("dispelled", "cleansed")
+        if event == "SPELL_STOLEN" then
+            info.stolen = true
+            info.aura = "BUFF"
+        else
+            local word, buff, debuff = links[verb].text, Text("ACTION_SPELL_DISPEL_BUFF"), Text("ACTION_SPELL_DISPEL_DEBUFF")
+            if buff ~= debuff then
+                if word == debuff then info.aura = "DEBUFF" elseif word == buff then info.aura = "BUFF" end
+            end
+        end
+    end
     for i, link in ipairs(links) do
         if i < verb then
             if link.kind == "unit" then
@@ -275,6 +287,11 @@ function Parser:ParseLinks(line)
                     info.spell = link.text
                 end
             end
+        elseif i > verb and link.kind == "spell" and kind == "dispel" and not info.extraSpell then
+            -- What a dispel took off: "Your Cleanse cleansed X's Corruption."
+            if link.text ~= "" then info.extraSpell = link.text end
+            local id = tonumber(link.data:match("^(%d+)"))
+            if id and id > 0 then info.extraSpellId = id end
         elseif i > verb and link.kind == "unit" and not info.destGUID then
             info.destGUID = link.data:match("^([^:]*)")
             if link.text == self.youDest or link.text == self.yourDest
@@ -414,6 +431,8 @@ end
 --   crit, glancing, crushing, periodic
 --   blocked, absorbed, resisted, overkill, overheal     (amounts)
 --   missType  "DODGE"
+--   extraSpell, extraSpellId   what a dispel took off ("Corruption", 172)
+--   aura      "BUFF" or "DEBUFF" (a dispel, when the game's words tell them apart)    stolen (Spellsteal)
 --   srcGUID, destGUID, event     (from the links)
 ---------------------------------------------------------------------------
 function Parser:Parse(line)

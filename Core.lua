@@ -32,6 +32,7 @@ BT.TEXT_COLORS = {
     buff      = { 0.55, 0.85, 1.00 },
     alert     = { 1.00, 1.00, 0.20 },
     combo     = { 1.00, 0.60, 0.20 },
+    dispel    = { 0.60, 1.00, 0.85 },
 }
 -- What they start as; db.colors holds the ones you've changed (ApplyColors)
 BT.DEFAULT_COLORS = {}
@@ -46,7 +47,7 @@ BT.COLOR_CHOICES = {
     { "combat", "+Combat and killing blows" }, { "xp", "Experience" },
     { "loot", "Loot" }, { "seal", "Seals" },
     { "buff", "Buffs" }, { "alert", "Ability alerts" },
-    { "combo", "Combo points" },
+    { "combo", "Combo points" }, { "dispel", "Dispels" },
 }
 -- Spell damage is tinted by its school (the game's own words for them)
 local SCHOOL_KEYS = {
@@ -116,6 +117,7 @@ local DEFAULTS = {
     nSummary = true,          -- at the end of a fight: your damage, DPS and healing
     nAlerts = true,           -- "Overpower!" when an ability you can use only just then opens up
     nCombo = true,            -- "3 CP", and "5 CP: Finish it!" (rogues and cat druids)
+    nDispels = true,          -- "Dispelled Corruption" when you take something off (Cleanse, Purge...)
     spellRules = {},          -- spells you hide or recolor (Spells tab): { { name =, hide =, color = { r, g, b } } }
     soundCrit = false,        -- a sound when you crit
     soundKill = false,        -- a sound on a killing blow
@@ -1141,6 +1143,8 @@ function BT:ShowCombat(info)
             end
             return true
         end
+    elseif info.kind == "dispel" then
+        return self:ShowDispel(info, mine, pet)
     elseif info.kind == "kill" then
         if mine then
             if db.soundKill then self:PlayAlert("kill") end
@@ -1457,6 +1461,17 @@ local REACTIVE_SPELLS = {
 }
 local REACT_GAP = 1   -- seconds before the same alert shows again
 
+-- Spells that take something off (first rank's ID, English name). Only for when
+-- the Combat Log's dispel lines aren't arriving: then the cast itself shows.
+-- Abolish Poison and Abolish Disease aren't here: their cast is a buff, and what
+-- they take off comes later.
+local DISPEL_SPELLS = {
+    { 4987, "Cleanse" }, { 1152, "Purify" }, { 2782, "Remove Curse" }, { 475, "Remove Lesser Curse" },
+    { 8946, "Cure Poison" }, { 526, "Cure Poison" }, { 2870, "Cure Disease" }, { 528, "Cure Disease" },
+    { 527, "Dispel Magic" }, { 370, "Purge" }, { 19801, "Tranquilizing Shot" },
+}
+local DISPEL_WAIT = 0.5   -- seconds a cast waits for its dispel line before showing on its own
+
 local function SpellName(id)
     if not (C_Spell and C_Spell.GetSpellName) then return nil end
     local ok, name = pcall(C_Spell.GetSpellName, id)
@@ -1688,6 +1703,55 @@ function BT:Alert(id, name)
     self.reactAt[name] = now
     local icon = self.db.nIcons and self:IconText(id) or ""
     self:Notify(icon .. name .. "!", self.TEXT_COLORS.alert, { crit = true })
+end
+
+-- Dispels (Notifications). The Combat Log's line names what came off:
+-- "Your Cleanse cleansed X's Corruption." It arrives only when "Dispels" is
+-- ticked in the Combat Log's Message Types; until one has, a cast of a spell in
+-- DISPEL_SPELLS shows by itself (DispelCast).
+function BT:ShowDispel(info, mine, pet)
+    if not (mine or pet) then return false end
+    if mine then self.dispelLineAt = GetTime() end
+    local what = info.extraSpell
+    if not what then return false end
+    if not self.db.nDispels then return true end
+    local rule = self:SpellRule(info.spell)
+    if rule and rule.hide then return true end
+    local word = info.stolen and "Stole" or (info.aura == "BUFF" and not info.toMe) and "Purged" or "Dispelled"
+    local icon = self.db.nIcons and self:IconText(info.extraSpellId or what) or ""
+    self:Notify(icon .. (pet and "(Pet) " or "") .. word .. " " .. what, self.TEXT_COLORS.dispel)
+    return true
+end
+
+-- DISPEL_SPELLS by name (English, and the game's language)
+function BT:IsDispelSpell(id, name)
+    if not self.dispelNames then
+        self.dispelNames, self.dispelIds = {}, {}
+        for _, e in ipairs(DISPEL_SPELLS) do
+            self.dispelIds[e[1]] = true
+            self.dispelNames[e[2]] = true
+            local translated = SpellName(e[1])
+            if translated then self.dispelNames[translated] = true end
+        end
+    end
+    return (id and self.dispelIds[id]) or (name and self.dispelNames[name]) or false
+end
+
+-- A cast of a dispel spell: if no dispel line of yours has arrived within
+-- DISPEL_WAIT, the cast shows on its own ("Cleanse"). Once a line has arrived since
+-- logging in, the lines are on, and a cast with no line took nothing off.
+function BT:DispelCast(id, name)
+    if not self.db.nDispels or self.dispelLineAt then return end
+    local at = GetTime()
+    local function show()
+        if self.dispelLineAt and self.dispelLineAt >= at - 0.1 then return end
+        if not self.db.nDispels then return end
+        local rule = self:SpellRule(name)
+        if rule and rule.hide then return end
+        local icon = self.db.nIcons and self:IconText(id or name) or ""
+        self:Notify(icon .. name, self.TEXT_COLORS.dispel)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(DISPEL_WAIT, show) else show() end
 end
 
 -- The "usable" ones of REACTIVE_SPELLS (Execute, Hammer of Wrath): an alert when the game
@@ -2185,6 +2249,7 @@ function BT:OnSpellcast(spellId)
     end
     self.lastCast = { name = name, at = GetTime() }
     self:NoteHealCast(id, name)
+    if self:IsDispelSpell(id, name) then self:DispelCast(id, name) end
     local seals = self:SealLists()
     -- In a fight your buffs are hidden: a buff you put on yourself shows as you cast it
     if not seals[name] and InCombatLockdown() and self:IsSelfBuffCast(id, name) then
@@ -3187,6 +3252,7 @@ function BT:CheckGameData()
     for _, e in ipairs(THROWN_ITEMS) do spell(e[1], e[2], "thrown") end
     for _, e in ipairs(AREA_SPELLS) do spell(e[1], e[2], "keeps hitting") end
     for _, e in ipairs(REACTIVE_SPELLS) do spell(e[1], e[2], "alert") end
+    for _, e in ipairs(DISPEL_SPELLS) do spell(e[1], e[2], "dispel") end
     spell(JUDGEMENT[1], JUDGEMENT[2], "seal")
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
