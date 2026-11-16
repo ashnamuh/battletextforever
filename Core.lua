@@ -1347,6 +1347,7 @@ end
 ---------------------------------------------------------------------------
 local CREDIT_TIME = 1.2   -- a hit can follow its combat log line by this long (a swing lands with its animation)
 local TICK_SLACK = 0.25   -- a tick can be this far off its beat
+local TICK_CLOSE = 0.15   -- and once it has ticked, the next is about this close to its beat (against a spell landing)
 local DOT_TIME = 45       -- a damage-over-time spell is forgotten this long after its cast
 local FLAG_NOTES = { GLANCING = "glancing", BLOCK = "blocked", BLOCK_REDUCED = "blocked", ABSORB = "absorbed",
     RESIST = "resisted" }
@@ -2394,20 +2395,24 @@ function BT:ForgetOldDots()
 end
 
 -- The damage-over-time spell of yours whose tick this hit is: one you cast on
--- that unit, on its beat now (so many periods after the cast), of the hit's school
-function BT:TickFor(h)
+-- that unit, on its beat now (so many periods after the cast, or after its last tick), of
+-- the hit's school. It ticks once a beat: a hit just after its tick isn't another one
+-- (issue #20: a Shadow Bolt landing 0.1s after Bane of Agony ticked). close: against a
+-- spell of yours landing, a dot that has ticked must be closer to its beat (TICK_CLOSE).
+function BT:TickFor(h, close)
     local dots = h.key and self.dots and self.dots[h.key]
     if not dots or (h.kind ~= "damage" and h.kind ~= "heal") then return nil end
     local mask = Num(h.school)
     local best, bestOff
     for name, dot in pairs(dots) do
-        local since = h.time - dot.at
-        if since > DOT_TIME then
+        if h.time - dot.at > DOT_TIME then
             dots[name] = nil
         else
+            local since = h.time - (dot.last or dot.at)
             local beats = math.floor(since / dot.period + 0.5)
             local off = math.abs(since - beats * dot.period)
-            if beats >= 1 and off <= TICK_SLACK and (not mask or mask == dot.school) and (h.kind == "heal") == dot.heal
+            local slack = (close and dot.last) and TICK_CLOSE or TICK_SLACK
+            if beats >= 1 and off <= slack and (not mask or mask == dot.school) and (h.kind == "heal") == dot.heal
                     and (not best or off < bestOff) then
                 best, bestOff = dot, off
             end
@@ -2774,7 +2779,7 @@ function BT:ResolveFrame(seq, first, last)
             -- comes first, unless its amount isn't what that spell's ticks have been.
             if not spell and claimed then
                 local f, at = self:FlightFor(h)
-                local dot = f and self:TickFor(h)
+                local dot = f and self:TickFor(h, true)
                 if dot and not (dot.tick and h.n and h.n ~= dot.tick) then f = nil end
                 -- (a Holy hit with your swing is your seal's, not a Hammer of Wrath on its way)
                 if f and self:SealFor(h, seq, first, last, i, true) then f = nil end
@@ -2787,7 +2792,7 @@ function BT:ResolveFrame(seq, first, last)
             -- Something you threw going off. As above, a tick of yours on its beat comes first.
             if not spell and claimed then
                 local t = self:ThrownFor(h)
-                local dot = t and self:TickFor(h)
+                local dot = t and self:TickFor(h, true)
                 if dot and not (dot.tick and h.n and h.n ~= dot.tick) then t = nil end
                 if t then
                     what, spell = "cast", t
@@ -2811,6 +2816,7 @@ function BT:ResolveFrame(seq, first, last)
                     if vouched then
                         what, spell = "tick", dot
                         dot.tick = h.n or dot.tick   -- what its ticks hit for (see the spells on their way, above)
+                        dot.last = h.time   -- its beat from now on (and it won't tick again on this one)
                     end
                 end
             end

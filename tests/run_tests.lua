@@ -1912,6 +1912,10 @@ local function replay(file, happenings)
         if not what:find("^%s") then   -- (indented lines are BattleText's own verdicts)
             local e = { time = tonumber(time), what = what }
             e.unit, e.action, e.flag, e.amount, e.school = what:match("^UNIT_COMBAT (%S+) (%S+) (%S*) (%S+) school (%d+)")
+            if not e.unit then   -- (a hidden amount: "(hidden amount)")
+                e.unit, e.action, e.flag, e.school = what:match("^UNIT_COMBAT (%S+) (%S+) (%S*) %(hidden amount%) school (%d+)")
+                e.secret = e.unit ~= nil
+            end
             events[#events + 1] = e
         end
     end
@@ -1963,13 +1967,20 @@ local function replay(file, happenings)
             assertEq(log(e.what:match("(|K.-|k)")), true, "the line arrives")
         elseif e.what:find("^CAST") then
             fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-r", tonumber(e.what:match("^CAST (%d+)")))
+        elseif e.what:find("^SWING") then
+            fire("PLAYER_SWING", 1.5, tonumber(e.what:match("^SWING (%d+)")))
         elseif e.unit then
             if e.unit:find("^nameplate") then STATE.who[e.unit] = mob(e.unit, e.time) end
-            fire("UNIT_COMBAT", e.unit, e.action, e.flag, tonumber(e.amount), tonumber(e.school))
+            local amount = e.secret and Secret(100) or tonumber(e.amount)
+            fire("UNIT_COMBAT", e.unit, e.action, e.flag, amount, tonumber(e.school))
         else
             local action, flag, amount = e.what:match("^UNIT_COMBAT player (%S+) (%S*) (%S+)$")
+            if not action then
+                action, flag = e.what:match("^UNIT_COMBAT player (%S+) (%S*) %(hidden amount%)$")
+                amount = Secret(20)
+            end
             assert(action, "what happened to you: " .. e.what)
-            fire("UNIT_COMBAT", "player", action, flag, tonumber(amount), 1)
+            fire("UNIT_COMBAT", "player", action, flag, tonumber(amount) or amount, 1)
         end
     end
     BT:FlushHits(true)
@@ -2171,6 +2182,66 @@ assertEq(table.concat(lines("outgoing"), " / "), "7 / Claw 50", "no line in the 
 STATE.who = {}
 BT.db.merge = true
 freshFight()
+
+step("a fifth real fight: a warlock's Shadow Bolt landing just after Bane of Agony ticked")
+-- tests/real_fight5.txt (issue #20, 1.16.5, every amount hidden): Bane of Agony ticks every 2s
+-- at .55, Corruption every 3s, a shadow wand shoots. Shadow Bolt is cast at 416.27; Bane of Agony
+-- ticks at 416.55 and the bolt lands at 416.66, still inside that beat's slack. 1.16.5 took the
+-- bolt for a second tick of Bane of Agony (a tick on its beat beats a spell on its way when the
+-- amounts can't be compared), found no line behind it, and showed it with no name.
+do
+local function warlockFight()
+    freshFight()
+    STATE.class, STATE.pet = "WARLOCK", true
+    for id, name in pairs({ [6217] = "Bane of Agony", [17920] = "Searing Pain", [7648] = "Corruption",
+            [7641] = "Shadow Bolt", [5019] = "Shoot" }) do STATE.spellNames[id] = name end
+    BT.db.debug, BT.recorded = true, {}
+    replay("real_fight5.txt")
+    BT.db.debug = false
+    local named = {}
+    for _, l in ipairs(BT.recorded) do
+        local what = l:match("^%s*[%d.]+%s%s%s%snameplate2 %(hidden amount%): (.*)$")
+        if what then named[#named + 1] = what end
+    end
+    STATE.class, STATE.pet, BT.recorded = "DRUID", false, nil
+    return named
+end
+local named = warlockFight()
+local bolt = 0
+for _, what in ipairs(named) do if what == "cast of Shadow Bolt" then bolt = bolt + 1 end end
+assertEq(bolt, 1, "the Shadow Bolt is named")
+assertEq(named[14], "tick of Bane of Agony", "the tick before it is still Bane of Agony's")
+assertEq(named[15], "cast of Shadow Bolt", "and the hit 0.1s later is the bolt")
+local ticks = { ["tick of Bane of Agony"] = 0, ["tick of Corruption"] = 0 }
+for _, what in ipairs(named) do if ticks[what] then ticks[what] = ticks[what] + 1 end end
+assertEq(ticks["tick of Bane of Agony"], 6, "every Bane of Agony tick is named (one a beat)")
+assertEq(ticks["tick of Corruption"], 3, "and every Corruption tick")
+-- The other way round: the bolt lands 0.2s before Bane of Agony's beat, with a line behind it.
+-- Once the dot has ticked its beat is known closely, so the bolt isn't taken for the tick (and
+-- the tick, when it comes, isn't taken for the bolt).
+freshFight()
+STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }
+STATE.who.target = "mobA"
+STATE.spellNames[6217], STATE.spellNames[7641] = "Bane of Agony", "Shadow Bolt"
+local function hiddenHit(n) fire("UNIT_COMBAT", "target", "WOUND", "", Secret(n), 32) end
+BT.db.debug, BT.recorded = true, {}
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-w-1", 6217)
+Advance(2) hiddenHit(30) hidden(9001)
+Advance(2) hiddenHit(30) hidden(9001)
+Advance(1.5) fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-w-2", 7641)
+Advance(0.3) hiddenHit(90) hidden(9002)
+Advance(0.2) hiddenHit(30) hidden(9001)
+BT:FlushHits(true)
+BT.db.debug = false
+local got = {}
+for _, l in ipairs(BT.recorded) do
+    local what = l:match("^%s*[%d.]+%s%s%s%starget %(hidden amount%): (.*)$")
+    if what then got[#got + 1] = what end
+end
+assertEq(table.concat(got, " / "), "tick of Bane of Agony / tick of Bane of Agony / cast of Shadow Bolt / tick of Bane of Agony",
+    "a bolt just ahead of the beat is the bolt, and the tick is the tick")
+STATE.who, BT.recorded = {}, nil
+end
 
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
