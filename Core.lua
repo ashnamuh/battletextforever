@@ -1186,7 +1186,8 @@ end
 -- A heal you cast that lands on you. UNIT_COMBAT's heal on you has no spell name, but your
 -- cast finishes in the same moment (either one first). A helpful spell (not a seal or a buff
 -- on yourself) cast while your target isn't a friend (so it lands on you) is kept a moment;
--- a heal on you within HEAL_CAST_TIME of it is that spell's.
+-- a heal on you within HEAL_CAST_TIME of it is that spell's. A heal over time that also heals
+-- as it lands (Regrowth) leaves a buff, so it's learned as one (SeenBuffs), but it's a heal.
 local HEAL_CAST_TIME = 0.3
 function BT:NoteHealCast(id, name)
     self.healCast = nil
@@ -1194,7 +1195,9 @@ function BT:NoteHealCast(id, name)
     local ok, helpful = pcall(C_Spell.IsSpellHelpful, id)
     if not ok or IsSecret(helpful) or helpful ~= true then return end
     local seals = self:SealLists()
-    if seals[name] or self:IsSelfBuffCast(id, name) then return end
+    local hot = (self:SpellLists())[name]
+    local healsNow = hot ~= nil and hot.heal and hot.direct
+    if seals[name] or (not healsNow and self:IsSelfBuffCast(id, name)) then return end
     if self:HealGoesToTarget() then return end   -- on a friend that isn't you, it went to them
     self.healCast = { id = id, name = name, at = GetTime() }
 end

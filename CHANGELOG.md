@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.2
+
+- **Regrowth's first heal on yourself shows its icon and name.** Its ticks were named in 1.18.1, but the heal as Regrowth lands still showed only "+number". Regrowth leaves a buff on you, so BattleText had learned it as a buff, and buffs never name a heal. A heal over time that also heals as it lands now counts as a heal.
+
 ## 1.18.1
 
 - **Regrowth and Rejuvenation ticks on yourself show their icon, overheals too.** 1.16.4 names a heal-over-time tick on you by when it lands, every 3 seconds after your cast. A debug log showed every tick landing right on time, but the game doesn't always say the heal is Nature, so BattleText thought it was someone else's heal and left it as a plain "+number". A tick with no school now counts too (a heal of another school, like a paladin's Holy Light, still doesn't). `/btf debug` now also records the school of heals and hits on you, for future reports.

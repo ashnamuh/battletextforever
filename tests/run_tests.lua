@@ -992,6 +992,22 @@ do
     assertEq(named[5], "+25 |T136085:0|t Regrowth", "Regrowth's third tick")
     assertEq(named[6], "+26 |T136081:0|t Rejuvenation", "Rejuvenation's third tick")
 end
+-- Regrowth's own heal as it lands (the same player: its ticks were named, it wasn't).
+-- Its buff on you is learned as a buff of yours, yet the cast still names its heal;
+-- Rejuvenation (no heal as it lands) still names nothing.
+clear()
+BT.selfHots = nil
+BT.db.learnedBuffs = { Regrowth = true, Rejuvenation = true }
+fire("UNIT_COMBAT", "player", "HEAL", "", 185, 1)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rg-buff", 8938)
+Advance(0.3)
+assertEq(last("incoming"), "+185 |T136085:0|t Regrowth", "Regrowth's heal as it lands, though it leaves a buff")
+Advance(1)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rj-buff", 2090)
+fire("UNIT_COMBAT", "player", "HEAL", "", 99, 1)
+Advance(0.3)
+assertEq(last("incoming"), "+99", "Rejuvenation lands with no heal of its own: a heal then isn't it")
+BT.db.learnedBuffs = nil
 BT.selfHots = nil
 clear()
 STATE.who.party1 = "friendA"
