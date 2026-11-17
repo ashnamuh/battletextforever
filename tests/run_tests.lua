@@ -4041,6 +4041,43 @@ assertEq(last("outgoing"), "Arcane Missiles 22", "even once you've moved your ta
 STATE.who.target = "mobA"
 stop(5143)
 clear()
+-- Wrack (Forever's Affliction talent): a channel on the mob you aim it at, Shadow every second,
+-- with its icon. While it lasts your Corruption there ticks twice as fast (every 1.5s).
+STATE.spellNames[1316697], STATE.spellNames[172] = "Wrack", "Corruption"
+STATE.spellIcons[1316697] = 136163
+BT.periodic, BT.dots = nil, nil
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-cor", 172)
+Advance(3)
+on("target", 30, 32)
+assertEq(last("outgoing"), "Corruption 30", "Corruption ticks on its 3s beat")
+channel(1316697)
+SetIcons(true)
+Advance(1)
+on("target", 60, 32)
+assertEq(last("outgoing"), "|T136163:0|t Wrack 60", "a Wrack tick, named and with its icon")
+SetIcons(false)
+Advance(0.5)
+on("target", 31, 32)
+assertEq(last("outgoing"), "Corruption 31", "under Wrack, Corruption ticks 1.5s after its last tick")
+Advance(0.5)
+on("target", 61, 32)
+assertEq(last("outgoing"), "Wrack 61", "and Wrack's next second is Wrack's")
+on("nameplate2", 25, 32)
+assertEq(last("outgoing"), "25", "a shadow hit on another mob isn't Wrack")
+Advance(1)
+on("target", 32, 32)
+assertEq(last("outgoing"), "Corruption 32", "Corruption again 1.5s on")
+on("target", 0, 32, "RESIST")
+assertEq(last("outgoing"), "Wrack Resist", "a resist while you channel is Wrack's")
+stop(1316697)
+Advance(1.1)
+on("target", 62, 32)
+assertEq(last("outgoing"), "62", "after you stopped channeling: not Wrack")
+Advance(1.9)
+on("target", 33, 32)
+assertEq(last("outgoing"), "Corruption 33", "with Wrack over, Corruption is back to every 3s")
+BT.dots = nil
+clear()
 -- Consecration: lasts its 8 seconds whatever you do
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-cons", 26573)
 Advance(1)

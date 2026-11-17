@@ -1548,9 +1548,14 @@ local AREA_SPELLS = {
     { 10, "Blizzard", 16, 8, "channel" }, { 5740, "Rain of Fire", 4, 8, "channel" },
     { 16914, "Hurricane", 8, 10, "channel" }, { 1510, "Volley", 64, 6, "channel" },
     { 1949, "Hellfire", 4, 15, "channel" }, { 740, "Tranquility", 8, 10, "heal" },
+    { 1316697, "Wrack", 32, 6, "single" },
     { 26573, "Consecration", 2, 8 }, { 2120, "Flamestrike", 4, 8 },
     { 8190, "Magma Totem", 4, 20 }, { 1535, "Fire Nova Totem", 4, 6 }, { 3599, "Searing Totem", 4, 55 },
 }
+-- Forever's Wrack (Affliction talent, 1.60.1): while you channel it, your Corruption, Bane of
+-- Agony and Siphon Life on that mob tick twice as fast (first rank's IDs)
+local WRACK_ID = 1316697
+local WRACK_SPEEDS = { [172] = true, [980] = true, [18265] = true }
 local AREA_SLACK = 1   -- what's still on its way when a channel stops (Arcane Missiles) lands this late
 -- Abilities you can use only just after something happens: { first rank's ID, English
 -- name, class, what opens it, level it's learned at (none: a talent) }. What opens it:
@@ -1597,7 +1602,10 @@ function BT:SpellLists()
     end
     self.periodic, self.shields, self.flights = {}, {}, {}
     for _, e in ipairs(PERIODIC_SPELLS) do
-        for _, name in ipairs(names(e)) do self.periodic[name] = { period = e[3], school = e[4], direct = e[5] or false, heal = e[6] or false } end
+        for _, name in ipairs(names(e)) do
+            self.periodic[name] = { period = e[3], school = e[4], direct = e[5] or false, heal = e[6] or false,
+                wrack = WRACK_SPEEDS[e[1]] or nil }
+        end
     end
     for _, e in ipairs(SHIELD_SPELLS) do
         for _, name in ipairs(names(e)) do self.shields[name] = { school = e[3], id = e[1] } end
@@ -1612,7 +1620,8 @@ function BT:SpellLists()
     self.areaSpells = {}
     for _, e in ipairs(AREA_SPELLS) do
         for _, name in ipairs(names(e)) do
-            self.areaSpells[name] = { id = e[1], name = e[2], school = e[3], time = e[4], how = e[5] }
+            self.areaSpells[name] = { id = e[1], name = e[2], school = e[3], time = e[4], how = e[5],
+                speeds = e[1] == WRACK_ID or nil }
         end
     end
     return self.periodic, self.shields
@@ -2393,7 +2402,7 @@ function BT:OnSpellcast(spellId)
         self.dots = self.dots or {}
         self.dots[key] = self.dots[key] or {}
         self.dots[key][name] = { id = id, name = name, at = GetTime(), period = dot.period, school = dot.school,
-            heal = dot.heal }
+            heal = dot.heal, wrack = dot.wrack }
     end
     if shields[name] then
         self.buffShields = self.buffShields or {}
@@ -2625,13 +2634,16 @@ function BT:TickFor(h, close)
     if not dots or (h.kind ~= "damage" and h.kind ~= "heal") then return nil end
     local mask = Num(h.school)
     local best, bestOff
+    local wracking = self:Wracking(h.key, h.time)
     for name, dot in pairs(dots) do
         if h.time - dot.at > DOT_TIME then
             dots[name] = nil
         else
+            -- (under Wrack, twice as fast)
+            local period = (dot.wrack and wracking) and dot.period / 2 or dot.period
             local since = h.time - (dot.last or dot.at)
-            local beats = math.floor(since / dot.period + 0.5)
-            local off = math.abs(since - beats * dot.period)
+            local beats = math.floor(since / period + 0.5)
+            local off = math.abs(since - beats * period)
             local slack = (close and dot.last) and TICK_CLOSE or TICK_SLACK
             if beats >= 1 and off <= slack and (h.kind == "heal") == dot.heal
                     and (dot.heal and SameHealSchool(mask, dot.school) or not mask or mask == dot.school)
@@ -2762,7 +2774,15 @@ function BT:StartArea(name, id)
     self.areaOn = self.areaOn or {}
     self.areaOn[name] = { id = id or spell.id, name = name, school = spell.school, at = now, ends = ends + AREA_SLACK,
         key = spell.how == "single" and UnitKey("target") or nil, heal = spell.how == "heal",
-        single = spell.how == "single" }
+        single = spell.how == "single", speeds = spell.speeds }
+end
+
+-- Whether you're channeling Wrack at this unit (its own end, not the slack after it)
+function BT:Wracking(key, at)
+    for _, a in pairs(self.areaOn or {}) do
+        if a.speeds and a.key == key and at >= a.at and at <= a.ends - AREA_SLACK then return true end
+    end
+    return false
 end
 
 -- Your channel stopped (finished, or you moved): what's already on its way still lands

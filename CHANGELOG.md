@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.20.1
+
+- **Wrack shows its ticks, with its name and icon.** The new Affliction talent wasn't known to BattleText yet, so its damage showed as plain numbers with no name or icon. Each tick now shows as Wrack, with its icon, on the mob you channel it at.
+- **Your DoTs stay named while you channel Wrack.** Wrack makes your Corruption, Bane of Agony and Siphon Life tick twice as fast, which threw off how BattleText recognised their ticks. They now keep their own names during the channel.
+
 ## 1.20.0
 
 - **New: "(blocked)" on hits you partly block.** When your shield blocks part of a hit, the damage you take now shows a grey "(blocked)" after it, like "-230 (blocked)". The game doesn't tell addons how much was blocked, so the exact amount only shows when BattleText can read the combat lines ("(150 blocked)"). Turn it off with "Show blocked" on the Incoming tab. (Thanks for the idea on CurseForge!)
