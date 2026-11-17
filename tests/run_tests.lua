@@ -2238,6 +2238,105 @@ do
     fire("PLAYER_REGEN_ENABLED")
     clear()
 end
+
+-- Touch of the Grave (the Undead racial on Forever; issue: its damage and its heal on you
+-- showed with no name). Its hit on the mob and its heal on you land together.
+do
+    clear()
+    BT.db.debug, BT.recorded = true, {}
+    SetNames(true) SetIcons(false)
+    STATE.spellNames[1260189] = "Touch of the Grave"
+    STATE.spellNames[1260201] = "Touch of the Grave"
+    local function verdicts()
+        local out = {}
+        for _, r in ipairs(BT.recorded) do
+            local v = r:match("^.-target [^:]+: (.+)$")
+            if v then out[#out + 1] = v end
+        end
+        BT.recorded = {}
+        return table.concat(out, " / ")
+    end
+    local function heals()
+        local out = {}
+        for _, area in pairs({ "incoming", "outgoing", "heal" }) do
+            if BT.areas[area] then
+                for _, o in ipairs(BT.areas[area].active) do
+                    local t = o.text.__shown or o.text:GetText() or ""
+                    if t:find("+", 1, true) and t:find("Touch of the Grave", 1, true) then out[#out + 1] = t end
+                end
+            end
+        end
+        return #out
+    end
+    local function grave(amount, school) fire("UNIT_COMBAT", "player", "HEAL", "", amount, school or 32) end
+    STATE.knownSpells[1260201] = true   -- (a mage, priest or warlock's)
+    -- the hit, then the heal, in one frame
+    Advance(2)
+    wound(Secret(30), 32) grave(Secret(30))
+    Advance(0.5)
+    assertEq(verdicts(), "proc of Touch of the Grave", "its hit is named")
+    lines("outgoing")
+    assertEq(heals(), 1, "and so is its heal on you")
+    -- the heal first
+    clear() BT.recorded = {}
+    Advance(2)
+    grave(Secret(30)) wound(Secret(30), 32)
+    Advance(0.5)
+    assertEq(verdicts(), "proc of Touch of the Grave", "heal first: still named")
+    lines("outgoing")
+    assertEq(heals(), 1, "heal first: the heal too")
+    -- the heal a moment after the hit: the hit waits for it
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 32)
+    Advance(0.1)
+    grave(Secret(30))
+    Advance(0.5)
+    assertEq(verdicts(), "waiting: Touch of the Grave? / proc of Touch of the Grave", "the heal just after: named")
+    lines("outgoing")
+    assertEq(heals(), 1, "and the heal")
+    -- no heal comes: an unnamed Shadow hit, shown when the wait is over
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 32)
+    Advance(0.5)
+    assertEq(verdicts(), "waiting: Touch of the Grave? / no heal came for it: shown", "no heal: not the racial")
+    assertEq(#lines("outgoing"), 1, "but still shown")
+    -- a physical hit with a heal on you isn't it
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 1) grave(Secret(30), 2)
+    Advance(0.5)
+    assertEq(verdicts(), "shown", "a swing isn't the racial")
+    lines("outgoing")
+    assertEq(heals(), 0, "nor the heal with it")
+    -- one heal names one hit
+    clear() BT.recorded = {}
+    Advance(2)
+    grave(Secret(30)) wound(Secret(30), 32) wound(Secret(31), 32)
+    Advance(0.5)
+    assertEq(verdicts(), "proc of Touch of the Grave / waiting: Touch of the Grave? / no heal came for it: shown",
+        "one heal: one hit")
+    -- not Undead: a Shadow hit and a heal on you stay as they were
+    STATE.knownSpells[1260201] = nil
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 32) grave(Secret(30))
+    Advance(0.5)
+    assertEq(verdicts(), "shown", "without the racial: unnamed, at once")
+    lines("outgoing")
+    assertEq(heals(), 0, "without the racial: the heal isn't named")
+    -- an Undead character the game won't say knows the passive
+    STATE.race = "Scourge"
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 32) grave(Secret(30))
+    Advance(0.5)
+    assertEq(verdicts(), "proc of Touch of the Grave", "Undead: named")
+    STATE.race = nil
+    BT.db.debug, BT.recorded = false, nil
+    clear()
+end
 clear()
 BT.buffShields, BT.itemShields, BT.dots = nil, nil, nil
 STATE.buffs, STATE.equipped = {}, {}

@@ -239,6 +239,11 @@ function UnitClass(unit)
     return name, STATE.class, 1
 end
 function UnitLevel(unit) return unit == "player" and STATE.level or 1 end
+-- (STATE.race: the race file name, "Scourge" for Undead; unset: Human)
+function UnitRace(unit)
+    if unit ~= "player" then return nil end
+    return "Human", STATE.race or "Human", 1
+end
 function IsPlayerSpell(id) return STATE.knownSpells[id] == true end
 function UnitXPMax() return STATE.xpMax end
 -- Which unit a name like "target", "nameplate2" or "targettarget" stands for

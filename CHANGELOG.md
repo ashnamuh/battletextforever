@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.2
+
+- **Touch of the Grave shows its name.** The Undead racial's drain and the heal it gives you showed as a plain number and an unnamed heal. BattleText now spots the two landing together, and shows both as Touch of the Grave, with its icon, for every class Undead can play. A Shadow hit with no heal beside it still shows as before.
+
 ## 1.21.1
 
 - **Shadow Bolt keeps its name next to your other Shadow damage.** With Bane of Agony, Corruption and Demonic Brand all on a mob, a tick of Demonic Brand could land while your Shadow Bolt was still flying. BattleText took that tick for the bolt, and then the real bolt showed with no name. Damage that keeps ticking on a steady beat is now recognised as a tick, so the bolt's name goes to the bolt when it lands.

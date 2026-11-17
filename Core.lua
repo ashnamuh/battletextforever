@@ -1405,16 +1405,18 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             end
         end
     elseif action == "HEAL" then
+        local at = GetTime()
+        self:GraveHealLanded(at, Num(school))   -- (Touch of the Grave's hit on the mob comes with it)
         if self:LogCovers("heal") then return end
         -- Your own heals on yourself also come from the combat log, with the
         -- spell's name. Wait a moment to see whether this is one of those.
         -- (Even with "Heals you get" off: a heal of yours still counts in the fight.)
-        local at = GetTime()
         local function show()
             if BT:TakeSelfHeal(n) then return end   -- the log's line showed it, with the spell's name
             if BT:LogDelivers("heal") then return end   -- the log's line for it arrived meanwhile
-            -- A heal you cast on yourself just then (Holy Light): named after it
-            local cast = BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
+            -- Touch of the Grave's (its hit just named), or a heal you cast on yourself just
+            -- then (Holy Light): named after it
+            local cast = BT:GraveHealFor(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
             local after, color = "", C.heal
             if cast then
                 local rule = BT:SpellRule(cast.name)
@@ -3078,6 +3080,112 @@ function BT:ProcFor(h, seq, first, last, at)
     return nil
 end
 
+-- Touch of the Grave, the Undead racial on Forever (1.60.x): your attacks and damaging spells
+-- can drain the target, up to 5% of your health, and heal you for as much. It has no cast and
+-- (with the lines hidden) no line, so its hit was shown unnamed and its heal as someone else's.
+-- Its two halves land together: a hit of yours of a magic school that nothing else names, with
+-- a heal on you within GRAVE_TIME either way, is it. One ID for warriors, paladins and rogues,
+-- one for mages, priests and warlocks (their chance is higher).
+local TOUCH_OF_THE_GRAVE = { 1260189, 1260201, name = "Touch of the Grave" }
+local GRAVE_TIME = 0.3   -- seconds between its hit on the mob and its heal on you
+
+-- The racial, if you have it: { id, name }
+function BT:GraveSpell()
+    for _, id in ipairs(TOUCH_OF_THE_GRAVE) do
+        if self:KnowsSpell(id) then return { id = id, name = SpellName(id) or TOUCH_OF_THE_GRAVE.name } end
+    end
+    -- (an Undead character, if the game won't say it knows the passive)
+    if UnitRace then
+        local ok, _, race = pcall(UnitRace, "player")
+        if ok and Str(race) == "Scourge" then
+            local id = TOUCH_OF_THE_GRAVE[1]
+            return { id = id, name = SpellName(id) or TOUCH_OF_THE_GRAVE.name }
+        end
+    end
+    return nil
+end
+
+-- Whether this hit could be the racial's: damage of a magic school, and you have it
+function BT:GraveOn(h)
+    if h.kind ~= "damage" then return nil end
+    local mask = Num(h.school)
+    if not mask or mask == 1 then return nil end
+    return self:GraveSpell()
+end
+
+-- The racial's hit, when its heal on you has already come (in this frame or just before)
+function BT:GraveFor(h)
+    local heal = self.graveHeal
+    if not heal or heal.used or math.abs(h.time - heal.at) > GRAVE_TIME then return nil end
+    local grave = self:GraveOn(h)
+    if not grave then return nil end
+    heal.used = true
+    self.graveHit = { at = h.time, spell = grave }
+    return grave
+end
+
+-- A hit that may be the racial's, with no heal on you yet: held up to GRAVE_TIME for it, then
+-- shown as it is. Returns true if it's held.
+function BT:WaitForGrave(h)
+    if not self:GraveOn(h) then return false end
+    self.graveWait = self.graveWait or {}
+    local entry = { h = h }
+    table.insert(self.graveWait, entry)
+    local function over()
+        for i, e in ipairs(BT.graveWait or {}) do
+            if e == entry then
+                table.remove(BT.graveWait, i)
+                local why = BT:ShowUnitHit(h, "hit", nil)
+                if not why then
+                    BT:NoteUnnamed(h)
+                    BT:NoteFought(h.key, h.time)
+                end
+                if BT.db.debug then
+                    BT:Record(("  %s %s: %s"):format(h.unit, tostring(h.amount), why or "no heal came for it: shown"), h.time)
+                end
+                return
+            end
+        end
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(GRAVE_TIME, over) else over() end
+    return true
+end
+
+-- A heal on you landed (UNIT_COMBAT player HEAL): it names a hit waiting for it (WaitForGrave),
+-- or one still to be worked out in this frame (GraveFor). Not a heal you cast just then, nor a
+-- tick of your heal over time.
+function BT:GraveHealLanded(at, school)
+    if self.healCast and math.abs(self.healCast.at - at) <= HEAL_CAST_TIME then return end
+    if self:SelfHotFor(at, school) then return end
+    local list = self.graveWait
+    local e = list and list[1]
+    if e and at - e.h.time <= GRAVE_TIME then
+        table.remove(list, 1)
+        local grave = self:GraveOn(e.h)
+        if grave then
+            self.graveHit = { at = at, spell = grave }
+            local why = self:ShowUnitHit(e.h, "proc", grave)
+            if not why then self:NoteFought(e.h.key, e.h.time) end
+            if self.db.debug then
+                self:Record(("  %s %s: %s"):format(e.h.unit, tostring(e.h.amount), why or ("proc of " .. grave.name)),
+                    e.h.time)
+            end
+            return
+        end
+    end
+    self.graveHeal = { at = at }
+end
+
+-- The racial's heal on you: the heal that came with its hit
+function BT:GraveHealFor(at)
+    local hit = self.graveHit
+    if hit and math.abs(hit.at - at) <= GRAVE_TIME then
+        self.graveHit = nil
+        return hit.spell
+    end
+    return nil
+end
+
 -- A throw named a hit in its own frame (it went off at once): it's done after this frame
 function BT:ThrowLanded(name, at)
     for _, t in ipairs(self.thrown or {}) do
@@ -3327,6 +3435,10 @@ function BT:ResolveFrame(seq, first, last)
                 local proc = self:ProcFor(h, seq, first, last, i)
                 if proc then what, spell = "proc", proc end
             end
+            if not spell and claimed then
+                local grave = self:GraveFor(h)
+                if grave then what, spell = "proc", grave end
+            end
             local why
             -- (alone, your damage shield's hit stands on its own: "My actions" has no line for it.
             -- So does one that may be your shield's, still to be told by a blow on you: WaitForSwing.)
@@ -3341,6 +3453,9 @@ function BT:ResolveFrame(seq, first, last)
                 why = "no heal of yours with it"
             elseif not spell and self:WaitForSwing(h) then
                 why = "waiting: your seal's or your shield's?"
+            elseif not spell and self:WaitForGrave(h) then
+                why = "waiting: Touch of the Grave?"
+                h.mine = { what = "hit" }   -- (a splash of its school beside it is still yours)
             else
                 why = self:ShowUnitHit(h, what, spell)
                 if not why and h.kind == "damage" then
@@ -3752,6 +3867,7 @@ function BT:CheckGameData()
     for _, e in ipairs(DISPEL_SPELLS) do spell(e[1], e[2], "dispel") end
     for _, e in ipairs(INTERRUPT_SPELLS) do spell(e[1], e[2], "interrupt") end
     spell(JUDGEMENT[1], JUDGEMENT[2], "seal")
+    for _, id in ipairs(TOUCH_OF_THE_GRAVE) do spell(id, TOUCH_OF_THE_GRAVE.name, "racial") end
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
     line(Str(SKILL_RANK_UP) ~= nil, "text SKILL_RANK_UP: " .. tostring(Str(SKILL_RANK_UP)))
