@@ -223,6 +223,7 @@ They follow the **filter selected on the Combat Log tab** (`Blizzard_CombatLog_F
 
 - **Lua 5.1.**
 - **Secret values.** Some API results are hidden from addons; comparing or doing math on one throws, **even `v == nil`**. Check `IsSecret(v)` first, or use `Num()` / `Str()`. A secret can still go to `SetText` / `SetFormattedText` (`Emit`'s `opts.secret`).
+- **`tostring` of a secret is a secret string** (1.21.5, issue #23). Joining or formatting it makes the whole text secret, and `table.concat` refuses it. `WaitForGrave`, `WaitForSwing` and `Resolved` recorded `tostring(h.amount)` in the debug log, so `/btf copy` (`OpenCopyWindow`) failed with "invalid value (secret) at index N in table for 'concat'" after a Touch of the Grave wait ran out. Debug lines use `AmountText(v)` ("(hidden amount)"); `Record` keeps only `Str(text)` (else "(a line with a hidden value)") and `OpenCopyWindow` does the same per line. The stub's `__tostring` on a secret now returns a secret, so `format("%s", ...)` and `table.concat` fail in the tests as in the game.
 - **Taint.** Never assign one of Blizzard's globals or `SetScript` on Blizzard's frames (`HookScript` is fine).
 - **Combat lockdown.** The Start button is secure: creating it, its attributes, and showing or hiding it wait for combat to end (`startPending`). The text areas and lines are ordinary frames and can change in combat.
 - **Hardware events.** Nothing here sends chat or does protected actions. The Start button's macro runs from the player's click.

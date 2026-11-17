@@ -211,6 +211,10 @@ local function IsSecret(v) return issecretvalue ~= nil and issecretvalue(v) == t
 local function Num(v) if IsSecret(v) or type(v) ~= "number" then return nil end return v end
 local function Str(v) if IsSecret(v) or type(v) ~= "string" then return nil end return v end
 BT.IsSecret, BT.Num, BT.Str = IsSecret, Num, Str
+-- An amount as text for the debug lines: a hidden one says so (tostring of a secret is
+-- a secret string, and one of those in BT.recorded broke /btf copy: issue #23)
+local function AmountText(v) if IsSecret(v) then return "(hidden amount)" end return tostring(v) end
+BT.AmountText = AmountText
 
 -- A yes-or-no question for the game, answered with a plain true or false
 -- (false when the game hides the answer, or doesn't have the function)
@@ -2261,7 +2265,7 @@ function BT:WaitForSwing(h)
             and h.time - self.lastBlow <= SEAL_AFTER_SWING then
         local why = self:ShowUnitHit(h, "shield", shield)
         if self.db.debug then
-            self:Record(("  %s %s: %s"):format(h.unit, tostring(h.amount), why or ("shield of " .. shield.name)), h.time)
+            self:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or ("shield of " .. shield.name)), h.time)
         end
         return true
     end
@@ -2275,7 +2279,7 @@ function BT:WaitForSwing(h)
                 table.remove(BT.sealWait, i)
                 local why = BT:ShowUnitHit(h, "hit", nil)
                 if BT.db.debug then
-                    BT:Record(("  %s %s: %s"):format(h.unit, tostring(h.amount), why or "nothing came for it: shown"), h.time)
+                    BT:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or "nothing came for it: shown"), h.time)
                 end
                 return
             end
@@ -2310,7 +2314,7 @@ function BT:Resolved(key, at)
             table.remove(list, i)
             local why = self:ShowUnitHit(e.h, what, spell)
             if self.db.debug then
-                self:Record(("  %s %s: %s"):format(e.h.unit, tostring(e.h.amount), why or (what .. " of " .. spell.name)),
+                self:Record(("  %s %s: %s"):format(e.h.unit, AmountText(e.h.amount), why or (what .. " of " .. spell.name)),
                     e.h.time)
             end
         else
@@ -2611,7 +2615,7 @@ end
 function BT:OnSpellcast(spellId)
     local id = Num(spellId)
     local name = id and SpellName(id) or nil
-    if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(name)) end
+    if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
     self:Queue({ cast = true, id = id, name = name })
     if not name then return end
     local periodic, shields = self:SpellLists()
@@ -3198,7 +3202,7 @@ function BT:WaitForGrave(h)
                     BT:NoteFought(h.key, h.time)
                 end
                 if BT.db.debug then
-                    BT:Record(("  %s %s: %s"):format(h.unit, tostring(h.amount), why or "no heal came for it: shown"), h.time)
+                    BT:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or "no heal came for it: shown"), h.time)
                 end
                 return
             end
@@ -3224,7 +3228,7 @@ function BT:GraveHealLanded(at, school)
             local why = self:ShowUnitHit(e.h, "proc", grave)
             if not why then self:NoteFought(e.h.key, e.h.time) end
             if self.db.debug then
-                self:Record(("  %s %s: %s"):format(e.h.unit, tostring(e.h.amount), why or ("proc of " .. grave.name)),
+                self:Record(("  %s %s: %s"):format(e.h.unit, AmountText(e.h.amount), why or ("proc of " .. grave.name)),
                     e.h.time)
             end
             return
@@ -3533,7 +3537,7 @@ function BT:ResolveFrame(seq, first, last)
                 self:React("dodged")
             end
             if self.db.debug then
-                self:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or tostring(h.amount),
+                self:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or AmountText(h.amount),
                     why or (spell and (what .. " of " .. tostring(spell.name)) or "shown")), h.time)
             end
         end
@@ -3563,7 +3567,7 @@ function BT:ResolveFrame(seq, first, last)
                 if not why then self:NoteFought(h.key, h.time) end
             end
             if self.db.debug then
-                self:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or tostring(h.amount),
+                self:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or AmountText(h.amount),
                     why or ("with your hit" .. (mine.spell and (" of " .. tostring(mine.spell.name)) or ""))), h.time)
             end
         end
@@ -3804,10 +3808,13 @@ end
 
 -- Debug (/btf debug, then /btf copy): what the game sent, exactly, with the time
 -- it arrived. Kept only while debug is on, and only the last 300.
+-- A hidden value in the text would make the whole line secret, and /btf copy couldn't
+-- show it, so such a line is kept as a note instead.
 function BT:Record(text, time)
     self.recorded = self.recorded or {}
     local list = self.recorded
-    list[#list + 1] = ("%7.2f  %s"):format((time or GetTime()) % 1000, text)
+    text = Str(text) or "(a line with a hidden value)"
+    list[#list + 1] = ("%7.2f  %s"):format((Num(time) or GetTime()) % 1000, text)
     if #list > 300 then table.remove(list, 1) end
 end
 

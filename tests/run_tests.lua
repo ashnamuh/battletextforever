@@ -2354,6 +2354,25 @@ do
     Advance(0.5)
     assertEq(verdicts(), "waiting: Touch of the Grave? / no heal came for it: shown", "no heal: not the racial")
     assertEq(#lines("outgoing"), 1, "but still shown")
+    -- issue #23: the wait's debug line had tostring(amount), a secret string in the game, and
+    -- /btf copy failed on it (table.concat). It says "(hidden amount)" and copies.
+    clear() BT.recorded = {}
+    Advance(2)
+    wound(Secret(30), 32)
+    Advance(0.5)
+    for i, r in ipairs(BT.recorded) do assert(not issecretvalue(r), "line " .. i .. " is plain text") end
+    assert(table.concat(BT.recorded, "\n"):find("(hidden amount): no heal came for it", 1, true), "the amount says hidden")
+    BT:OpenCopyWindow()
+    assert(BT.copyWindow.edit:GetText():find("no heal came for it", 1, true), "/btf copy shows it")
+    -- and a hidden value that still gets in is left as a note, and the window opens
+    BT:Record(Secret("x"))
+    BT.recorded[#BT.recorded + 1] = Secret("y")
+    BT:OpenCopyWindow()
+    local copied = BT.copyWindow.edit:GetText()
+    assertEq(select(2, copied:gsub("%(a line with a hidden value%)", "")), 2, "hidden lines: notes in /btf copy")
+    assert(copied:find("no heal came for it", 1, true), "the rest is still there")
+    BT.copyWindow:Hide()
+    clear() BT.recorded = {}
     -- a physical hit with a heal on you isn't it
     clear() BT.recorded = {}
     Advance(2)

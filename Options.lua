@@ -812,8 +812,13 @@ function BT:OpenCopyWindow()
     local text = "Nothing recorded yet. Type /btf debug, fight for a moment, then /btf copy."
     local count = 1
     if self.recorded and #self.recorded > 0 then
+        -- A hidden value can't be joined into the text (issue #23): it's left as a note
+        local lines = {}
+        for i, line in ipairs(self.recorded) do
+            lines[i] = self.Str(line) or "(a line with a hidden value)"
+        end
         -- "|" doubled, so the links show as text instead of turning into links
-        text = (table.concat(self.recorded, "\n"):gsub("|", "||"))
+        text = (table.concat(lines, "\n"):gsub("|", "||"))
         count = #self.recorded
     end
     -- Long lines wrap, so leave room for about two rows each

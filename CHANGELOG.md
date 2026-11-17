@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.5
+
+- **`/btf copy` works again after a fight with hidden amounts.** When a hit waited for Touch of the Grave (or a seal or damage shield) and nothing came, its line in the debug log held the game's hidden number, and `/btf copy` stopped with a Lua error instead of opening. Those lines now say "(hidden amount)" like the rest, and if a hidden value ever sneaks into the log again, the copy window shows a short note for that line and opens anyway. (Thanks to Ethn91081 for the report.)
+
 ## 1.21.4
 
 - **Your party's wand hits and white hits no longer show as yours.** In a group, BattleText uses your combat log lines to tell your hits from everyone else's. Lines from things that don't deal damage (Sunder Armor, Shield Block) and from swings it had already counted were left over, and a party member's wand shot or auto attack landing just after one was taken for yours. Now a line only counts for the hit it arrives with, and your white hits are counted by your own swings. Your own hits, spells, ticks and your pet's hits still show as before. (Thanks to dries9300 for the report.)

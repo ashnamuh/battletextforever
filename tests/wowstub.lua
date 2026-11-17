@@ -32,8 +32,10 @@ local SecretMT = {}
 local function boom() error("attempted to use a secret value", 2) end
 SecretMT.__add, SecretMT.__sub, SecretMT.__mul, SecretMT.__div = boom, boom, boom, boom
 SecretMT.__lt, SecretMT.__le, SecretMT.__concat, SecretMT.__unm = boom, boom, boom, boom
-SecretMT.__tostring = function() return "<secret>" end
 local function secret(v) return setmetatable({ v = v }, SecretMT) end
+-- As in the game, tostring of a secret is a secret string: it can't be joined, formatted or
+-- stored in text an addon reads back (table.concat refuses it)
+SecretMT.__tostring = function(t) return secret("<secret>") end
 function issecretvalue(v) return type(v) == "table" and getmetatable(v) == SecretMT end
 local function maybeSecret(v) if SECRET_MODE then return secret(v) end return v end
 
