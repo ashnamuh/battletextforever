@@ -3521,6 +3521,42 @@ STATE.group, STATE.who.party1 = false, nil
 STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
 freshFight()
 
+step("the killing blow on a mob that wasn't your target")
+STATE.group = false
+STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }
+STATE.unit.mobB = { enemy = true, guid = "Creature-0-1-2-3-100-00000B", target = "me" }
+STATE.unit.mobC = { enemy = true, guid = "Creature-0-1-2-3-100-00000C", dead = true }
+STATE.who.target, STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = "mobA", "mobA", "mobB", "mobC"
+freshFight()
+BT.fought = nil
+-- You hit the second mob (it's after you; your target is the first one)
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
+assertEq(last("outgoing"), "30", "a hit on a mob that's after you")
+Advance(1.5)
+-- It dies from your next hit: by the time the hit arrives it has let go of you
+STATE.unit.mobB.target, STATE.unit.mobB.dead = nil, true
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 31, 1)
+assertEq(last("outgoing"), "31", "the killing blow still shows")
+Advance(1)
+-- A dead mob you never hit isn't yours
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 32, 1)
+assertEq(last("outgoing"), "31", "someone else's kill isn't yours")
+-- Nor one you last hit long ago
+clear()
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 33, 1)
+assertEq(#lines("outgoing"), 0, "nor a hit long after yours")
+-- A living mob you just hit that has turned to someone else isn't yours either
+STATE.unit.mobB.dead, STATE.unit.mobB.target = nil, "me"
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 20, 1)
+assertEq(last("outgoing"), "20", "your hit")
+Advance(1)
+STATE.unit.mobB.target = "friend"
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 34, 1)
+assertEq(last("outgoing"), "20", "a mob that turned to someone else")
+STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
+STATE.unit.mobB, STATE.unit.mobC = nil, nil
+freshFight()
+
 step("a paladin's seals")
 STATE.spellNames[21084], STATE.spellNames[20375], STATE.spellNames[20271] = "Seal of Righteousness", "Seal of Command", "Judgement"
 STATE.spellIcons[21084] = 132325

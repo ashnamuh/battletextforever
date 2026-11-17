@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.20.2
+
+- **Killing blows on mobs that weren't your target show again.** When you finished off a mob that wasn't your current target (a second mob on you, or one you'd tabbed away from with a DoT ticking), the final hit was often missing. A dying mob lets go of you just as the last hit lands, so BattleText no longer saw it as part of your fight. A mob you hit in the last few seconds now still counts as yours while it dies.
+- Tip: keep enemy nameplates on (V by default). The game often sends the killing blow only under the mob's nameplate, not under your target, so with nameplates off some final hits can't reach any addon.
+
 ## 1.20.1
 
 - **Wrack shows its ticks, with its name and icon.** The new Affliction talent wasn't known to BattleText yet, so its damage showed as plain numbers with no name or icon. Each tick now shows as Wrack, with its icon, on the mob you channel it at.

@@ -2182,6 +2182,26 @@ local function UnitKey(unit)
     return nil
 end
 
+-- A mob you were just hitting, now dying or dead: its killing blow often arrives after it has let
+-- go of you (no target any more), and it's no longer after you nor (often) your target. Without
+-- this, a killing blow on a mob that wasn't your target was dropped as "not your fight".
+local FOUGHT_TIME = 4     -- seconds since a hit of yours on it was shown (a damage-over-time tick is 3s apart)
+function BT:NoteFought(key, at)
+    if not key then return end
+    self.fought = self.fought or {}
+    self.fought[key] = at
+end
+
+function BT:Finishing(unit, now)
+    local key = UnitKey(unit)
+    local at = key and self.fought and self.fought[key]
+    if not at or now - at > FOUGHT_TIME or now < at then return false end
+    if Flag(UnitIsDead, unit) then return true end
+    -- No target at all (a dying mob drops it). Hidden (on addon-restricted maps): not known, so no.
+    local ok, v = pcall(UnitExists, unit .. "target")
+    return ok and not IsSecret(v) and not v
+end
+
 -- One hit arrives once for every name its unit goes by (target, nameplate3,
 -- focus...). Only the first name seen in a frame counts for that unit.
 function BT:FirstSight(unit, now)
@@ -2619,6 +2639,9 @@ function BT:ForgetOldDots()
     -- The units you struck: only the last few seconds matter (a seal or a proc right after)
     for key, at in pairs(self.struck or {}) do
         if now - at > 10 then self.struck[key] = nil end
+    end
+    for key, at in pairs(self.fought or {}) do
+        if now - at > FOUGHT_TIME then self.fought[key] = nil end
     end
     self:ForgetOldFlights()
     self:ForgetOldThrows()
@@ -3109,7 +3132,10 @@ function BT:ResolveFrame(seq, first, last)
                 why = "waiting: your seal's or your shield's?"
             else
                 why = self:ShowUnitHit(h, what, spell)
-                if not why and h.kind == "damage" then h.mine = { what = what, spell = spell } end
+                if not why and h.kind == "damage" then
+                    h.mine = { what = what, spell = spell }
+                    self:NoteFought(h.key, h.time)
+                end
                 -- A weapon blow of yours: its "Chance on hit" may follow (ProcFor), and your
                 -- seal's hit may be waiting for it (WaitForSwing)
                 if h.kind == "damage" and mask == 1 and h.key then
@@ -3150,6 +3176,7 @@ function BT:ResolveFrame(seq, first, last)
                 why = "no line of yours with it"
             else
                 why = self:ShowUnitHit(h, mine.what, mine.spell, true)
+                if not why then self:NoteFought(h.key, h.time) end
             end
             if self.db.debug then
                 self:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or tostring(h.amount),
@@ -3315,7 +3342,7 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
         why = "not your fight"
     elseif not self:FirstSight(unit, now) then
         why = "same hit, under another name"
-    elseif not healing and not Fighting(unit) then
+    elseif not healing and not Fighting(unit) and not self:Finishing(unit, now) then
         -- Damage on a mob that isn't after you or your pet: yours only if it lands with a
         -- hit of yours on one that is, of the same school (an area spell hits them all at once)
         splash = true

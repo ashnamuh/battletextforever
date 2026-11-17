@@ -309,6 +309,12 @@ function UnitName(unit)
 end
 function IsInGroup() return STATE.group end
 function UnitIsDeadOrGhost(unit) return unit == "player" and STATE.dead == true end
+-- A mob that died (STATE.unit[id].dead)
+function UnitIsDead(unit)
+    if unit == "player" then return STATE.dead == true end
+    local id = who(unit)
+    return id ~= nil and STATE.unit[id] ~= nil and STATE.unit[id].dead == true
+end
 function IsInRaid() return false end
 function UnitPowerType() return 1, "RAGE" end
 -- Combo points (power type 4) are STATE.combo, out of 5; STATE.comboHidden hides them
