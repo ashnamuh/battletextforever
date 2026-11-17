@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.1
+
+- **Shadow Bolt keeps its name next to your other Shadow damage.** With Bane of Agony, Corruption and Demonic Brand all on a mob, a tick of Demonic Brand could land while your Shadow Bolt was still flying. BattleText took that tick for the bolt, and then the real bolt showed with no name. Damage that keeps ticking on a steady beat is now recognised as a tick, so the bolt's name goes to the bolt when it lands.
+
 ## 1.21.0
 
 - **New: "Kick ready".** When a spell of yours comes off its cooldown, a line in Notifications says so, with its icon. Only cooldowns of 8 seconds or more are shown (up to 10 minutes), so your everyday attacks don't spam it. It works in fights too. Turn it off with "Cooldowns ready" on the Notifications tab, or hide one spell on the Spells tab.

@@ -1,0 +1,167 @@
+ 663.58  CAST 6217 Bane of Agony
+ 663.58  hidden  |Ky1452|k
+ 663.58  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 663.58  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 663.58  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 663.58  UNIT_COMBAT player HEAL  (hidden amount) school 1
+ 663.58  hidden  |Ky1453|k
+ 663.58    nameplate7 (hidden amount): shown
+ 665.22  CAST 7648 Corruption
+ 665.57  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 665.57  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 665.57  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 665.57  hidden  |Ky1454|k
+ 665.57    nameplate7 (hidden amount): tick of Bane of Agony
+ 667.46  hidden  |Ky1455|k
+ 667.46  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 667.46  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 667.46  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 667.46    nameplate7 (hidden amount): shown
+ 667.58  hidden  |Ky1456|k
+ 667.58  UNIT_COMBAT player WOUND  (hidden amount) school 8
+ 667.58  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 667.58  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 667.58  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 667.58  hidden  |Ky1454|k
+ 667.58  hidden  |Ky1457|k
+ 667.58    nameplate7 (hidden amount): tick of Bane of Agony
+ 668.15  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 668.15  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 668.15  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 668.15    nameplate7 (hidden amount): shown
+ 668.24  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 668.24  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 668.24  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 668.24  hidden  |Ky1458|k
+ 668.24    nameplate7 (hidden amount): tick of Corruption
+ 669.07  CAST 17920 Searing Pain
+ 669.07  hidden  |Ky1459|k
+ 669.07  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 4
+ 669.07  UNIT_COMBAT target WOUND  (hidden amount) school 4: same hit, under another name
+ 669.07  UNIT_COMBAT softenemy WOUND  (hidden amount) school 4: same hit, under another name
+ 669.07    nameplate7 (hidden amount): cast of Searing Pain
+ 669.55  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 669.55  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 669.55  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 669.55  hidden  |Ky1454|k
+ 669.55    nameplate7 (hidden amount): tick of Bane of Agony
+ 669.65  hidden  |Ky1460|k
+ 669.65  hidden  |Ky1461|k
+ 669.65  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 669.65  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 669.65  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 669.65    nameplate7 (hidden amount): shown
+ 670.22  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 670.22  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 670.22  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 670.22    nameplate7 (hidden amount): shown
+ 671.05  CAST 2941 Immolate
+ 671.05  hidden  |Ky1462|k
+ 671.05  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 4
+ 671.05  UNIT_COMBAT target WOUND  (hidden amount) school 4: same hit, under another name
+ 671.05  UNIT_COMBAT softenemy WOUND  (hidden amount) school 4: same hit, under another name
+ 671.05    nameplate7 (hidden amount): cast of Immolate
+ 671.27  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 671.27  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 671.27  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 671.27  hidden  |Ky1458|k
+ 671.27    nameplate7 (hidden amount): tick of Corruption
+ 671.53  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 671.53  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 671.53  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 671.53  hidden  |Ky1454|k
+ 671.53    nameplate7 (hidden amount): tick of Bane of Agony
+ 671.64  hidden  |Ky1463|k
+ 671.64  hidden  |Ky1464|k
+ 671.64  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 671.64  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 671.64  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 671.64    nameplate7 (hidden amount): shown
+ 672.19  hidden  |Ky1465|k
+ 672.20  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 672.20  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 672.20  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 672.20    nameplate7 (hidden amount): shown
+ 672.27  UNIT_COMBAT player WOUND  (hidden amount) school 8
+ 673.51  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 673.51  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 673.51  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 673.51  hidden  |Ky1466|k
+ 673.51    nameplate7 (hidden amount): tick of Bane of Agony
+ 673.62  hidden  |Ky1467|k
+ 673.62  hidden  |Ky1461|k
+ 673.62  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 673.62  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 673.62  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 673.62    nameplate7 (hidden amount): shown
+ 674.03  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 4
+ 674.03  UNIT_COMBAT target WOUND  (hidden amount) school 4: same hit, under another name
+ 674.03  UNIT_COMBAT softenemy WOUND  (hidden amount) school 4: same hit, under another name
+ 674.03  hidden  |Ky1468|k
+ 674.03    nameplate7 (hidden amount): tick of Immolate
+ 674.27  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 674.27  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 674.27  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 674.27  hidden  |Ky1458|k
+ 674.27    nameplate7 (hidden amount): tick of Corruption
+ 674.62  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 674.62  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 674.62  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 674.62    nameplate7 (hidden amount): shown
+ 675.01  CAST 7641 Shadow Bolt
+ 675.52  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 675.52  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 675.52  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 675.52  hidden  |Ky1466|k
+ 675.52    nameplate7 (hidden amount): tick of Bane of Agony
+ 675.66  hidden  |Ky1469|k
+ 675.66  hidden  |Ky1461|k
+ 675.66  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 675.66  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 675.66  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 675.66    nameplate7 (hidden amount): cast of Shadow Bolt
+ 676.23  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 676.23  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 676.23  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 676.23    nameplate7 (hidden amount): shown
+ 676.27  hidden  |Ky1470|k
+ 676.27  UNIT_COMBAT nameplate7 WOUND CRITICAL (hidden amount) school 32
+ 676.27  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 32: same hit, under another name
+ 676.27  UNIT_COMBAT softenemy WOUND CRITICAL (hidden amount) school 32: same hit, under another name
+ 676.27  hidden  |Ky1471|k
+ 676.27  UNIT_COMBAT player WOUND  (hidden amount) school 8
+ 676.27    nameplate7 (hidden amount): shown
+ 677.04  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 4
+ 677.04  UNIT_COMBAT target WOUND  (hidden amount) school 4: same hit, under another name
+ 677.04  UNIT_COMBAT softenemy WOUND  (hidden amount) school 4: same hit, under another name
+ 677.04  hidden  |Ky1468|k
+ 677.04    nameplate7 (hidden amount): tick of Immolate
+ 677.26  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 677.26  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 677.26  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 677.26  hidden  |Ky1458|k
+ 677.26    nameplate7 (hidden amount): tick of Corruption
+ 677.55  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 677.55  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 677.55  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 677.55  hidden  |Ky1466|k
+ 677.55    nameplate7 (hidden amount): tick of Bane of Agony
+ 677.67  hidden  |Ky1460|k
+ 677.67  hidden  |Ky1472|k
+ 677.67  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 677.67  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 677.67  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 677.67    nameplate7 (hidden amount): shown
+ 678.67  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 1
+ 678.67  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 678.67  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 678.67    nameplate7 (hidden amount): shown
+ 679.13  CAST 7641 Shadow Bolt
+ 679.51  UNIT_COMBAT nameplate7 WOUND  (hidden amount) school 32
+ 679.51  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 679.51  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 679.51  hidden  |Ky1466|k
+ 679.51    nameplate7 (hidden amount): tick of Bane of Agony
+ 679.61  hidden  |Ky1473|k
+ 681.71  UNIT_COMBAT player HEAL  (hidden amount) school 1
+ 681.71  hidden  |Ky37|k

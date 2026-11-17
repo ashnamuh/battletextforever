@@ -1468,6 +1468,8 @@ local CREDIT_TIME = 1.2   -- a hit can follow its combat log line by this long (
 local TICK_SLACK = 0.25   -- a tick can be this far off its beat
 local TICK_CLOSE = 0.15   -- and once it has ticked, the next is about this close to its beat (against a spell landing)
 local DOT_TIME = 45       -- a damage-over-time spell is forgotten this long after its cast
+local UNNAMED_KEEP = 8    -- an unnamed hit of yours is kept this long (OnUnnamedBeat)
+local BEAT_LEAST, BEAT_MOST = 1.5, 3.5   -- the periods an unknown tick's beat can have
 local FLAG_NOTES = { GLANCING = "glancing", BLOCK = "blocked", BLOCK_REDUCED = "blocked", ABSORB = "absorbed",
     RESIST = "resisted" }
 
@@ -2808,6 +2810,9 @@ function BT:ForgetOldDots()
     for key, at in pairs(self.fought or {}) do
         if now - at > FOUGHT_TIME then self.fought[key] = nil end
     end
+    for id, list in pairs(self.unnamed or {}) do
+        if now - list[#list] > UNNAMED_KEEP then self.unnamed[id] = nil end
+    end
     self:ForgetOldFlights()
     self:ForgetOldThrows()
 end
@@ -2860,6 +2865,44 @@ function BT:NoteFlightHit(id, h)
     self.flightLeast = self.flightLeast or {}
     local least = self.flightLeast[id]
     if not least or h.n < least then self.flightLeast[id] = h.n end
+end
+
+-- Hits of yours that nothing named, by unit and school: a damage over time BattleText has no
+-- name for (a talent's, like a warlock's Demonic Brand) shows up as such hits on a steady beat.
+-- Issue #21: one ticked 0.1s after Bane of Agony while a Shadow Bolt was on its way, was taken
+-- for the bolt, and the bolt itself landed with no name.
+function BT:NoteUnnamed(h)
+    if h.kind ~= "damage" or not h.key then return end
+    self.unnamed = self.unnamed or {}
+    local id = h.key .. ":" .. tostring(Num(h.school))
+    local list = self.unnamed[id] or {}
+    self.unnamed[id] = list
+    list[#list + 1] = h.time
+    while list[1] and h.time - list[1] > UNNAMED_KEEP do table.remove(list, 1) end
+end
+
+-- Whether this hit is on the beat of earlier unnamed hits of its school on its unit: two of them
+-- a period apart (BEAT_LEAST to BEAT_MOST), and this one a period or two after the later one,
+-- within TICK_CLOSE. Then it's that unknown tick again, not a spell of yours landing.
+function BT:OnUnnamedBeat(h)
+    local list = self.unnamed and h.key and self.unnamed[h.key .. ":" .. tostring(Num(h.school))]
+    if not list then return false end
+    for j = #list, 2, -1 do
+        local later = list[j]
+        local since = h.time - later
+        if since > 0 and since <= 2 * BEAT_MOST + TICK_CLOSE then
+            for i = j - 1, 1, -1 do
+                local period = later - list[i]
+                if period >= BEAT_LEAST and period <= BEAT_MOST then
+                    local beats = math.floor(since / period + 0.5)
+                    if beats >= 1 and beats <= 2 and math.abs(since - beats * period) <= TICK_CLOSE then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
 end
 
 -- The spell of yours on its way to this hit's unit that this hit is: the oldest one cast
@@ -3227,6 +3270,8 @@ function BT:ResolveFrame(seq, first, last)
                 if dot and not (dot.tick and h.n and h.n ~= dot.tick) then f = nil end
                 -- (a Holy hit with your swing is your seal's, not a Hammer of Wrath on its way)
                 if f and self:SealFor(h, seq, first, last, i, true) then f = nil end
+                -- (nor a tick of something unnamed, on its beat: issue #21)
+                if f and self:OnUnnamedBeat(h) then f = nil end
                 if f then
                     what, spell = "cast", f
                     self:Landed(f, at, h)
@@ -3238,6 +3283,7 @@ function BT:ResolveFrame(seq, first, last)
                 local t = self:ThrownFor(h)
                 local dot = t and self:TickFor(h, true)
                 if dot and not (dot.tick and h.n and h.n ~= dot.tick) then t = nil end
+                if t and self:OnUnnamedBeat(h) then t = nil end
                 if t then
                     what, spell = "cast", t
                     t.landed = h.time
@@ -3299,6 +3345,7 @@ function BT:ResolveFrame(seq, first, last)
                 why = self:ShowUnitHit(h, what, spell)
                 if not why and h.kind == "damage" then
                     h.mine = { what = what, spell = spell }
+                    if not spell then self:NoteUnnamed(h) end
                     self:NoteFought(h.key, h.time)
                 end
                 -- A weapon blow of yours: its "Chance on hit" may follow (ProcFor), and your

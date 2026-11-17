@@ -2702,6 +2702,46 @@ assertEq(table.concat(got, " / "), "tick of Bane of Agony / tick of Bane of Agon
 STATE.who, BT.recorded = {}, nil
 end
 
+step("a sixth real fight: a Shadow damage that BattleText doesn't know ticks while a Shadow Bolt flies")
+-- tests/real_fight6.txt (issue #21, 1.21.0, every amount hidden): Bane of Agony ticks every 2s at
+-- .5x, Corruption every 3s, Immolate, and a Shadow damage of the warlock's that BattleText has no
+-- name for (Demonic Brand) every 2s at .6x, 0.1s after Bane of Agony. Shadow Bolt is cast at
+-- 675.01; Bane of Agony ticks at 675.52, the unknown one at 675.66, and the bolt lands (a crit)
+-- at 676.27. 1.21.0 gave the unknown tick the bolt's name and showed the bolt with none.
+do
+freshFight()
+STATE.class, STATE.pet = "WARLOCK", true
+for id, name in pairs({ [6217] = "Bane of Agony", [17920] = "Searing Pain", [7648] = "Corruption",
+        [7641] = "Shadow Bolt", [2941] = "Immolate" }) do STATE.spellNames[id] = name end
+BT.db.debug, BT.recorded = true, {}
+replay("real_fight6.txt")
+BT.db.debug = false
+-- (by the recording's own times: its first verdict is at 663.58)
+local at, first = {}, nil
+for _, l in ipairs(BT.recorded) do
+    local t, what = l:match("^%s*([%d.]+)%s%s%s%snameplate7 %(hidden amount%): (.*)$")
+    if t then
+        first = first or tonumber(t)
+        at[("%.2f"):format(tonumber(t) - first + 663.58)] = what
+    end
+end
+STATE.class, STATE.pet, BT.recorded = "DRUID", false, nil
+assertEq(at["675.52"], "tick of Bane of Agony", "Bane of Agony's tick is its own")
+assertEq(at["675.66"], "shown", "the unknown Shadow tick on its 2s beat isn't taken for the bolt")
+assertEq(at["676.27"], "cast of Shadow Bolt", "the bolt is named when it lands")
+local ticks = { ["tick of Bane of Agony"] = 0, ["tick of Corruption"] = 0, ["tick of Immolate"] = 0 }
+local bolts = 0
+for _, what in pairs(at) do
+    if ticks[what] then ticks[what] = ticks[what] + 1 end
+    if what == "cast of Shadow Bolt" then bolts = bolts + 1 end
+end
+assertEq(bolts, 1, "one Shadow Bolt landed in the recording")
+assertEq(ticks["tick of Bane of Agony"], 8, "every Bane of Agony tick is named")
+assertEq(ticks["tick of Corruption"], 4, "and every Corruption tick")
+assertEq(ticks["tick of Immolate"], 2, "and Immolate's")
+STATE.who = {}
+end
+
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
 log(hit("Bite", 17253, 60))
