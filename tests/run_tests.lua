@@ -862,6 +862,31 @@ assertEq(#lines("incoming"), 5, "other units are ignored")
 fire("UNIT_COMBAT", "player", "WOUND", "", Secret(40), 1)
 assertEq(last("incoming"), "<secret fmt>", "a hidden amount is still shown by the game")
 clear()
+-- A hit you partly blocked: the game says so, not by how much (a CurseForge request)
+do
+fire("UNIT_COMBAT", "player", "WOUND", "BLOCK_REDUCED", 230, 1)
+assertEq(last("incoming"), "-230 |cffb0b0b0(blocked)|r", "partly blocked: marked")
+fire("UNIT_COMBAT", "player", "WOUND", "", 233, 1)
+assertEq(last("incoming"), "-233", "not blocked: no mark")
+local realEmit = BT.Emit
+local gotAfter
+BT.Emit = function(self, area, text, color, opts) gotAfter = opts and opts.after return realEmit(self, area, text, color, opts) end
+fire("UNIT_COMBAT", "player", "WOUND", "BLOCK_REDUCED", Secret(230), 1)
+assertEq(gotAfter, " |cffb0b0b0(blocked)|r", "a hidden amount is marked too")
+BT.Emit = realEmit
+BT.db.inBlocked = false
+fire("UNIT_COMBAT", "player", "WOUND", "BLOCK_REDUCED", 231, 1)
+assertEq(last("incoming"), "-231", "\"Show blocked\" off: just the number")
+local blockedLine = MOB .. " |Haction:SWING_DAMAGE|h|cffff1313Melee|r|h |Haction:SWING_DAMAGE|hhit|h " .. ME
+    .. "You|h |cffff1313232|r |cffff1313Physical|r. (150 Blocked) "
+log(blockedLine)
+assertEq(last("incoming"), "-232", "off: a readable line leaves its blocked amount out too")
+BT.db.inBlocked = true
+log(blockedLine)
+assertEq(last("incoming"), "-232 |cffb0b0b0(150 blocked)|r", "on: a readable line has the amount")
+BT.fromLog = nil   -- (the log stops delivering)
+end
+clear()
 -- A mob's special attack arrives in two parts, one of them for nothing: that's no miss
 Advance(0.1)
 local incomingSoFar = #lines("incoming")
@@ -3104,7 +3129,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 56, "the switches are there")
+assertEq(switches, 57, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then

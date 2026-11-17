@@ -411,6 +411,10 @@ local function BuildIncoming(p)
     Setting(card, "Damage", 12, -30, "inDamage", "The damage you take.")
     Setting(card, "Avoids", COL2, -30, "inMisses", "Attacks you dodge, parry, block or resist, and ones that miss you.")
     Setting(card, "Power gains", 12, -56, "inPower", "Mana, rage and energy you gain.")
+    Setting(card, "Show blocked", COL2, -56, "inBlocked",
+        "A grey \"(blocked)\" after a hit you partly blocked with your shield. The game doesn't say how much "
+        .. "was blocked, so only when it lets BattleText read its combat lines does the amount show "
+        .. "(\"(150 blocked)\").", function() return BT.db.inDamage end)
     IconsAndNames(card, -82, "in", "what hits you or what you avoid (only when the game says which spell)",
         Either("inDamage", "inMisses"))
     AreaLook(p, -126, "in", true, function() return BT:AreaUsed("incoming") end, "Nothing shows here (Layout tab)")

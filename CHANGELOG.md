@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.20.0
+
+- **New: "(blocked)" on hits you partly block.** When your shield blocks part of a hit, the damage you take now shows a grey "(blocked)" after it, like "-230 (blocked)". The game doesn't tell addons how much was blocked, so the exact amount only shows when BattleText can read the combat lines ("(150 blocked)"). Turn it off with "Show blocked" on the Incoming tab. (Thanks for the idea on CurseForge!)
+
 ## 1.19.1
 
 - **Thorns and Retribution Aura together show properly.** When two damage shields answered the same blow (say a druid's Thorns on a paladin with Retribution Aura), only one of them was named. The other showed as a plain number, even with "Damage shields" turned off. Now each shield's hit is named, and "Damage shields" off hides them both.

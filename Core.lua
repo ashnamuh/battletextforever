@@ -111,6 +111,7 @@ local DEFAULTS = {
     shieldAmounts = {},       -- learned: what each damage shield of yours hits for (by its name)
     inDamage = true, inHeals = true, inMisses = true, inPower = false,
     inOtherHeals = true,      -- heals on you the game doesn't name (other players', food, passives)
+    inBlocked = true,         -- "(blocked)" after a hit on you that you partly blocked
     nCombat = true, nKill = true, nXP = true, nRep = true, nHonor = true,
     nLoot = true, nMoney = false, nSkill = true, nSeals = true,
     nBuffs = false,           -- a line when a buff goes on or comes off (out of a fight only)
@@ -913,9 +914,9 @@ local function SpellAfter(icon, name)
 end
 
 -- "(3 blocked)" style notes after a number
-local function Partials(info)
+local function Partials(info, noBlocked)
     local parts = {}
-    if info.blocked then parts[#parts + 1] = Commas(info.blocked) .. " blocked" end
+    if info.blocked and not noBlocked then parts[#parts + 1] = Commas(info.blocked) .. " blocked" end
     if info.absorbed then parts[#parts + 1] = Commas(info.absorbed) .. " absorbed" end
     if info.resisted then parts[#parts + 1] = Commas(info.resisted) .. " resisted" end
     if info.glancing then parts[#parts + 1] = "glancing" end
@@ -1132,7 +1133,7 @@ function BT:ShowCombat(info)
             if mine and not self:LogDelivers("damage") then return true end
             if not mine then self:NoteLogIncoming("damage") end
             if db.inDamage then
-                local text = "-" .. Commas(info.amount) .. SpellAfter(icon, name) .. Partials(info)
+                local text = "-" .. Commas(info.amount) .. SpellAfter(icon, name) .. Partials(info, not db.inBlocked)
                 self:Emit(self:Area("InDamage"), text, C.inDamage, { crit = info.crit or info.crushing, amount = info.amount })
             end
             return true
@@ -1370,10 +1371,13 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
         if secret or (n and n > 0) then
             self:Queue({ blow = true })   -- (a blow that landed: see the hit for nothing, below)
             if self:LogCovers("damage") or not db.inDamage then return end
+            -- Partly blocked: the game says so (BLOCK_REDUCED) but not by how much
+            local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(blocked)|r" or ""
             if secret then
-                self:Emit(self:Area("InDamage"), "-", C.inDamage, { crit = crit, secret = amount })
+                self:Emit(self:Area("InDamage"), "-", C.inDamage, { crit = crit, secret = amount,
+                    after = note ~= "" and note or nil })
             else
-                self:Emit(self:Area("InDamage"), "-" .. Commas(n), C.inDamage, { crit = crit, amount = n })
+                self:Emit(self:Area("InDamage"), "-" .. Commas(n) .. note, C.inDamage, { crit = crit, amount = n })
             end
         else
             -- No damage: fully absorbed, blocked or resisted, or a plain miss
