@@ -2480,20 +2480,41 @@ function BT:ClawFormIcon()
     return self:IconText(spellId)
 end
 
--- The icon for a swing of yours, as text: a druid's form in Bear or Cat Form, else your main
--- hand weapon's, else the game's Attack
-function BT:SwingIcon()
+-- The icon for a swing of yours, as text: a druid's form in Bear or Cat Form, else the weapon in
+-- the hand that swung (hand: 0 main, 1 off, from PLAYER_SWING via SwingHand), else your main hand
+-- weapon's, else the game's Attack
+local OFF_HAND = 17
+function BT:SwingIcon(hand)
     local claws = self:ClawFormIcon()
     if claws and claws ~= "" then return claws end
-    -- Two weapons: the game doesn't say which hand a swing was, so neither weapon's icon (the
-    -- off hand's speed is there only while it holds a weapon)
-    local okSpeed, _, offSpeed = pcall(UnitAttackSpeed or function() end, "player")
-    offSpeed = okSpeed and Num(offSpeed) or nil
-    if offSpeed and offSpeed > 0 then return self:IconText(ATTACK_SPELL) end
-    local ok, tex = pcall(GetInventoryItemTexture or function() end, "player", MAIN_HAND)
+    local slot = MAIN_HAND
+    if hand == 1 then
+        slot = OFF_HAND
+    elseif hand ~= 0 then
+        -- Hand not known: with two weapons, neither weapon's icon. Two weapons is an off-hand
+        -- swing seen (issue #15: UnitAttackSpeed is secret where unit stats are restricted, so
+        -- its off hand speed alone missed it), or the off hand's speed (there only with a weapon)
+        if self.dualWield then return self:IconText(ATTACK_SPELL) end
+        local okSpeed, _, offSpeed = pcall(UnitAttackSpeed or function() end, "player")
+        offSpeed = okSpeed and Num(offSpeed) or nil
+        if offSpeed and offSpeed > 0 then return self:IconText(ATTACK_SPELL) end
+    end
+    local ok, tex = pcall(GetInventoryItemTexture or function() end, "player", slot)
     tex = ok and (Num(tex) or Str(tex)) or nil
     if tex then return self:IconTag(tex) end
     return self:IconText(ATTACK_SPELL)
+end
+
+-- Which hand a swing of yours on your target came from: PLAYER_SWING's swingType for the oldest
+-- melee swing not yet matched, at or before the hit and within CREDIT_TIME (a swing's hit comes
+-- with its animation, in the order swung). nil when there's none (then SwingIcon falls back).
+function BT:SwingHand(h)
+    local hands = self.hands
+    if not hands or not hands[1] or not h or not h.time then return nil end
+    if not (Flag(UnitIsUnit, h.unit, "target") or (h.key and h.key == UnitKey("target"))) then return nil end
+    while hands[1] and h.time - hands[1].at > CREDIT_TIME do table.remove(hands, 1) end
+    if hands[1] and hands[1].at <= h.time then return table.remove(hands, 1).hand end
+    return nil
 end
 
 -- In a group, a hit on a mob could be anyone's. The combat log lines can't be
@@ -2521,6 +2542,15 @@ function BT:OnSwing(duration, swingType)
     self.swings = swings
     while swings[1] and (now - swings[1] > CREDIT_TIME or #swings >= 6) do table.remove(swings, 1) end
     swings[#swings + 1] = now
+    -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept.
+    local hand = Num(swingType)
+    if hand == 0 or hand == 1 then
+        local hands = self.hands or {}
+        self.hands = hands
+        while hands[1] and (now - hands[1].at > CREDIT_TIME or #hands >= 6) do table.remove(hands, 1) end
+        hands[#hands + 1] = { at = now, hand = hand }
+        if hand == 1 then self.dualWield = true end
+    end
 end
 
 function BT:ClaimSwing(h)
@@ -3547,7 +3577,7 @@ function BT:ShowUnitHit(h, what, spell, area)
     end
     -- Nothing to name it by: a swing (a physical hit, or a plain miss)
     local swing = what == "hit" and not spell and (h.kind == "miss" or (h.kind == "damage" and Num(h.school) == 1))
-    if swing then icon = self:SwingIcon() end
+    if swing then icon = self:SwingIcon(self:SwingHand(h)) end
     if h.kind == "damage" or h.kind == "heal" then
         self:CountFight(h.kind, h.n)
         self:CountSpell(spellName or (h.kind == "heal" and "Unnamed heal") or UnnamedHit(Num(h.school)), h.n, h.crit,
@@ -4744,6 +4774,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "UNIT_AURA" then
         BT:ScanShield()
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        if a1 == 16 or a1 == 17 then BT.dualWield = nil end   -- (a weapon changed: an off hand swing will say again)
         BT:ScanItemShields()
     elseif event == "SPELL_UPDATE_USABLE" or event == "UNIT_HEALTH" then
         BT:CheckUsable()

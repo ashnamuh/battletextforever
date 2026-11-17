@@ -4356,6 +4356,64 @@ assertEq(last("outgoing"), "|T135274:0|t 57", "two weapons: which hand isn't kno
 STATE.offSpeed = nil
 wound(0, 1, "DODGE")
 assertEq(last("outgoing"), "|T135321:0|t Dodge", "a swing dodged, too")
+-- Issue #15: the game's swing timer says which hand swung (PLAYER_SWING's swingType: 0 main,
+-- 1 off), so each white hit shows the weapon that made it. The off hand's speed is secret where
+-- unit stats are restricted, so the hand comes from the swing, not UnitAttackSpeed.
+STATE.equipped[17] = { name = "Dagger", icon = 135641, lines = {} }
+fire("PLAYER_EQUIPMENT_CHANGED", 17, true)
+BT.hands = nil
+Advance(2)
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.5)
+wound(60, 1)
+assertEq(last("outgoing"), "|T135321:0|t 60", "a main hand swing: the sword's icon")
+Advance(0.2)
+fire("PLAYER_SWING", 1.8, 1)
+Advance(0.5)
+wound(30, 1)
+assertEq(last("outgoing"), "|T135641:0|t 30", "an off hand swing: the dagger's icon, not the sword's")
+Advance(0.2)
+fire("PLAYER_SWING", 1.8, 1)
+Advance(0.4)
+fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
+assertEq(last("outgoing"), "|T135641:0|t Dodge", "the off hand's swing dodged: the dagger's icon too")
+-- Both hands swinging before either lands: the hits come in the order swung
+Advance(2)
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.1)
+fire("PLAYER_SWING", 1.8, 1)
+Advance(0.4)
+wound(61, 1)
+wound(31, 1)
+assertEq(table.concat(lines("outgoing"), " / ", #lines("outgoing") - 1), "|T135321:0|t 61 / |T135641:0|t 31",
+    "a main hand then an off hand swing: sword, then dagger")
+-- A hit on another mob doesn't take your swing's hand (auto attacks only go at your target)
+STATE.who.nameplate2 = "mobB"
+Advance(2)
+fire("PLAYER_SWING", 1.8, 1)
+Advance(0.3)
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 25, 1)
+wound(32, 1)
+assertEq(last("outgoing"), "|T135641:0|t 32", "the off hand swing is still there for the hit on your target")
+STATE.who.nameplate2 = nil
+-- No swing to match (it came too long ago): with two weapons, the neutral Attack icon,
+-- even though the off hand's speed can't be read (STATE.offSpeed nil)
+Advance(2)
+wound(62, 1)
+assertEq(last("outgoing"), "|T135274:0|t 62", "two weapons, hand not known: the Attack icon")
+-- A ranged swing (swingType 2) isn't a hand: it doesn't take the place of the main hand swing after it
+fire("PLAYER_SWING", 3.0, 2)
+Advance(0.1)
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.3)
+wound(63, 1)
+assertEq(last("outgoing"), "|T135321:0|t 63", "a ranged swing doesn't say a hand")
+-- Off hand taken off: back to the main hand's icon
+STATE.equipped[17] = nil
+fire("PLAYER_EQUIPMENT_CHANGED", 17, false)
+Advance(2)
+wound(64, 1)
+assertEq(last("outgoing"), "|T135321:0|t 64", "one weapon again: the sword's icon")
 fire("UNIT_COMBAT", "target", "WOUND", "", 40, 4)
 assertEq(last("outgoing"), "40", "a hit nothing named of another school: no icon (not a swing)")
 log(swing(27))

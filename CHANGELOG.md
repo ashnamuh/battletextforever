@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.3
+
+- **Off-hand swings show your off-hand weapon's icon.** With a sword in your main hand and a dagger in your off hand, every white hit showed the sword, off-hand hits included. The game's swing timer says which hand each swing came from, so now main-hand hits show the main-hand weapon and off-hand hits show the off-hand weapon, dodges and parries too. When BattleText can't match a hit to a swing, it shows the plain Attack icon instead of guessing. (Thanks to skaine78 for the report.)
+
 ## 1.21.2
 
 - **Touch of the Grave shows its name.** The Undead racial's drain and the heal it gives you showed as a plain number and an unnamed heal. BattleText now spots the two landing together, and shows both as Touch of the Grave, with its icon, for every class Undead can play. A Shadow hit with no heal beside it still shows as before.
