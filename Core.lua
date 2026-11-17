@@ -85,6 +85,7 @@ local DEFAULTS = {
     merge = true,             -- rapid hits of one spell add up on one line
     tickMerge = 0,            -- seconds ticks and area hits keep adding up (0: as quick as other hits)
     minDamage = 0,            -- hide your hits below this
+    minCrit = 0,              -- a crit for less than this shows as a normal line (0: every crit stands out)
     -- Which area each kind of text shows in (BT.ROUTES; any key of BT.AREAS)
     routeOutDamage = "outgoing", routeOutMisses = "outgoing", routeOutHeals = "heal",
     routeInDamage = "incoming", routeInMisses = "incoming", routeInHeals = "heal", routeInPower = "incoming",
@@ -119,6 +120,8 @@ local DEFAULTS = {
     nAlerts = true,           -- "Overpower!" when an ability you can use only just then opens up
     nCombo = true,            -- "3 CP", and "5 CP: Finish it!" (rogues and cat druids)
     nDispels = true,          -- "Dispelled Corruption" when you take something off (Cleanse, Purge...)
+    nCooldowns = true,        -- "Kick ready" when a spell of yours comes off its cooldown
+    nInterrupts = true,       -- "Interrupted Frostbolt" when you stop an enemy's cast
     spellRules = {},          -- spells you hide or recolor (Spells tab): { { name =, hide =, color = { r, g, b } } }
     soundCrit = false,        -- a sound when you crit
     soundKill = false,        -- a sound on a killing blow
@@ -562,6 +565,14 @@ function BT:UnitFromGUID(guid)
     return ok and Str(unit) or nil
 end
 
+-- Whether a crit for n stands out as one: "Smallest crit" (minCrit) makes a smaller one a
+-- normal line. A number the game hides keeps the crit's look (it can't be compared).
+function BT:BigCrit(crit, n)
+    if not crit then return false end
+    local least, read = self.db.minCrit or 0, Num(n)
+    return not (least > 0 and read ~= nil and read < least)
+end
+
 -- Whether a heal of n is big enough to show (a hidden amount always is)
 function BT:HealShown(n)
     return type(n) ~= "number" or n >= (self.db.minHeal or 0)
@@ -583,6 +594,8 @@ function BT:Emit(areaKey, text, color, opts)
     if not a or not (self.db.enabled or self.testing) then return end
     opts = opts or {}
     local now = GetTime()
+    -- "Smallest crit": a small one is a normal line (and can add up with the hits beside it)
+    if opts.crit and not self:BigCrit(true, opts.amount) then opts.crit = false end
 
     -- Add to a line that just started, instead of a new one
     local hidden = IsSecret(opts.secret)
@@ -1149,7 +1162,7 @@ function BT:ShowCombat(info)
             if not db.outDamage or info.amount < db.minDamage then return true end
             local rule = self:SpellRule(info.spell)
             if rule and rule.hide then return true end
-            if info.crit and db.soundCrit then self:PlayAlert("crit") end
+            if self:BigCrit(info.crit, info.amount) and db.soundCrit then self:PlayAlert("crit") end
             local color = (rule and rule.color) or (info.spell and (self:SchoolColor(info.unit) or C.spell)) or C.melee
             self:Emit(self:Area("OutDamage"), outLabel .. Commas(info.amount) .. Partials(info), color, {
                 crit = info.crit,
@@ -1833,6 +1846,158 @@ function BT:Alert(id, name)
     self.reactAt[name] = now
     local icon = self.db.nIcons and self:IconText(id) or ""
     self:Notify(icon .. name .. "!", self.TEXT_COLORS.alert, { crit = true })
+end
+
+---------------------------------------------------------------------------
+-- Cooldowns ready (Notifications): "<icon>Kick ready" when a spell of yours
+-- comes off its cooldown. On Forever, C_Spell.GetSpellCooldown never hides
+-- isActive, isEnabled and isOnGCD (its start and length can be hidden in a
+-- fight), so whether a cooldown is running can always be asked.
+---------------------------------------------------------------------------
+local COOLDOWN_SHORTEST = 8    -- seconds: a shorter cooldown isn't announced (when the game says how long)
+local COOLDOWN_LONGEST = 600   -- nor a longer one (Hearthstone)
+local COOLDOWN_WATCH = 1       -- a cast's cooldown must show up within this
+local COOLDOWN_LOOK = 0.25     -- seconds between looks while one is running
+
+local function Bool(v) if IsSecret(v) or type(v) ~= "boolean" then return nil end return v end
+
+-- A spell's cooldown, as { active, enabled, gcd, length } (each nil when the game hides it)
+local function CooldownOf(id)
+    if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
+    local ok, info = pcall(C_Spell.GetSpellCooldown, id)
+    if not ok or IsSecret(info) or type(info) ~= "table" then return nil end
+    return { active = Bool(info.isActive), enabled = Bool(info.isEnabled), gcd = Bool(info.isOnGCD),
+        length = Num(info.duration) }
+end
+
+-- Your cast: its cooldown is looked for in the moment after it (and at the game's cooldown updates)
+function BT:WatchCooldown(spellId)
+    local id = Num(spellId)
+    if not id or not self.db.nCooldowns then return end
+    self.cdCast = self.cdCast or {}
+    self.cdCast[id] = GetTime()
+    if C_Timer and C_Timer.After then C_Timer.After(0.1, function() BT:LookCooldowns(false) end) end
+end
+
+-- update: answering SPELL_UPDATE_COOLDOWN, the only time the game's isOnGCD can be believed
+function BT:LookCooldowns(update)
+    local now = GetTime()
+    self.cooling = self.cooling or {}
+    for id, at in pairs(self.cdCast or {}) do
+        local cd = CooldownOf(id)
+        if not cd or now - at > COOLDOWN_WATCH then
+            self.cdCast[id] = nil
+        elseif cd.enabled == false then
+            -- Held until something ends (Stealth: it starts when you come out)
+            self.cdCast[id], self.cooling[id] = nil, { at = now }
+        elseif cd.active and (cd.gcd == false or (cd.gcd == nil and cd.length and cd.length > 2)) then
+            self.cdCast[id] = nil
+            if not cd.length or (cd.length >= COOLDOWN_SHORTEST and cd.length <= COOLDOWN_LONGEST) then
+                self.cooling[id] = { at = now, seen = true }
+            end
+        elseif cd.active == false or (update and cd.gcd == true) then
+            self.cdCast[id] = nil   -- no cooldown of its own (or only the global one)
+        end
+    end
+    for id, c in pairs(self.cooling) do
+        local cd = CooldownOf(id)
+        if not cd or now - c.at > COOLDOWN_LONGEST + 5 then
+            self.cooling[id] = nil
+        elseif cd.enabled ~= false and cd.active and cd.gcd ~= true then
+            if not c.seen then
+                c.seen, c.at = true, now   -- a held one has started
+                if cd.length and (cd.length < COOLDOWN_SHORTEST or cd.length > COOLDOWN_LONGEST) then
+                    self.cooling[id] = nil
+                end
+            end
+        elseif c.seen and cd.enabled ~= false then
+            self.cooling[id] = nil
+            self:CooldownReady(id)
+        end
+    end
+    -- While one is running, look again in a moment (the game doesn't always say when one ends)
+    if next(self.cooling) and not self.cdLooking and C_Timer and C_Timer.After then
+        self.cdLooking = true
+        C_Timer.After(COOLDOWN_LOOK, function()
+            BT.cdLooking = nil
+            BT:LookCooldowns(false)
+        end)
+    end
+end
+
+function BT:CooldownReady(id)
+    if not self.db.nCooldowns then return end
+    local name = SpellName(id)
+    if not name then return end
+    local rule = self:SpellRule(name)
+    if rule and rule.hide then return end
+    local icon = self.db.nIcons and self:IconText(id) or ""
+    self:Notify(icon .. name .. " ready", (rule and rule.color) or self.TEXT_COLORS.alert)
+end
+
+---------------------------------------------------------------------------
+-- Interrupts (Notifications): "Interrupted Frostbolt" when you (or your pet)
+-- stop an enemy's cast. UNIT_SPELLCAST_INTERRUPTED says who did it
+-- (interruptedBy, a GUID). When the game hides that, a cast of one of
+-- INTERRUPT_SPELLS just before your target's cast stopped is taken for it.
+---------------------------------------------------------------------------
+local INTERRUPT_SPELLS = {
+    { 6552, "Pummel" }, { 72, "Shield Bash" }, { 1766, "Kick" }, { 8042, "Earth Shock" },
+    { 2139, "Counterspell" }, { 16979, "Feral Charge" }, { 15487, "Silence" },
+}
+local INTERRUPT_TIME = 0.5   -- seconds between your interrupt and the cast it stopped
+
+function BT:IsInterruptSpell(name)
+    if not self.interruptNames then
+        self.interruptNames = {}
+        for _, e in ipairs(INTERRUPT_SPELLS) do
+            self.interruptNames[e[2]] = e[1]
+            local here = SpellName(e[1])
+            if here then self.interruptNames[here] = e[1] end
+        end
+    end
+    return name ~= nil and self.interruptNames[name] ~= nil
+end
+
+-- Your cast: remembered for a moment if it can interrupt
+function BT:NoteInterruptCast(spellId)
+    local id = Num(spellId)
+    local name = id and SpellName(id)
+    if name and self:IsInterruptSpell(name) then self.kick = { id = id, at = GetTime() } end
+end
+
+function BT:OnInterrupted(unit, castGUID, spellId, interruptedBy)
+    if not self.db.nInterrupts then return end
+    unit = Str(unit)
+    if not unit or Flag(UnitIsUnit, unit, "player") or Flag(UnitIsUnit, unit, "pet") then return end
+    if not Flag(UnitCanAttack, "player", unit) then return end
+    local now = GetTime()
+    local by = Str(interruptedBy)
+    local pet = false
+    if by and by ~= "" then
+        local me, myPet = Str(UnitGUID and UnitGUID("player")), Str(UnitGUID and UnitGUID("pet"))
+        pet = myPet ~= nil and by == myPet
+        if by ~= me and not pet then return end   -- someone else's
+    else
+        -- The game hides who: only your target, just after an interrupt of yours
+        local k = self.kick
+        if not (k and now - k.at <= INTERRUPT_TIME and Flag(UnitIsUnit, unit, "target")) then return end
+    end
+    -- The event comes once for each name the unit has (target, nameplate3): show it once
+    local key = Str(castGUID) or "?"
+    self.interrupted = self.interrupted or {}
+    for k, at in pairs(self.interrupted) do
+        if now - at > 1 then self.interrupted[k] = nil end
+    end
+    if self.interrupted[key] then return end
+    self.interrupted[key] = now
+    local kick = self.kick
+    self.kick = nil
+    local id = Num(spellId)
+    local name = id and SpellName(id)
+    local icon = self.db.nIcons and self:IconText(id or (kick and kick.id)) or ""
+    local text = (pet and "(Pet) " or "") .. (name and ("Interrupted " .. name) or "Interrupted!")
+    self:Notify(icon .. text, self.TEXT_COLORS.alert, { crit = true })
 end
 
 -- Dispels (Notifications). The Combat Log's line names what came off:
@@ -3246,7 +3411,7 @@ function BT:ShowUnitHit(h, what, spell, area)
             or ((spellName or (mask and mask ~= 1)) and C.spell) or C.melee
         local note = FLAG_NOTES[h.flag or ""]
         note = note and (" |cffb0b0b0(" .. note .. ")|r") or ""
-        if h.crit and db.soundCrit then self:PlayAlert("crit") end
+        if self:BigCrit(h.crit, h.n) and db.soundCrit then self:PlayAlert("crit") end
         local key = spell and (what .. ":" .. tostring(spell.id or spellName)) or nil
         local window = (what == "tick" or area) and db.tickMerge or nil
         if h.secret then
@@ -3538,6 +3703,7 @@ function BT:CheckGameData()
     for _, e in ipairs(AREA_SPELLS) do spell(e[1], e[2], "keeps hitting") end
     for _, e in ipairs(REACTIVE_SPELLS) do spell(e[1], e[2], "alert") end
     for _, e in ipairs(DISPEL_SPELLS) do spell(e[1], e[2], "dispel") end
+    for _, e in ipairs(INTERRUPT_SPELLS) do spell(e[1], e[2], "interrupt") end
     spell(JUDGEMENT[1], JUDGEMENT[2], "seal")
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
@@ -3953,7 +4119,7 @@ end
 -- The range of every number setting (the options' sliders use the same ones)
 BT.RANGES = {
     fontSize = { 10, 40 }, critScale = { 100, 250 }, scrollTime = { 1, 6 }, height = { 100, 500 },
-    tickMerge = { 0, 3 }, minDamage = { 0, 500 }, minHeal = { 0, 500 },
+    tickMerge = { 0, 3 }, minDamage = { 0, 500 }, minHeal = { 0, 500 }, minCrit = { 0, 1000 },
 }
 for _, area in pairs(BT.AREAS) do
     BT.RANGES[area.prefix .. "Size"] = { 50, 200 }
@@ -4333,12 +4499,15 @@ for _, e in ipairs({ "SPELL_UPDATE_USABLE", "PLAYER_TARGET_CHANGED", "SPELL_ACTI
 end
 pcall(events.RegisterUnitEvent, events, "UNIT_HEALTH", "target")
 pcall(events.RegisterUnitEvent, events, "UNIT_POWER_UPDATE", "player")
+pcall(events.RegisterEvent, events, "SPELL_UPDATE_COOLDOWN")        -- Cooldowns ready
+pcall(events.RegisterEvent, events, "UNIT_SPELLCAST_INTERRUPTED")   -- every unit: casts you stop
 
 -- Events only worth handling while BattleText is turned on
 local WHILE_ON = { UNIT_COMBAT = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_CHANNEL_START = true,
     UNIT_SPELLCAST_CHANNEL_STOP = true, PLAYER_SWING = true, SPELL_UPDATE_USABLE = true, UNIT_HEALTH = true,
     SPELL_ACTIVATION_OVERLAY_SHOW = true, SPELL_ACTIVATION_OVERLAY_GLOW_SHOW = true, CHAT_MSG_LOOT = true,
-    CHAT_MSG_MONEY = true, CHAT_MSG_SKILL = true, CHAT_MSG_COMBAT_FACTION_CHANGE = true, CHAT_MSG_COMBAT_HONOR_GAIN = true }
+    CHAT_MSG_MONEY = true, CHAT_MSG_SKILL = true, CHAT_MSG_COMBAT_FACTION_CHANGE = true, CHAT_MSG_COMBAT_HONOR_GAIN = true,
+    SPELL_UPDATE_COOLDOWN = true, UNIT_SPELLCAST_INTERRUPTED = true }
 
 events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     if event == "ADDON_LOADED" then
@@ -4393,6 +4562,12 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnUnitCombat(a1, a2, a3, a4, a5)
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         BT:OnSpellcast(a3)
+        BT:NoteInterruptCast(a3)
+        BT:WatchCooldown(a3)
+    elseif event == "SPELL_UPDATE_COOLDOWN" then
+        if BT.cdCast and next(BT.cdCast) then BT:LookCooldowns(true) end
+    elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
+        BT:OnInterrupted(a1, a2, a3, a4)
     elseif event == "GROUP_ROSTER_UPDATE" then
         BT.groupAt = nil
     elseif event == "PLAYER_SWING" then

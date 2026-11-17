@@ -3129,7 +3129,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 57, "the switches are there")
+assertEq(switches, 59, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then
@@ -3241,13 +3241,13 @@ for _, f in ipairs(ALL_FRAMES) do
                 scrollTime = "time on screen", height = "area height", minDamage = "hide hits below", minHeal = "hide heals below",
                 outSize = "size", inSize = "size", healSize = "size", nSize = "size",
                 outAlpha = "opacity", inAlpha = "opacity", healAlpha = "opacity", nAlpha = "opacity",
-                tickMerge = "ticks and area hits" })[moved[1]], 1, true),
+                tickMerge = "ticks and area hits", minCrit = "smallest crit" })[moved[1]], 1, true),
                 "slider label matches its setting: " .. tostring(f.label) .. " -> " .. moved[1])
             f.__scripts.OnValueChanged(f, snapshot[moved[1]])
         end
     end
 end
-assertEq(sliders, 15, "fifteen sliders: seven, and each area's size and opacity")
+assertEq(sliders, 16, "sixteen sliders: eight, and each area's size and opacity")
 for k, v in pairs(before) do
     if type(v) ~= "table" then assertEq(BT.db[k], v, "setting unchanged after the sliders: " .. k) end
 end
@@ -5267,6 +5267,185 @@ for k, v in pairs(wasRoutes) do BT.db["route" .. k] = v end
 BT.db.healArea = healWas
 BT:RefreshConfig()
 clear()
+
+local function newestOf(area) BT:FlushHits(true) local a = BT.areas[area].active return a[#a] end
+---------------------------------------------------------------------------
+step("cooldowns ready: \"Kick ready\" when a spell of yours comes off its cooldown")
+do
+    clear()
+    assertEq(BT.DEFAULTS.nCooldowns, true, "on to start with")
+    BT.db.nCooldowns, BT.db.enabled = true, true
+    BT.cooling, BT.cdCast = nil, nil
+    STATE.spellNames[1766], STATE.spellNames[1752], STATE.spellNames[1784] = "Kick", "Sinister Strike", "Stealth"
+    STATE.spellNames[8643] = "Kidney Shot"
+    STATE.cooldowns = {}
+    local function notifyText()
+        local out = {}
+        for _, l in ipairs(lines("notify")) do out[#out + 1] = l end
+        return table.concat(out, " / ")
+    end
+    local function cast(id, cd)
+        STATE.cooldowns[id] = cd
+        fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-cd" .. id, id)
+        fire("SPELL_UPDATE_COOLDOWN")
+        Advance(0.2)
+    end
+    -- Kick: a cooldown of its own
+    cast(1766, { duration = 10, isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(1)
+    assertEq(notifyText(), "", "nothing while it's cooling")
+    STATE.cooldowns[1766] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "Kick ready", "Kick ready when it's over")
+    assert(isColor(newestOf("notify"), BT.TEXT_COLORS.alert), "in the alerts' color")
+    Advance(0.6)
+    assertEq(notifyText(), "Kick ready", "once")
+    clear()
+    -- Only the global cooldown: nothing
+    cast(1752, { duration = 1.5, isEnabled = true, isActive = true, isOnGCD = true })
+    STATE.cooldowns[1752] = nil
+    Advance(1)
+    assertEq(notifyText(), "", "a spell with only the global cooldown isn't announced")
+    cast(1752, { duration = Secret(1.5), isEnabled = true, isActive = true, isOnGCD = true })
+    STATE.cooldowns[1752] = nil
+    Advance(1)
+    assertEq(notifyText(), "", "nor when the game hides how long the global cooldown is")
+    -- A short cooldown: nothing
+    cast(1766, { duration = 6, isEnabled = true, isActive = true, isOnGCD = false })
+    STATE.cooldowns[1766] = nil
+    Advance(1)
+    assertEq(notifyText(), "", "nor one shorter than 8 seconds")
+    -- In a fight the game hides how long: it's announced all the same
+    cast(8643, { duration = Secret(20), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(3)
+    assertEq(notifyText(), "", "a hidden length: still cooling")
+    STATE.cooldowns[8643] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "Kidney Shot ready", "and ready when the game says it's over")
+    clear()
+    -- Held until you come out (Stealth): it starts later
+    cast(1784, { duration = 0, isEnabled = false, isActive = false })
+    Advance(3)
+    assertEq(notifyText(), "", "held: not ready while it hasn't started")
+    STATE.cooldowns[1784] = { duration = 0, isEnabled = true, isActive = false }
+    Advance(0.3)
+    assertEq(notifyText(), "", "nor as it's let go, before it has started")
+    STATE.cooldowns[1784] = { duration = 0, isEnabled = false, isActive = false }
+    Advance(0.3)
+    STATE.cooldowns[1784] = { duration = 10, isEnabled = true, isActive = true, isOnGCD = false }
+    Advance(2)
+    assertEq(notifyText(), "", "started: cooling")
+    STATE.cooldowns[1784] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "Stealth ready", "ready when it's over")
+    clear()
+    -- Hidden on the Spells tab, or turned off
+    BT.db.spellRules = { { name = "Kick", hide = true } }
+    BT.rulesByName = nil
+    cast(1766, { duration = 10, isEnabled = true, isActive = true, isOnGCD = false })
+    STATE.cooldowns[1766] = nil
+    Advance(0.5)
+    assertEq(notifyText(), "", "a spell hidden on the Spells tab")
+    BT.db.spellRules = {}
+    BT.rulesByName = nil
+    BT.db.nCooldowns = false
+    cast(1766, { duration = 10, isEnabled = true, isActive = true, isOnGCD = false })
+    STATE.cooldowns[1766] = nil
+    Advance(0.5)
+    assertEq(notifyText(), "", "Cooldowns ready turned off")
+    BT.db.nCooldowns = true
+    STATE.cooldowns = nil
+    clear()
+end
+
+---------------------------------------------------------------------------
+step("interrupts: \"Interrupted Frostbolt\" when you stop an enemy's cast")
+do
+    clear()
+    assertEq(BT.DEFAULTS.nInterrupts, true, "on to start with")
+    BT.db.nInterrupts = true
+    BT.kick, BT.interrupted = nil, nil
+    STATE.spellNames[1766] = "Kick"
+    local whoWas, unitWas, petWas = STATE.who, STATE.unit, STATE.pet
+    STATE.who = { target = "caster", nameplate4 = "caster", nameplate5 = "other" }
+    STATE.unit = { caster = { enemy = true, guid = "Creature-0-1-2-3-4-000099" },
+        other = { enemy = true, guid = "Creature-0-1-2-3-4-000098" } }
+    local ME_GUID = "Player-5555-0ABCDEF1"
+    local function said()
+        local out = {}
+        for _, l in ipairs(lines("notify")) do out[#out + 1] = l end
+        return table.concat(out, " / ")
+    end
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c1", 116, ME_GUID)
+    fire("UNIT_SPELLCAST_INTERRUPTED", "nameplate4", "Cast-c1", 116, ME_GUID)
+    assertEq(said(), "Interrupted Frostbolt", "yours, shown once though the game says it for each name")
+    assertEq(newestOf("notify").sticky, true, "and it stands out")
+    fire("UNIT_SPELLCAST_INTERRUPTED", "nameplate5", "Cast-c2", 116, "Player-5555-0FFFFFF2")
+    assertEq(said(), "Interrupted Frostbolt", "someone else's interrupt isn't shown")
+    fire("UNIT_SPELLCAST_INTERRUPTED", "player", "Cast-c3", 116, "Creature-0-1-2-3-4-000099")
+    assertEq(said(), "Interrupted Frostbolt", "your own cast being stopped isn't")
+    clear()
+    -- Your pet's
+    STATE.pet = true
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c4", 116, "Pet-0-1-2-3-4-000002")
+    assertEq(said(), "(Pet) Interrupted Frostbolt", "your pet's interrupt")
+    STATE.pet = petWas
+    clear()
+    -- The game hides who: an interrupt of yours just before your target's cast stopped
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c5", 116, Secret(ME_GUID))
+    assertEq(said(), "", "hidden, with no interrupt of yours: nothing")
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-k5", 1766)
+    Advance(0.1)
+    fire("UNIT_SPELLCAST_INTERRUPTED", "nameplate5", "Cast-c6", 116, Secret(ME_GUID))
+    assertEq(said(), "", "hidden, on a mob that isn't your target: nothing")
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c7", 116, Secret(ME_GUID))
+    assertEq(said(), "Interrupted Frostbolt", "hidden, just after your Kick: yours")
+    clear()
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-k8", 1766)
+    Advance(0.8)
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c8", Secret(116), nil)
+    assertEq(said(), "", "too long after your Kick")
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-k9", 1766)
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", Secret("Cast-c9"), Secret(116), nil)
+    assertEq(said(), "Interrupted!", "the stopped spell hidden too: just Interrupted!")
+    clear()
+    BT.db.nInterrupts = false
+    fire("UNIT_SPELLCAST_INTERRUPTED", "target", "Cast-c10", 116, ME_GUID)
+    assertEq(said(), "", "Interrupts turned off")
+    BT.db.nInterrupts = true
+    STATE.who, STATE.unit = whoWas, unitWas
+    clear()
+end
+
+---------------------------------------------------------------------------
+step("smallest crit: a small crit shows as a normal line")
+do
+    clear()
+    assertEq(BT.DEFAULTS.minCrit, 0, "off to start with: every crit stands out")
+    BT.db.minCrit, BT.db.sticky = 100, true
+    fire("UNIT_COMBAT", "player", "WOUND", "CRITICAL", 40, 1)
+    local small = newestOf("incoming")
+    assertEq(small.sticky, false, "a crit for 40 doesn't hold in place")
+    fire("UNIT_COMBAT", "player", "WOUND", "CRITICAL", 150, 1)
+    assertEq(newestOf("incoming").sticky, true, "a crit for 150 still does")
+    assert(newestOf("incoming").size > small.size, "and is bigger")
+    fire("UNIT_COMBAT", "player", "WOUND", "CRITICAL", Secret(40), 1)
+    assertEq(newestOf("incoming").sticky, true, "a hidden number keeps the crit's look")
+    clear()
+    -- No crit sound for a small one
+    BT.db.soundCrit = true
+    STATE.sounds = {}
+    BT.alertAt = nil
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082,
+        amount = 40, crit = true })
+    assertEq(#STATE.sounds, 0, "a small crit plays no crit sound")
+    Advance(1)
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082,
+        amount = 150, crit = true })
+    assertEq(#STATE.sounds, 1, "a big one does")
+    BT.db.soundCrit, BT.db.minCrit = false, 0
+    clear()
+end
 
 assertClean("by the end")
 print("ALL TESTS PASSED")

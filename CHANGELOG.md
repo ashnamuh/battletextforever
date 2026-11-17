@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.21.0
+
+- **New: "Kick ready".** When a spell of yours comes off its cooldown, a line in Notifications says so, with its icon. Only cooldowns of 8 seconds or more are shown (up to 10 minutes), so your everyday attacks don't spam it. It works in fights too. Turn it off with "Cooldowns ready" on the Notifications tab, or hide one spell on the Spells tab.
+- **New: interrupt alerts.** "Interrupted Frostbolt" when you or your pet stop an enemy's cast with Kick, Pummel, Shield Bash, Counterspell, Earth Shock and the like. Turn it off with "Interrupts" on the Notifications tab.
+- **New: "Smallest crit".** On the Text tab: crits for less than this number show as normal hits (normal size, no crit sound, they don't hold in place), so only the big ones stand out. Off to start with.
+
 ## 1.20.2
 
 - **Killing blows on mobs that weren't your target show again.** When you finished off a mob that wasn't your current target (a second mob on you, or one you'd tabbed away from with a DoT ticking), the final hit was often missing. A dying mob lets go of you just as the last hit lands, so BattleText no longer saw it as part of your fight. A mob you hit in the last few seconds now still counts as yours while it dies.

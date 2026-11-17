@@ -385,6 +385,12 @@ C_Spell = {
     GetSpellDescription = function(id) return STATE.spellDescriptions[id] end,
     IsSelfBuff = function(id) return (STATE.selfBuffs or {})[id] == true end,
     IsSpellHelpful = function(id) return (STATE.helpful or {})[id] == true end,
+    -- STATE.cooldowns[id]: a running cooldown, as the game describes it (no entry: none)
+    GetSpellCooldown = function(id)
+        local c = STATE.cooldowns and STATE.cooldowns[id]
+        if c then return c end
+        return { startTime = 0, duration = 0, isEnabled = true, isActive = false, modRate = 1 }
+    end,
     IsSpellUsable = function(spell)
         local u = STATE.usable[spell]
         if not u then return false, false end

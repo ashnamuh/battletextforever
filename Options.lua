@@ -337,7 +337,7 @@ local function BuildText(p, refs)
     refs.critOutlineDropdown = Dropdown(card, DROP_X, -90, 220, outlineKeys, outlineName, "critOutline",
         function(flags) BT:SetOutline("critOutline", flags) end, "Crits: " .. outlineTip)
 
-    local size = Card(p, "Size", 0, -134, PAGE_W, 138)
+    local size = Card(p, "Size", 0, -134, PAGE_W, 190)
     Slider(size, "Text size", 12, -30, "fontSize",
         { tip = "The size of normal lines. Each area can make its own bigger or smaller (Appearance, on its tab)." })
     Slider(size, "Crit size", COL2, -30, "critScale", { suffix = "%", step = 10,
@@ -349,6 +349,10 @@ local function BuildText(p, refs)
         .. "a smaller one smaller (down to three quarters). A number the game hides keeps the usual size.")
     Setting(size, "Icon zoom", 12, -108, "iconZoom",
         "Crops the thin border round spell and item icons, so the picture fills its square and looks bigger.")
+    Slider(size, "Smallest crit", 12, -134, "minCrit", { step = 10, zero = "Off",
+        tip = "A crit for less than this shows as a normal line: normal size, no crit outline, it doesn't hold "
+            .. "in place and it plays no crit sound, so only the big ones stand out. A number the game hides "
+            .. "still shows as a crit. Off: every crit stands out." })
 end
 
 local function BuildMotion(p)
@@ -444,7 +448,7 @@ local function BuildHealing(p)
 end
 
 local function BuildNotifications(p, refs)
-    local card = Card(p, "Show", 0, 0, PAGE_W, 264)
+    local card = Card(p, "Show", 0, 0, PAGE_W, 284)
     Setting(card, "Combat", 12, -30, "nCombat", "+Combat and -Combat as you enter and leave a fight.")
     Setting(card, "Killing blows", COL2, -30, "nKill",
         "\"Killing blow!\" when your hit kills. Only when the game lets BattleText read its combat lines "
@@ -481,24 +485,30 @@ local function BuildNotifications(p, refs)
     Setting(extras, "Fight summary", COL2, -186, "nSummary",
         "When a fight ends: your damage, damage per second and healing, like \"4,820 damage (127 DPS) in 38s\". "
         .. "Only counts numbers the game lets BattleText read. Type /btf last for that fight spell by spell.")
-    Setting(extras, "Icons", 12, -238, "nIcons",
-        "Shows the icon beside loot, skill ups, seals, buffs, ability alerts and dispels.",
-        Either("nLoot", "nSkill", "nSeals", "nBuffs", "nAlerts", "nDispels"))
+    Setting(extras, "Cooldowns ready", 12, -212, "nCooldowns",
+        "A line when a spell of yours comes off its cooldown, like \"Kick ready\". Only cooldowns of 8 seconds "
+        .. "or more, up to 10 minutes. Hide one you don't want on the Spells tab.")
+    Setting(extras, "Interrupts", COL2, -212, "nInterrupts",
+        "\"Interrupted Frostbolt\" when you or your pet stop an enemy's cast. If the game hides who stopped it, "
+        .. "BattleText goes by your interrupt (Kick, Pummel, Counterspell...) landing just as your target's cast stopped.")
+    Setting(extras, "Icons", 12, -264, "nIcons",
+        "Shows the icon beside loot, skill ups, seals, buffs, ability alerts, cooldowns, interrupts and dispels.",
+        Either("nLoot", "nSkill", "nSeals", "nBuffs", "nAlerts", "nDispels", "nCooldowns", "nInterrupts"))
     local soundKeys = {}
     for _, s in ipairs(BT.SOUNDS) do soundKeys[#soundKeys + 1] = s.key end
     local function soundName(k) return BT:SoundName(k) end
     local pickTip = "Picking a sound plays it. If this game doesn't have it, chat says so. Sounds your other addons share "
         .. "(through LibSharedMedia) are at the end of the list."
-    Setting(extras, "Crit sound", 12, -212, "soundCrit", "A sound when you crit. Pick it in the list beside it.")
-    refs.critSoundDropdown = Dropdown(extras, 130, -210, 126, soundKeys, soundName, "critSound",
+    Setting(extras, "Crit sound", 12, -238, "soundCrit", "A sound when you crit. Pick it in the list beside it.")
+    refs.critSoundDropdown = Dropdown(extras, 130, -236, 126, soundKeys, soundName, "critSound",
         function(k) BT:SetAlertSound("crit", k) end, pickTip)
-    Setting(extras, "Kill sound", COL2, -212, "soundKill",
+    Setting(extras, "Kill sound", COL2, -238, "soundKill",
         "A sound on your killing blows (only when the game lets BattleText read its combat lines). "
         .. "Pick it in the list beside it.")
-    refs.killSoundDropdown = Dropdown(extras, COL2 + 118, -210, 126, soundKeys, soundName, "killSound",
+    refs.killSoundDropdown = Dropdown(extras, COL2 + 118, -236, 126, soundKeys, soundName, "killSound",
         function(k) BT:SetAlertSound("kill", k) end, pickTip)
     refs.critSoundDropdown.menuScroll, refs.killSoundDropdown.menuScroll = 20 * 12, 20 * 12
-    AreaLook(p, -274, "n", false, function() return BT:AreaUsed("notify") end, "Nothing shows here (Layout tab)")
+    AreaLook(p, -294, "n", false, function() return BT:AreaUsed("notify") end, "Nothing shows here (Layout tab)")
 end
 
 -- Which area each kind of text shows in. Areas are named for where they start on screen.
