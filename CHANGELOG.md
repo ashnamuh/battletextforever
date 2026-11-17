@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.4
+
+- **Your party's wand hits and white hits no longer show as yours.** In a group, BattleText uses your combat log lines to tell your hits from everyone else's. Lines from things that don't deal damage (Sunder Armor, Shield Block) and from swings it had already counted were left over, and a party member's wand shot or auto attack landing just after one was taken for yours. Now a line only counts for the hit it arrives with, and your white hits are counted by your own swings. Your own hits, spells, ticks and your pet's hits still show as before. (Thanks to dries9300 for the report.)
+
 ## 1.21.3
 
 - **Off-hand swings show your off-hand weapon's icon.** With a sword in your main hand and a dagger in your off hand, every white hit showed the sword, off-hand hits included. The game's swing timer says which hand each swing came from, so now main-hand hits show the main-hand weapon and off-hand hits show the off-hand weapon, dodges and parries too. When BattleText can't match a hit to a swing, it shows the plain Attack icon instead of guessing. (Thanks to skaine78 for the report.)

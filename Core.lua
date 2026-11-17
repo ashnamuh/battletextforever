@@ -1467,6 +1467,8 @@ end
 -- (ResolveFrame): what comes before and after a hit says what it was.
 ---------------------------------------------------------------------------
 local CREDIT_TIME = 1.2   -- a hit can follow its combat log line by this long (a swing lands with its animation)
+local LINE_WITH_HIT = 0.15  -- a line this close before a hit is its own (spells, ticks, procs, heals: in its frame or just ahead)
+local SWING_RECENT = 6      -- PLAYER_SWING this recent: your swings are vouched for by it, not by their lines
 local TICK_SLACK = 0.25   -- a tick can be this far off its beat
 local TICK_CLOSE = 0.15   -- and once it has ticked, the next is about this close to its beat (against a spell landing)
 local DOT_TIME = 45       -- a damage-over-time spell is forgotten this long after its cast
@@ -2542,6 +2544,7 @@ function BT:OnSwing(duration, swingType)
     self.swings = swings
     while swings[1] and (now - swings[1] > CREDIT_TIME or #swings >= 6) do table.remove(swings, 1) end
     swings[#swings + 1] = now
+    self.swungAt = now
     -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept.
     local hand = Num(swingType)
     if hand == 0 or hand == 1 then
@@ -2568,10 +2571,34 @@ function BT:ClaimSwing(h)
     return false
 end
 
-function BT:ClaimHit(now)
+-- A line of yours vouches for a hit in its own frame (a spell's hit, a tick, a proc, a heal: they
+-- come with their line). Only a swing's line comes ahead of its hit (the hit lands with the
+-- animation, up to CREDIT_TIME later), so only a physical hit or a miss may take an earlier line
+-- , and not on your target while PLAYER_SWING is vouching for your swings there, unless
+-- your pet is on it (its swings' lines come ahead too). Issue #16: a party member's wand and white
+-- hits took the lines of your Sunder Armor, Shield Block and swings (each swing was vouched twice,
+-- by PLAYER_SWING and by its line) and showed as yours.
+function BT:WideClaim(h)
+    if not h or not h.unit then return false end
+    if h.kind ~= "damage" and h.kind ~= "miss" then return false end
+    local mask = Num(h.school)
+    if mask ~= nil and mask ~= 1 then return false end
+    if not (self.swungAt and h.time - self.swungAt <= SWING_RECENT) then return true end
+    if not (Flag(UnitIsUnit, h.unit, "target") or (h.key and h.key == UnitKey("target"))) then return true end
+    return PetOn(h.unit) and true or false
+end
+
+function BT:ClaimHit(now, h)
     local credits = self.credits
     while credits and credits[1] and now - credits[1] > CREDIT_TIME do table.remove(credits, 1) end
-    if credits and credits[1] and credits[1] <= now then
+    if not credits then return false end
+    for i = 1, #credits do
+        if credits[i] <= now and now - credits[i] <= LINE_WITH_HIT then
+            table.remove(credits, i)
+            return true
+        end
+    end
+    if credits[1] and credits[1] <= now and self:WideClaim(h) then
         table.remove(credits, 1)
         return true
     end
@@ -3396,10 +3423,10 @@ function BT:ResolveFrame(seq, first, last)
             end
             local claimed = not h.grouped
             if not claimed and what == "cast" then
-                self:ClaimHit(h.time)   -- (its line, if it has one, is used up)
+                self:ClaimHit(h.time, h)   -- (its line, if it has one, is used up)
                 claimed = true
             end
-            if not claimed and healOfYours then claimed = self:ClaimSwing(h) or self:ClaimHit(h.time) end
+            if not claimed and healOfYours then claimed = self:ClaimSwing(h) or self:ClaimHit(h.time, h) end
             -- A spell of yours that was on its way to the unit. A tick of yours on its beat
             -- comes first, unless its amount isn't what that spell's ticks have been.
             if not spell and claimed then
@@ -3529,7 +3556,7 @@ function BT:ResolveFrame(seq, first, last)
             end
             if not mine then
                 why = "not your fight"
-            elseif h.grouped and not self:ClaimHit(h.time) then
+            elseif h.grouped and not self:ClaimHit(h.time, h) then
                 why = "no line of yours with it"
             else
                 why = self:ShowUnitHit(h, mine.what, mine.spell, true)

@@ -1687,6 +1687,58 @@ fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rev", 6572)
 fire("UNIT_COMBAT", "target", "MISS", "", 0, 1)
 assertEq(last("outgoing"), "Revenge Miss", "your cast missing, in a group")
 clear()
+-- Issue #16 (a protection warrior's party): a party member's wand hits and white hits on your
+-- target showed as yours. Your lines that vouched for nothing in their own frame (Sunder Armor,
+-- Shield Block, and the line of a swing PLAYER_SWING already vouched for) were left over, and
+-- any hit within 1.2s took one. A line now vouches for a hit in its own frame (or just ahead of
+-- it); only a white hit may take an earlier one, and not on your target while your swings are
+-- vouched for by PLAYER_SWING.
+STATE.spellNames[7405] = "Sunder Armor"
+BT.credits, BT.swings, BT.swungAt = nil, nil, nil
+fire("PLAYER_SWING", 2.6, 0)
+hidden(5441)   -- (your swing's line)
+Advance(0.6)
+fire("UNIT_COMBAT", "target", "WOUND", "", 41, 1)
+assertEq(last("outgoing"), "41", "your white hit, after your swing and its line")
+Advance(0.2)
+fire("UNIT_COMBAT", "target", "WOUND", "", 98, 1)
+assertEq(last("outgoing"), "41", "a party member's white hit doesn't take your swing's line")
+Advance(0.1)
+fire("UNIT_COMBAT", "target", "WOUND", "", 97, 64)
+assertEq(last("outgoing"), "41", "nor does their wand's hit")
+Advance(0.1)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-sunder", 7405)
+hidden(5432)   -- (Sunder Armor's line: it does no damage)
+Advance(0.4)
+fire("UNIT_COMBAT", "target", "WOUND", "", 96, 64)
+assertEq(last("outgoing"), "41", "Sunder Armor's line doesn't vouch for a wand's hit after it")
+Advance(0.2)
+fire("UNIT_COMBAT", "target", "PARRY", "", 0, 1)
+assertEq(last("outgoing"), "41", "nor for someone's white hit being parried")
+Advance(0.1)
+fire("UNIT_COMBAT", "target", "WOUND", "", 52, 4)
+hidden(77)
+assertEq(last("outgoing"), "52", "a spell's hit with its line in its frame is still yours")
+Advance(0.1)
+hidden(78)
+Advance(0.11)
+fire("UNIT_COMBAT", "target", "WOUND", "", 53, 32)
+assertEq(last("outgoing"), "53", "and with its line just ahead of it (a warlock's bolt, real_fight5)")
+-- Your pet's lines (with Pet ticked under "Done By") come ahead of its swings too
+Advance(0.3)
+STATE.pet, STATE.unit.pet = true, { target = STATE.who.target }
+hidden(79)
+Advance(0.6)
+fire("UNIT_COMBAT", "target", "WOUND", "", 19, 1)
+assertEq(last("outgoing"), "19", "your pet on your target: a white hit may take an earlier line")
+STATE.pet, STATE.unit.pet = false, nil
+-- Not swinging (no PLAYER_SWING for a while): an earlier line still vouches for a white hit
+Advance(6.5)
+hidden(80)
+Advance(0.6)
+fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
+assertEq(last("outgoing"), "27", "with no swing of yours lately, a line ahead of a white hit vouches for it")
+clear()
 BT.hiddenSeen = nil
 BT.credits, BT.waitingHits = nil, nil
 fire("UNIT_COMBAT", "target", "WOUND", "", 33, 1)
