@@ -397,6 +397,33 @@ STATE.filterApplied = wasApplied
 BT.started, BT.startHidden = true, nil
 BT:UpdateStartButton()
 assertClean("after a chat addon hid the Combat Log tab")
+-- Started from your own macro: /click BattleTextForeverStart only sends the release,
+-- and it works with "act on key down" on (the game's default) or off
+for _, keyDown in ipairs({ true, false }) do
+    STATE.useKeyDown = keyDown
+    BT.started = nil
+    STATE.filterApplied, STATE.filteredEvents = false, false
+    BT:UpdateStartButton()
+    ClickTab(ChatFrame3Tab)
+    ClickButton(start, "LeftButton", true)
+    assertEq(STATE.filterApplied, true, "a /click in a macro starts it (key down " .. tostring(keyDown) .. ")")
+    assertEq(SELECTED_DOCK_FRAME, ChatFrame3, "and goes back to your tab")
+    assertEq(BT.started, true, "started from the macro")
+    assertEq(start:IsShown(), false, "the button goes")
+    -- Pressed again and again with that macro: nothing happens to your chat tabs
+    local opened = 0
+    local realShow = ChatFrame2.__scripts.OnShow
+    ChatFrame2.__scripts.OnShow = function(...) opened = opened + 1 if realShow then return realShow(...) end end
+    ClickButton(start, "LeftButton", true)
+    ClickButton(start)
+    ChatFrame2.__scripts.OnShow = realShow
+    assertEq(opened, 0, "once started, the click doesn't open the Combat Log again")
+    assertEq(SELECTED_DOCK_FRAME, ChatFrame3, "you stay on your tab")
+    assertEq(STATE.filteredEvents, true, "and the lines stay on")
+end
+STATE.useKeyDown = false
+ClickTab(ChatFrame1Tab)
+assertClean("after starting from a macro")
 
 ---------------------------------------------------------------------------
 step("your hits")

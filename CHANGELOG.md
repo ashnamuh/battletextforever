@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.22.0
+
+- **Start BattleText without clicking.** The game only lets the Combat Log get going from a real click or key press, so BattleText can't press Start for you when you log in. What you can do now: put `/click BattleTextForeverStart` at the top of a macro you press anyway, like your first attack. The first time you press it after logging in, BattleText starts; after that the line does nothing, so your chat tabs stay put. It works whether or not "cast on key down" is on. You can also still bind a key to Start BattleText. (Thanks to Dzib for asking.)
+
 ## 1.21.7
 
 - **Shadow Bolt keeps its name when another Shadow hit lands right as you cast it.** Warlocks have a Shadow damage that ticks on its own about every 2.5 seconds (BattleText has no name for it). When one of those ticks landed in the exact moment a Shadow Bolt finished casting, BattleText took the tick for the bolt, and the real bolt landed a moment later with no name. A spell that flies now never takes a hit that's on that tick's beat, so the bolt gets its name when it actually lands. (Thanks to Ethn91081 for the report and the debug log.)

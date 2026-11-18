@@ -4133,6 +4133,9 @@ function BT:BuildStartButton()
     b:SetPoint("TOP", UIParent, "TOP", 0, -140)
     b:SetFrameStrata("HIGH")
     b:RegisterForClicks("AnyUp", "AnyDown")
+    -- Act on the release, whatever "act on key down" is set to: a /click in a macro
+    -- only sends the release, so /click BattleTextForeverStart in your own macro works
+    b:SetAttribute("useOnKeyDown", false)
     -- The shared header bar: logo, then the words in gold on red
     T.HeaderStrip(b, "Start BattleText")
     b:FitLogo(26)
@@ -4148,6 +4151,8 @@ function BT:BuildStartButton()
         GameTooltip:AddLine("Playing alone, your hits show without it. In a group, BattleText needs those lines to tell "
             .. "your hits from everyone else's.", 1, 1, 1, true)
         GameTooltip:AddLine("Once each time you log in. Right-click to hide it until then.", 0.7, 0.7, 0.7, true)
+        GameTooltip:AddLine("To start it without clicking: put /click BattleTextForeverStart at the top of a macro "
+            .. "you press anyway, like your first attack.", 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -4175,9 +4180,19 @@ end
 
 -- The click: open the Combat Log tab, then go back to the tab you were on.
 -- If you're already on the Combat Log tab, leave it and come back.
+-- Once the lines are flowing it does nothing, so a /click BattleTextForeverStart
+-- in a macro you press all the time doesn't flick your chat tabs.
 function BT:SetStartMacro()
     local b = self.startButton
     if not b or InCombatLockdown() then return end
+    if self.started then
+        if b.macro ~= false then
+            b.macro = false
+            b:SetAttribute("type", nil)
+            b:SetAttribute("macrotext", nil)
+        end
+        return
+    end
     local selected
     if FCFDock_GetSelectedWindow and GENERAL_CHAT_DOCK then
         local ok, frame = pcall(FCFDock_GetSelectedWindow, GENERAL_CHAT_DOCK)

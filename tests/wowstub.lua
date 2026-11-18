@@ -506,9 +506,13 @@ end
 -- A real click on a button: mouse down, then up. A secure button's macro runs
 -- on one of the two (the "act on key down" setting decides which), as the
 -- game's own code, and only if the button is listening for that half of the click.
-function ClickButton(b, which)
+-- (A /click line in a macro sends only the release: ClickButton(b, "LeftButton", true).)
+-- The button's "useOnKeyDown" attribute, when set, overrides the game setting.
+function ClickButton(b, which, releaseOnly)
     which = which or "LeftButton"
-    for _, down in ipairs({ true, false }) do
+    local onDown = b.__attrs.useOnKeyDown
+    if onDown == nil then onDown = STATE.useKeyDown end
+    for _, down in ipairs(releaseOnly and { false } or { true, false }) do
         local wanted = down and "AnyDown" or "AnyUp"
         local listening = false
         for _, c in ipairs(b.__clicks or { "LeftButtonUp" }) do
@@ -517,7 +521,7 @@ function ClickButton(b, which)
         if listening then
             if b.__scripts.PreClick then b.__scripts.PreClick(b, which, down) end
             local kind = which == "RightButton" and b.__attrs.type2 or b.__attrs.type
-            if b.__protected and down == STATE.useKeyDown and kind == "macro" then
+            if b.__protected and down == onDown and kind == "macro" then
                 SECURE = true
                 for name in (b.__attrs.macrotext or ""):gmatch("/click ([^\n]+)") do
                     local target = _G[name]
@@ -525,7 +529,7 @@ function ClickButton(b, which)
                 end
                 SECURE = false
             end
-            if b.__protected and down == STATE.useKeyDown and kind == "attribute" and b.__attrs["attribute-name"] then
+            if b.__protected and down == onDown and kind == "attribute" and b.__attrs["attribute-name"] then
                 b.__attrs[b.__attrs["attribute-name"]] = b.__attrs["attribute-value"]
             end
             if b.__scripts.OnClick then b.__scripts.OnClick(b, which, down) end

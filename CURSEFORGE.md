@@ -32,7 +32,7 @@ Install it with the CurseForge app, or download the file and unzip it into your 
 ## Using it
 
 - **Your hits show as soon as you log in**: on your target, and on the mobs attacking you or your pet.
-- **Click Start BattleText** (the button at the top of the screen) once after you log in. With it, BattleText can name the ticks of your bleeds and tell your hits from everyone else's (see Good to know). You can also bind a key to it. If you haven't clicked it ten seconds after logging in, a line in chat reminds you (turn off **Remind me to click Start** in the options to stop that). Right-click the button to hide it until you log in again.
+- **Click Start BattleText** (the button at the top of the screen) once after you log in. With it, BattleText can name the ticks of your bleeds and tell your hits from everyone else's (see Good to know). You can also bind a key to it. If you haven't clicked it ten seconds after logging in, a line in chat reminds you (turn off **Remind me to click Start** in the options to stop that). Right-click the button to hide it until you log in again. To have it start without clicking, put `/click BattleTextForeverStart` at the top of a macro you press anyway (like your first attack): your first press starts it, and after that the line does nothing.
 - **Move the text.** Turn on **Move the text areas** in the options (or type `/btf unlock`) and drag the four boxes where you want them. Closing the options locks them again.
 - **See it without fighting.** Type `/btf test`, or right-click the minimap button.
 - **Open the options.** Type `/btf`, or left-click the minimap button.
