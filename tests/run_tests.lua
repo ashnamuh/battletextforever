@@ -2912,6 +2912,44 @@ assertEq(ticks["tick of Immolate"], 2, "and Immolate's")
 STATE.who = {}
 end
 
+step("a seventh real fight: the unknown Shadow tick lands in a Shadow Bolt's cast frame")
+-- tests/real_fight7.txt (issue #24, 1.21.6, every amount hidden, an Undead warlock): the Shadow
+-- damage BattleText has no name for ticks every ~2.5s (560.54, 563.05, 565.57). The second Shadow
+-- Bolt is cast at 565.57, in the very frame of that tick, and lands at 566.15. 1.21.6 took the
+-- tick for the bolt (a spell that needs no time to land) and left the bolt with no name.
+do
+freshFight()
+STATE.class, STATE.pet, STATE.race = "WARLOCK", true, "Scourge"
+for id, name in pairs({ [11711] = "Bane of Agony", [17920] = "Searing Pain", [7648] = "Corruption",
+        [7641] = "Shadow Bolt", [1260189] = "Touch of the Grave", [1260201] = "Touch of the Grave" }) do
+    STATE.spellNames[id] = name
+end
+BT.db.debug, BT.recorded = true, {}
+replay("real_fight7.txt")
+BT.db.debug = false
+local at, first = {}, nil
+for _, l in ipairs(BT.recorded) do
+    local t, what = l:match("^%s*([%d.]+)%s%s%s%snameplate1 %(hidden amount%): (.*)$")
+    if t then
+        first = first or tonumber(t)
+        local k = ("%.2f"):format(tonumber(t) - first + 555.53)
+        at[k] = at[k] and (at[k] .. " / " .. what) or what
+    end
+end
+STATE.class, STATE.pet, STATE.race, BT.recorded = "DRUID", false, nil, nil
+assertEq(at["562.47"], "cast of Shadow Bolt", "the first bolt is named")
+assert(not (at["565.57"] or ""):find("Shadow Bolt", 1, true),
+    "the unknown tick in the second bolt's cast frame isn't the bolt: " .. tostring(at["565.57"]))
+assertEq(at["566.15"], "cast of Shadow Bolt", "the second bolt is named when it lands")
+local bolts = 0
+for _, what in pairs(at) do
+    for _ in what:gmatch("cast of Shadow Bolt") do bolts = bolts + 1 end
+end
+assertEq(bolts, 2, "two Shadow Bolts landed in the recording")
+STATE.who = {}
+clear()
+end
+
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
 log(hit("Bite", 17253, 60))

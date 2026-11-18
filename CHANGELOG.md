@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.7
+
+- **Shadow Bolt keeps its name when another Shadow hit lands right as you cast it.** Warlocks have a Shadow damage that ticks on its own about every 2.5 seconds (BattleText has no name for it). When one of those ticks landed in the exact moment a Shadow Bolt finished casting, BattleText took the tick for the bolt, and the real bolt landed a moment later with no name. A spell that flies now never takes a hit that's on that tick's beat, so the bolt gets its name when it actually lands. (Thanks to Ethn91081 for the report and the debug log.)
+
 ## 1.21.6
 
 - **"Shoot ready" no longer pops up after every wand shot.** Shoot, Auto Shot and Throw fire again on their own, so their "cooldown" is just your weapon's speed. The game hides how long it is in a fight, so BattleText announced it every time. Spells that repeat on their own are never announced now, and a cooldown the game hides is only announced if it really lasted 8 seconds or more. No need to hide Shoot on the Spells tab any more. (Thanks to ModsAndAddonsAreGreat and Quarnok for the report.)

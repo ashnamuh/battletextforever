@@ -3411,6 +3411,7 @@ function BT:ResolveFrame(seq, first, last)
                     can = not (info and not info.direct) and not (expect and mask and expect ~= mask)
                         and not (expect ~= mask and self:KnownShield(h))
                         and not (h.key and struck[h.key] and self:FlightFor(h))
+                        and not (castFlight and self:OnUnnamedBeat(h))
                 end
                 local mine = false
                 if can then
@@ -3494,8 +3495,11 @@ function BT:ResolveFrame(seq, first, last)
                     -- Not a hit of another school than the spell's; and a hit that's just what a
                     -- damage shield of yours does is the shield's, unless the spell is of that school too.
                     -- A second hit on the same unit is a spell of yours that was on its way, when there is one.
+                    -- A spell that flies doesn't take a hit on the beat of an unknown tick of yours
+                    -- (issue #24: Demonic Brand ticking in a Shadow Bolt's cast frame took the bolt's name).
                     if not (expect and mask and expect ~= mask) and not (expect ~= mask and self:KnownShield(h))
-                            and not (h.key and castStruck[h.key] and self:FlightFor(h)) then
+                            and not (h.key and castStruck[h.key] and self:FlightFor(h))
+                            and not (castFlight and self:OnUnnamedBeat(h)) then
                         spell, castSchool = cast, castSchool or mask
                         if h.key then castStruck[h.key] = true end
                     elseif not castSchool and not otherSchool and mask and not self:KnownShield(h)

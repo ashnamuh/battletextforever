@@ -1,0 +1,206 @@
+ 554.04  CAST 11711 Bane of Agony
+ 555.26  hidden  |Ky8421|k
+ 555.26  UNIT_COMBAT player WOUND  (hidden amount) school 16
+ 555.26  hidden  |Ky7715|k
+ 555.53  hidden  |Ky8422|k
+ 555.53  CAST 7648 Corruption
+ 555.53  hidden  |Ky8423|k
+ 555.53  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 555.53  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 555.53  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 555.53  UNIT_COMBAT player HEAL  (hidden amount) school 1
+ 555.53  hidden  |Ky7277|k
+ 555.53  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 555.53  hidden  |Ky7492|k
+ 555.53    nameplate1 (hidden amount): proc of Touch of the Grave
+ 555.53    pet (hidden amount): cast of Corruption
+ 555.77  hidden  |Ky8424|k
+ 555.77  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 555.77  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 555.77  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 555.77    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 556.04  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 32
+ 556.04  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 32: same hit, under another name
+ 556.04  UNIT_COMBAT softenemy WOUND CRITICAL (hidden amount) school 32: same hit, under another name
+ 556.04  hidden  |Ky8425|k
+ 556.04  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 556.04  hidden  |Ky7526|k
+ 556.04    nameplate1 (hidden amount): tick of Bane of Agony
+ 556.04    pet (hidden amount): shown
+ 555.77    nameplate1 (hidden amount): no heal came for it: shown
+ 556.53  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 556.53  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 556.53  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 556.53    nameplate1 (hidden amount): shown
+ 558.00  hidden  |Ky8426|k
+ 558.00  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 558.00  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 558.00  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 558.00  hidden  |Ky8427|k
+ 558.00  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 558.00  hidden  |Ky7446|k
+ 558.00    nameplate1 (hidden amount): tick of Bane of Agony
+ 558.00    pet (hidden amount): shown
+ 558.55  CAST 17920 Searing Pain
+ 558.55  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 558.55  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 558.55  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 558.55  hidden  |Ky8428|k
+ 558.55  hidden  |Ky8429|k
+ 558.55  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 4
+ 558.55  UNIT_COMBAT target WOUND  (hidden amount) school 4: same hit, under another name
+ 558.55  UNIT_COMBAT softenemy WOUND  (hidden amount) school 4: same hit, under another name
+ 558.55  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 558.55  hidden  |Ky7449|k
+ 558.55  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 558.55  hidden  |Ky8430|k
+ 558.55    nameplate1 (hidden amount): tick of Corruption
+ 558.55    nameplate1 (hidden amount): cast of Searing Pain
+ 558.55    pet (hidden amount): shown
+ 558.55    pet (hidden amount): cast of Searing Pain
+ 558.84  hidden  |Ky8431|k
+ 558.84  UNIT_COMBAT player WOUND  (hidden amount) school 16
+ 558.84  hidden  |Ky8432|k
+ 559.00  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 559.00  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 559.00  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 559.00    nameplate1 (hidden amount): shown
+ 560.04  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 560.04  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 560.04  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 560.04  hidden  |Ky8427|k
+ 560.04  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 560.04  hidden  |Ky7446|k
+ 560.04    nameplate1 (hidden amount): tick of Bane of Agony
+ 560.04    pet (hidden amount): shown
+ 560.54  hidden  |Ky8433|k
+ 560.54  hidden  |Ky8434|k
+ 560.54  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 560.54  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 560.54  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 560.54    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 560.54    nameplate1 (hidden amount): no heal came for it: shown
+ 561.10  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 561.10  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 561.10  UNIT_COMBAT softenemy WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 561.10    nameplate1 (hidden amount): shown
+ 561.46  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 561.46  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 561.46  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 561.46  hidden  |Ky8428|k
+ 561.46    nameplate1 (hidden amount): tick of Corruption
+ 561.57  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 561.57  hidden  |Ky7449|k
+ 561.57    pet (hidden amount): shown
+ 561.90  CAST 7641 Shadow Bolt
+ 562.05  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 562.05  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 562.05  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 562.05  hidden  |Ky8427|k
+ 562.05  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 562.05  hidden  |Ky7446|k
+ 562.05    nameplate1 (hidden amount): tick of Bane of Agony
+ 562.05    pet (hidden amount): shown
+ 562.47  hidden  |Ky8435|k
+ 562.47  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 562.47  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 562.47  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 562.47  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 562.47  hidden  |Ky8436|k
+ 562.47    nameplate1 (hidden amount): cast of Shadow Bolt
+ 562.47    pet (hidden amount): shown
+ 562.57  hidden  |Ky8437|k
+ 562.57  UNIT_COMBAT player WOUND  (hidden amount) school 16
+ 562.57  hidden  |Ky8438|k
+ 563.05  hidden  |Ky8439|k
+ 563.05  hidden  |Ky8440|k
+ 563.05  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 563.05  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 563.05  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 563.05    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 563.05    nameplate1 (hidden amount): no heal came for it: shown
+ 563.62  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 563.62  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 563.62  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 563.62    nameplate1 (hidden amount): shown
+ 564.05  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 564.05  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 564.05  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 564.05  hidden  |Ky8441|k
+ 564.05  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 564.05  hidden  |Ky7464|k
+ 564.05    nameplate1 (hidden amount): tick of Bane of Agony
+ 564.05    pet (hidden amount): shown
+ 564.56  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 564.56  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 564.56  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 564.56  hidden  |Ky8428|k
+ 564.56  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 564.56  hidden  |Ky7449|k
+ 564.56    nameplate1 (hidden amount): tick of Corruption
+ 564.56    pet (hidden amount): shown
+ 565.46  hidden  |Ky8442|k
+ 565.57  CAST 7641 Shadow Bolt
+ 565.57  hidden  |Ky8443|k
+ 565.57  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 565.57  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 565.57  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 565.57    nameplate1 (hidden amount): cast of Shadow Bolt
+ 565.94  hidden  |Ky8444|k
+ 565.94  UNIT_COMBAT player WOUND  (hidden amount) school 16
+ 565.94  hidden  |Ky8445|k
+ 566.03  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 566.03  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 566.03  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 566.03    nameplate1 (hidden amount): shown
+ 566.05  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 566.05  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 566.05  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 566.05  hidden  |Ky8441|k
+ 566.05  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 566.05  hidden  |Ky7464|k
+ 566.05    nameplate1 (hidden amount): tick of Bane of Agony
+ 566.05    pet (hidden amount): shown
+ 566.15  hidden  |Ky8446|k
+ 566.15  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 566.15  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 566.15  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 566.15  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 566.15  hidden  |Ky8447|k
+ 566.15    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 566.15    pet (hidden amount): shown
+ 566.15    nameplate1 (hidden amount): no heal came for it: shown
+ 567.55  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 567.55  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 567.55  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 567.55  hidden  |Ky8428|k
+ 567.55  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 567.55  hidden  |Ky7449|k
+ 567.55    nameplate1 (hidden amount): tick of Corruption
+ 567.55    pet (hidden amount): shown
+ 567.96  hidden  |Ky8424|k
+ 567.96  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 567.96  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  hidden  |Ky8440|k
+ 567.96  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 567.96  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  hidden  |Ky8448|k
+ 567.96  hidden  |Ky8449|k
+ 567.96  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 32
+ 567.96  UNIT_COMBAT target WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  UNIT_COMBAT softenemy WOUND  (hidden amount) school 32: same hit, under another name
+ 567.96  hidden  |Ky8450|k
+ 567.96    nameplate1 (hidden amount): tick of Bane of Agony
+ 567.96    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 567.96    nameplate1 (hidden amount): waiting: Touch of the Grave?
+ 568.07  UNIT_COMBAT pet HEAL  (hidden amount) school 1
+ 568.07  hidden  |Ky8451|k
+ 568.07    pet (hidden amount): shown
+ 567.96    nameplate1 (hidden amount): no heal came for it: shown
+ 567.96    nameplate1 (hidden amount): no heal came for it: shown
+ 569.98  UNIT_COMBAT player HEAL  (hidden amount) school 1
+ 569.98  hidden  |Ky6165|k
+ 572.01  UNIT_COMBAT player HEAL  (hidden amount) school 1
+ 572.01  hidden  |Ky6165|k
