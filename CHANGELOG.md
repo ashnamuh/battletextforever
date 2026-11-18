@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.23.0
+
+- **BattleText starts by itself.** No more clicking Start BattleText every time you log in. BattleText now turns on the game's combat lines as soon as you log in, so bleed ticks get their names and other people's hits are left out from your first fight. (Thanks to Dzib for asking, and for the nudge to look again.)
+- **The Start button only shows when it's needed.** If a fight ends and no combat line came (a chat addon that hides the Combat Log can do that), the button shows up then, with one line in chat about it. Click it once, as before.
+
 ## 1.22.0
 
 - **Start BattleText without clicking.** The game only lets the Combat Log get going from a real click or key press, so BattleText can't press Start for you when you log in. What you can do now: put `/click BattleTextForeverStart` at the top of a macro you press anyway, like your first attack. The first time you press it after logging in, BattleText starts; after that the line does nothing, so your chat tabs stay put. It works whether or not "cast on key down" is on. You can also still bind a key to Start BattleText. (Thanks to Dzib for asking.)

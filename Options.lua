@@ -260,7 +260,7 @@ local function BuildGeneral(p, refs)
     Setting(card, "Minimap button", COL2, -56, "minimap",
         "The BattleText button on the minimap: left-click opens the options, right-click shows sample text.")
     Setting(card, "Remind me to click Start", 12, -82, "startReminder",
-        "Ten seconds after you log in, a line in chat reminds you to click Start BattleText if you haven't yet.")
+        "If BattleText couldn't start by itself, a line in chat after your first fight says to click Start BattleText.")
     Setting(card, "Login message", 12, -108, "loginMessage",
         "\"BattleText Forever loaded. Type /btf for options.\" in chat when you log in or /reload.")
     local own = T.LabeledSwitch(card, "Settings for this character only", COL2, -82)
@@ -294,8 +294,8 @@ local function BuildGeneral(p, refs)
     local text = Text(know, "Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
         .. "pet. Turn on enemy nameplates for the ones you aren't targeting.\n\n"
         .. "The game doesn't say whose hit it was: alone, your pet's hits show as yours.\n\n"
-        .. "Click \"Start BattleText\" once after you log in. It lets BattleText name the ticks of your bleeds, "
-        .. "and it leaves other people's hits out.", "GameFontHighlightSmall", C.muted)
+        .. "BattleText turns on the game's combat lines when you log in. They name the ticks of your bleeds and "
+        .. "leave other people's hits out. If a Start BattleText button shows, click it once.", "GameFontHighlightSmall", C.muted)
     text:SetPoint("TOPLEFT", 12, -34)
     text:SetWidth(PAGE_W - 24)
     text:SetWordWrap(true)

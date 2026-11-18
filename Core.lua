@@ -4092,11 +4092,12 @@ end
 ---------------------------------------------------------------------------
 -- Getting the combat log lines flowing
 --
--- The game only writes them once the Combat Log window has been shown (that's
--- when it loads its filter), and stops when that window hides. An addon can't
--- load the filter itself, but it can turn the lines back on afterwards. So:
--- one click on the Start button opens and closes the Combat Log tab, and from
--- then on BattleText keeps the lines coming.
+-- The game's Combat Log code loads its filter when it loads at login, then turns
+-- the lines off because its window is hidden (and again whenever it hides).
+-- An addon can't load the filter itself, but it can turn the lines back on, so
+-- BattleText does that at login and keeps them coming. If a fight ends and no
+-- line came, the filter didn't load: the Start button shows, and its click opens
+-- and closes the Combat Log tab, which loads it.
 ---------------------------------------------------------------------------
 -- The Combat Log window. COMBATLOG is set by Blizzard's Combat Log code once
 -- it has loaded and put its own show/hide handlers on the window.
@@ -4146,13 +4147,11 @@ function BT:BuildStartButton()
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:AddLine("Start BattleText", T.C.gold[1], T.C.gold[2], T.C.gold[3])
-        GameTooltip:AddLine("The game only writes its combat lines after the Combat Log tab has been opened once. "
-            .. "This click opens it and switches back for you.", 1, 1, 1, true)
+        GameTooltip:AddLine("BattleText couldn't turn on the game's combat lines by itself. "
+            .. "This click opens the Combat Log tab once and switches back, which starts them.", 1, 1, 1, true)
         GameTooltip:AddLine("Playing alone, your hits show without it. In a group, BattleText needs those lines to tell "
             .. "your hits from everyone else's.", 1, 1, 1, true)
-        GameTooltip:AddLine("Once each time you log in. Right-click to hide it until then.", 0.7, 0.7, 0.7, true)
-        GameTooltip:AddLine("To start it without clicking: put /click BattleTextForeverStart at the top of a macro "
-            .. "you press anyway, like your first attack.", 0.7, 0.7, 0.7, true)
+        GameTooltip:AddLine("Right-click to hide it until you log in again.", 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -4231,15 +4230,16 @@ function BT:CheckStarted()
     if C_Timer and C_Timer.After then C_Timer.After(0.3, check) else check() end
 end
 
--- Shown until the lines are flowing: until the Combat Log window has been
--- shown, or a line has arrived (or right-clicked away)
+-- Only needed when BattleText couldn't start the lines itself: shown after a fight
+-- that ended with no line (startNeeded), until the Combat Log window has been
+-- shown or a line has arrived (or right-clicked away)
 function BT:UpdateStartButton()
     if not self.startButton then
         if self.built then self:BuildStartButton() end
         if not self.startButton then return end
     end
     local b = self.startButton
-    local show = self.db.enabled and not self.started and not self.startHidden
+    local show = self.db.enabled and self.startNeeded and not self.started and not self.startHidden or false
     if show == b.wanted then return end
     if InCombatLockdown() then
         self.startPending = true   -- showing or hiding a secure button waits for combat to end
@@ -4249,8 +4249,18 @@ function BT:UpdateStartButton()
     b:SetShown(show)
 end
 
--- A line in chat a little after logging in (or a /reload), if Start hasn't been clicked by then
-local REMIND_AFTER = 10
+-- A fight ended and no line came: BattleText couldn't start by itself, so the Start
+-- button shows, and (once a session) a line in chat says so
+function BT:CheckAutoStart()
+    if self.started or not self.db.enabled then return end
+    self.startNeeded = true
+    self:UpdateStartButton()
+    if not self.startReminded then
+        self.startReminded = true
+        self:RemindStart()
+    end
+end
+
 function BT:RemindStart()
     if not (self.db.enabled and self.db.startReminder) or self.started or self.startHidden then return end
     local key = GetBindingKey and Str(GetBindingKey("CLICK BattleTextForeverStart:LeftButton"))
@@ -4907,13 +4917,9 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnXP()
         -- The game turns the lines off whenever the Combat Log window hides
         if C_Timer and C_Timer.NewTicker then
-            -- (only once they've started: before Start, there's no filter for them to follow)
-            C_Timer.NewTicker(3, function() if BT.started then BT:KeepLogFlowing() end end)
+            C_Timer.NewTicker(3, function() BT:KeepLogFlowing() end)
         end
         if BT.db.loginMessage then print(T.CHAT_PREFIX .. " loaded. Type /btf for options.") end
-        if C_Timer and C_Timer.After then
-            C_Timer.After(REMIND_AFTER, function() BT:RemindStart() end)
-        end
         return
     end
     if not BT.built then return end
@@ -4961,6 +4967,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:ScanShield()      -- last look at your buffs and gear before the fight hides them
         BT:ScanItemShields()
         BT:SetStartMacro()   -- last chance before the fight to note which chat tab you're on
+        BT:KeepLogFlowing()   -- (in case something turned the lines off since)
         if BT.db.nCombat then BT:Notify("+Combat", BT.TEXT_COLORS.combat) end
         BT.fight = { start = GetTime(), damage = 0, heal = 0 }
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -4972,6 +4979,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
             BT.startPending = nil
             BT:UpdateStartButton()
         end
+        BT:CheckAutoStart()
         BT:SetStartMacro()
         BT:ApplyBlizzardText()
         BT:ScanItemShields()   -- (gear changed in the fight is read now)
@@ -4981,6 +4989,9 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:ScanShield()
         BT:ScanItemShields()
         BT:HookCombatLog()
+        -- Start the lines: the game's Combat Log has loaded its filter by now, and
+        -- turned the lines off because its window is hidden
+        BT:KeepLogFlowing()
         BT:SetStartMacro()
         BT:UpdateStartButton()
         BT.lastXP = nil

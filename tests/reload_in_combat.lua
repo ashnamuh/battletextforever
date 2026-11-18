@@ -30,13 +30,11 @@ assertEq(BT.db.debug, false, "debug from last session is off again (BT-024)")
 for _, line in ipairs(LOG) do assert(not line:find("loaded. Type /btf", 1, true), "login message turned off: " .. line) end
 fire("PLAYER_ENTERING_WORLD")
 fire("UNIT_COMBAT", "player", "WOUND", "", 23, 1)
-do   -- Before Start, nothing keeps the game writing lines all session (BT-026)
-    local was = STATE.filteredEvents
+do   -- The lines are kept on from login (they flow if the game loaded its filter)
     STATE.filteredEvents = false
     Advance(4)
-    assertEq(BT.started or false, false, "(not started yet)")
-    assertEq(STATE.filteredEvents, false, "the lines aren't kept on before Start is clicked")
-    STATE.filteredEvents = was
+    assertEq(BT.started or false, false, "(not started: no filter, so no lines)")
+    assertEq(STATE.filteredEvents, true, "BattleText keeps the lines on")
 end
 assertEq(table.concat(BLOCKED, ", "), "", "protected frame touched in combat")
 assertEq(BT.startButton, nil, "no Start button yet")

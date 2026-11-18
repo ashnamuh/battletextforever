@@ -285,7 +285,34 @@ local function log(line, order)
     return true
 end
 
-step("a reminder in chat ten seconds after logging in")
+step("starting by itself")
+-- As in the game: its Combat Log code loaded the filter at login, and turned the
+-- lines off because its window is hidden. BattleText turns them on, no click needed.
+do
+    local was = { STATE.filterApplied, STATE.filteredEvents }
+    STATE.filterApplied, STATE.filteredEvents = true, false
+    BT.started = nil
+    LOG = {}
+    fire("PLAYER_ENTERING_WORLD")
+    assertEq(STATE.filteredEvents, true, "BattleText turned the lines on at login")
+    assertEq(BT.startButton:IsShown(), false, "no Start button at login")
+    fire("PLAYER_REGEN_DISABLED")
+    assertEq(log(swing(27)), true, "lines arrive in the first fight")
+    assertEq(BT.started, true, "started by itself")
+    fire("PLAYER_REGEN_ENABLED")
+    assertEq(BT.startButton:IsShown(), false, "and no Start button after it")
+    -- The game turns them off whenever its Combat Log window hides; they come back
+    STATE.filteredEvents = false
+    Advance(3.1)
+    assertEq(STATE.filteredEvents, true, "kept on")
+    for _, line in ipairs(LOG) do assert(not line:find("Start BattleText", 1, true), "no reminder: " .. line) end
+    clear()
+    BT.started, BT.startNeeded = nil, nil
+    STATE.filterApplied, STATE.filteredEvents = was[1], was[2]
+end
+assertClean("after starting by itself")
+
+step("a reminder in chat when a fight ends and no line came")
 local function reminders()
     local found = {}
     for _, line in ipairs(LOG) do
@@ -294,13 +321,18 @@ local function reminders()
     return found
 end
 LOG = {}
-Advance(9.5)
-assertEq(#reminders(), 0, "nothing in the first ten seconds")
-Advance(1)
-assertEq(#reminders(), 1, "one reminder once ten seconds have passed without the Start click")
+Advance(30)
+assertEq(#reminders(), 0, "nothing before a fight")
+assertEq(BT.startButton:IsShown(), false, "and no Start button")
+fire("PLAYER_REGEN_DISABLED")
+assertEq(log(swing(27)), false, "the game isn't writing lines (its filter didn't load)")
+fire("PLAYER_REGEN_ENABLED")
+assertEq(#reminders(), 1, "one reminder when the fight ends")
+assertEq(BT.startButton:IsShown(), true, "and the Start button shows")
 assert(reminders()[1]:find("|cffe8a040BattleText Forever|r: click", 1, true), "it comes from BattleText, with the shared chat prefix: " .. reminders()[1])
 assert(not reminders()[1]:find("press", 1, true), "no key is named when none is bound")
-Advance(30)
+fire("PLAYER_REGEN_DISABLED")
+fire("PLAYER_REGEN_ENABLED")
 assertEq(#reminders(), 1, "and only the one")
 -- With a key bound to Start, the reminder names it
 LOG = {}
@@ -329,7 +361,7 @@ assertClean("after the reminder")
 
 step("start button: the combat log needs opening once")
 local start = BT.startButton
-assertEq(start:IsShown(), true, "Start button shows after login")
+assertEq(start:IsShown(), true, "Start button shows after that fight")
 assertEq(BT.started, nil, "not started yet")
 assertEq(log(swing(27)), false, "the game isn't writing lines yet")
 -- History replayed when the game refills the Combat Log window isn't a sign of life
