@@ -402,7 +402,7 @@ local function BuildOutgoing(p)
     IconsAndNames(card, -108, "out", "your hits and misses", Either("outDamage", "outMisses"))
     Slider(card, "Hide hits below", 12, -142, "minDamage", { step = 5, zero = "Off", enabledIf = damage,
         tip = "Your hits (and your pet's) for less than this aren't shown. A hit whose number the game hides "
-            .. "always shows." })
+            .. "always shows, unless it's gear that always does the same (Cursed Murloc Eye's 2 Shadow)." })
     Setting(card, "DoTs and area spells", COL2, -142, "outTicks",
         "The ticks of your damage-over-time spells (Corruption, Rend, Moonfire...) and of spells that keep hitting "
         .. "everything in an area (Consecration, Blizzard, Rain of Fire, totems...). Off: hidden. A spell's own "

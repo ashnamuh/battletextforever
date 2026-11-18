@@ -1868,6 +1868,7 @@ local COOLDOWN_SHORTEST = 8    -- seconds: a shorter cooldown isn't announced (w
 local COOLDOWN_LONGEST = 600   -- nor a longer one (Hearthstone)
 local COOLDOWN_WATCH = 1       -- a cast's cooldown must show up within this
 local COOLDOWN_LOOK = 0.25     -- seconds between looks while one is running
+local COOLDOWN_SLACK = 0.5     -- a hidden length is timed from your cast: this much early still counts
 
 local function Bool(v) if IsSecret(v) or type(v) ~= "boolean" then return nil end return v end
 
@@ -1881,9 +1882,22 @@ local function CooldownOf(id)
 end
 
 -- Your cast: its cooldown is looked for in the moment after it (and at the game's cooldown updates)
+-- Shoot, Auto Shot and Throw repeat on their own: their "cooldown" is the weapon's speed, and
+-- in a fight the game hides its length, so "Shoot ready" came after every wand shot
+-- (CurseForge, 1.21.5). They're never announced, nor is any spell the game says repeats.
+function BT:RepeatsOnItsOwn(id)
+    if RANGED_SPELLS[id] then return true end
+    if C_Spell and C_Spell.IsAutoRepeatSpell then
+        local ok, auto = pcall(C_Spell.IsAutoRepeatSpell, id)
+        if ok and not IsSecret(auto) and auto == true then return true end
+    end
+    return false
+end
+
 function BT:WatchCooldown(spellId)
     local id = Num(spellId)
     if not id or not self.db.nCooldowns then return end
+    if self:RepeatsOnItsOwn(id) then return end
     self.cdCast = self.cdCast or {}
     self.cdCast[id] = GetTime()
     if C_Timer and C_Timer.After then C_Timer.After(0.1, function() BT:LookCooldowns(false) end) end
@@ -1903,7 +1917,7 @@ function BT:LookCooldowns(update)
         elseif cd.active and (cd.gcd == false or (cd.gcd == nil and cd.length and cd.length > 2)) then
             self.cdCast[id] = nil
             if not cd.length or (cd.length >= COOLDOWN_SHORTEST and cd.length <= COOLDOWN_LONGEST) then
-                self.cooling[id] = { at = now, seen = true }
+                self.cooling[id] = { at = now, seen = true, from = at, hidden = not cd.length }
             end
         elseif cd.active == false or (update and cd.gcd == true) then
             self.cdCast[id] = nil   -- no cooldown of its own (or only the global one)
@@ -1915,14 +1929,18 @@ function BT:LookCooldowns(update)
             self.cooling[id] = nil
         elseif cd.enabled ~= false and cd.active and cd.gcd ~= true then
             if not c.seen then
-                c.seen, c.at = true, now   -- a held one has started
+                c.seen, c.at, c.from = true, now, now   -- a held one has started
+                c.hidden = not cd.length
                 if cd.length and (cd.length < COOLDOWN_SHORTEST or cd.length > COOLDOWN_LONGEST) then
                     self.cooling[id] = nil
                 end
             end
         elseif c.seen and cd.enabled ~= false then
             self.cooling[id] = nil
-            self:CooldownReady(id)
+            -- (its length was hidden: one that was over sooner than COOLDOWN_SHORTEST was a short one)
+            if not (c.hidden and c.from and now - c.from < COOLDOWN_SHORTEST - COOLDOWN_SLACK) then
+                self:CooldownReady(id)
+            end
         end
     end
     -- While one is running, look again in a moment (the game doesn't always say when one ends)
@@ -2523,6 +2541,19 @@ function BT:SwingHand(h)
     return nil
 end
 
+-- An unnamed physical hit on your target that no swing of yours matches, while the game's swing
+-- timer is known to work and you haven't swung in melee lately (a hunter at range): not your
+-- weapon's. Tinter on CurseForge: a hunter's pet (and anything else physical) showed the melee
+-- weapon's icon. Returns "pet" when your pet is on that mob, else true; nil when it may be yours.
+function BT:NotYourSwing(h)
+    if not self.swungAt or not h or not h.time then return nil end
+    if self.meleeAt and h.time - self.meleeAt <= SWING_RECENT then return nil end
+    if PetOn(h.unit) then return "pet" end
+    -- (no pet on it: only while you're shooting, a ranged swing lately and no melee one)
+    if h.time - self.swungAt <= SWING_RECENT then return true end
+    return nil
+end
+
 -- In a group, a hit on a mob could be anyone's. The combat log lines can't be
 -- read, but with the "My actions" filter each one is something you did. So a
 -- hit is taken for yours only if a line came with it or shortly before it,
@@ -2556,6 +2587,7 @@ function BT:OnSwing(duration, swingType)
         self.hands = hands
         while hands[1] and (now - hands[1].at > CREDIT_TIME or #hands >= 6) do table.remove(hands, 1) end
         hands[#hands + 1] = { at = now, hand = hand }
+        self.meleeAt = now
         if hand == 1 then self.dualWield = true end
     end
 end
@@ -2590,6 +2622,25 @@ function BT:WideClaim(h)
     if not (self.swungAt and h.time - self.swungAt <= SWING_RECENT) then return true end
     if not (Flag(UnitIsUnit, h.unit, "target") or (h.key and h.key == UnitKey("target"))) then return true end
     return PetOn(h.unit) and true or false
+end
+
+-- A hit that your ranged attack on its way to that mob explains (a wand's Shoot, Auto Shot) is
+-- yours when the shot's own line came with your cast: that line vouches for it. Since 1.21.4
+-- only a line in the hit's own frame did, and a wand hit whose line came a frame later was
+-- dropped (CurseForge, 1.21.5: wand damage not showing consistently). Spells keep needing a
+-- line with their hit (someone else's Fire hit while your Fireball flies isn't yours).
+function BT:ClaimFlight(h)
+    if h.kind ~= "damage" and h.kind ~= "miss" then return false end
+    local f = self:FlightFor(h)
+    if not (f and f.auto) then return false end
+    local credits = self.credits
+    for i = 1, #(credits or {}) do
+        if credits[i] >= f.at and credits[i] <= h.time then
+            table.remove(credits, i)
+            return true
+        end
+    end
+    return false
 end
 
 function BT:ClaimHit(now, h)
@@ -2759,6 +2810,15 @@ function BT:ScanItemShields()
                         procs[#procs + 1] = { name = name, school = procSchool, most = most, icon = icon }
                     elseif ENCHANT_PROCS[text] then
                         procs[#procs + 1] = { name = text, school = ENCHANT_PROCS[text], icon = icon }
+                    end
+                    -- Gear that adds a set amount to every hit (Cursed Murloc Eye: "Equip: Spells and
+                    -- attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs.")
+                    local each, word = text:match("[Ss]pells and attacks deal (%d+) (%a+) damage")
+                    local eachSchool = word and SCHOOL_WORDS[word:lower()]
+                    if eachSchool and eachSchool ~= 1 then
+                        local times, versus = text:match("(%d+) times as much damage to (%a+)")
+                        procs[#procs + 1] = { name = name, school = eachSchool, icon = icon, every = true,
+                            amount = tonumber(each), times = tonumber(times), versus = versus and versus:gsub("s$", "") }
                     end
                 end
             end
@@ -3136,9 +3196,47 @@ function BT:ProcFor(h, seq, first, last, at)
     end
     if not near then return nil end
     for _, p in ipairs(procs) do
-        if p.school == mask and not (p.most and h.n and h.n > p.most * (h.crit and 1.6 or 1.05)) then return p end
+        if not p.every and p.school == mask and not (p.most and h.n and h.n > p.most * (h.crit and 1.6 or 1.05)) then
+            return p
+        end
     end
     return nil
+end
+
+-- Gear that adds a set amount of a magic school to each of your hits (self.itemProcs with
+-- every: Cursed Murloc Eye's 2 Shadow). Its hit comes beside one of yours on the same mob, in
+-- the same frame or just after your swing. Its amount is known even when the game hides it, so
+-- "Hide hits below" can catch it (CurseForge, 1.21.5: the Eye's 2 showed with it set to 5). Two
+-- hidden hits of its school beside each other can't be told apart, so then neither is it.
+function BT:EveryHitFor(h, seq, first, last, at)
+    local procs = self.itemProcs
+    if not procs or h.kind ~= "damage" then return nil end
+    local mask = Num(h.school)
+    if not mask or mask == 1 then return nil end
+    local item
+    for _, p in ipairs(procs) do
+        if p.every and p.school == mask then item = p break end
+    end
+    if not item then return nil end
+    -- How much it does to this mob: more to some kinds ("4 times as much damage to Murlocs")
+    local fixed = item.amount
+    if item.times and item.versus and UnitCreatureType then
+        local ok, kind = pcall(UnitCreatureType, h.unit)
+        if ok and Str(kind) == item.versus then fixed = item.amount * item.times end
+    end
+    if h.n and h.n ~= fixed and not (item.times and h.n == item.amount * item.times) then return nil end
+    local struck = h.key and self.struck and self.struck[h.key]
+    local near = struck and h.time - struck >= 0 and h.time - struck <= PROC_TIME
+    for j = first, last do
+        local o = seq[j]
+        if j ~= at and o.hit and not o.splash and o.kind == "damage"
+                and ((h.key and o.key == h.key) or (not h.key and o.unit == h.unit)) then
+            if Num(o.school) == mask and h.secret and o.secret then return nil end
+            near = true
+        end
+    end
+    if not near then return nil end
+    return { name = item.name, icon = item.icon, school = item.school, fixed = h.n or fixed }
 end
 
 -- Touch of the Grave, the Undead racial on Forever (1.60.x): your attacks and damaging spells
@@ -3430,7 +3528,9 @@ function BT:ResolveFrame(seq, first, last)
                 self:ClaimHit(h.time, h)   -- (its line, if it has one, is used up)
                 claimed = true
             end
-            if not claimed and healOfYours then claimed = self:ClaimSwing(h) or self:ClaimHit(h.time, h) end
+            if not claimed and healOfYours then
+                claimed = self:ClaimSwing(h) or self:ClaimHit(h.time, h) or self:ClaimFlight(h)
+            end
             -- A spell of yours that was on its way to the unit. A tick of yours on its beat
             -- comes first, unless its amount isn't what that spell's ticks have been.
             if not spell and claimed then
@@ -3495,6 +3595,10 @@ function BT:ResolveFrame(seq, first, last)
             if not spell and claimed then
                 local proc = self:ProcFor(h, seq, first, last, i)
                 if proc then what, spell = "proc", proc end
+            end
+            if not spell and claimed then
+                local each = self:EveryHitFor(h, seq, first, last, i)
+                if each then what, spell = "proc", each end
             end
             if not spell and claimed then
                 local grave = self:GraveFor(h)
@@ -3608,13 +3712,26 @@ function BT:ShowUnitHit(h, what, spell, area)
     end
     -- Nothing to name it by: a swing (a physical hit, or a plain miss)
     local swing = what == "hit" and not spell and (h.kind == "miss" or (h.kind == "damage" and Num(h.school) == 1))
-    if swing then icon = self:SwingIcon(self:SwingHand(h)) end
+    local petSwing
+    if swing then
+        local hand = self:SwingHand(h)
+        local whose = hand == nil and self:NotYourSwing(h)
+        if whose == "pet" then
+            petSwing, icon = true, ""
+        elseif whose then
+            icon = self:IconText(ATTACK_SPELL)
+        else
+            icon = self:SwingIcon(hand)
+        end
+    end
     if h.kind == "damage" or h.kind == "heal" then
         self:CountFight(h.kind, h.n)
-        self:CountSpell(spellName or (h.kind == "heal" and "Unnamed heal") or UnnamedHit(Num(h.school)), h.n, h.crit,
+        self:CountSpell((petSwing and "(Pet) " or "")
+            .. (spellName or (h.kind == "heal" and "Unnamed heal") or UnnamedHit(Num(h.school))), h.n, h.crit,
             h.kind == "heal", icon)
     end
-    if (swing or (spell and spell.auto)) and not db.outSwings then
+    if petSwing and not db.outPet then return "your pet's hits are turned off" end
+    if ((swing and not petSwing) or (spell and spell.auto)) and not db.outSwings then
         return "auto attacks are turned off"
     end
     if what == "tick" and h.kind ~= "heal" and not db.outTicks then
@@ -3624,11 +3741,13 @@ function BT:ShowUnitHit(h, what, spell, area)
     if rule and rule.hide then return "hidden on the Spells tab" end
     local name
     icon, name = self:SpellParts(h.kind == "heal" and "heal" or "out", icon, spellName)
-    local label = icon .. (name and (name .. " ") or "")
+    local label = icon .. (name and (name .. " ") or "") .. (petSwing and "(Pet) " or "")
     if h.kind == "damage" then
         if what == "shield" and not db.outShields then return "damage shields are turned off" end
         if not db.outDamage then return "damage is turned off" end
-        if h.n and h.n < db.minDamage then return "below \"Hide hits below\"" end
+        -- (a hidden amount the spell always does, like Cursed Murloc Eye's 2, is still known)
+        local n = h.n or (spell and spell.fixed)
+        if n and n < db.minDamage then return "below \"Hide hits below\"" end
         local mask = Num(h.school)
         local color = (rule and rule.color) or MASK_COLORS[mask or 1]
             or ((spellName or (mask and mask ~= 1)) and C.spell) or C.melee

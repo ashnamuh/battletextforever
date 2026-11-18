@@ -258,6 +258,13 @@ local function who(token)
     return id and STATE.unit[id] and STATE.unit[id].target or nil
 end
 function UnitExists(unit) return who(unit) ~= nil end
+-- (STATE.unit[id].creature: "Murloc", "Beast"...; STATE.creatureHidden: the game hides it)
+function UnitCreatureType(unit)
+    local id = who(unit)
+    local u = id and STATE.unit[id]
+    if STATE.creatureHidden then return Secret(u and u.creature or "Beast") end
+    return u and u.creature or nil
+end
 function UnitTokenFromGUID(guid)
     for _, token in ipairs({ "player", "pet", "target", "focus", "party1", "party2", "party3", "party4" }) do
         if UnitGUID(token) == guid then return token end
@@ -392,6 +399,7 @@ C_Spell = {
     GetSpellDescription = function(id) return STATE.spellDescriptions[id] end,
     IsSelfBuff = function(id) return (STATE.selfBuffs or {})[id] == true end,
     IsSpellHelpful = function(id) return (STATE.helpful or {})[id] == true end,
+    IsAutoRepeatSpell = function(id) return (STATE.autoRepeat or {})[id] == true end,
     -- STATE.cooldowns[id]: a running cooldown, as the game describes it (no entry: none)
     GetSpellCooldown = function(id)
         local c = STATE.cooldowns and STATE.cooldowns[id]

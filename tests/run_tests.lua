@@ -4399,6 +4399,166 @@ BT.struck = nil
 BT.db.merge = true
 clear()
 
+step("gear that adds a set amount to every hit: Cursed Murloc Eye, and Hide hits below")
+-- CurseForge (1.21.5): "Cursed Murloc Eye still shows the 2 shadow damage even you hide hits below
+-- 5". The Eye adds 2 Shadow to every spell and attack; the game hides its number in a fight, and
+-- a hidden number always showed. It's named now, and its amount is known, so the setting hides it.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    STATE.equipped[13] = { name = "Cursed Murloc Eye", icon = 133884,
+        lines = { "Equip: Spells and attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, true)
+    local eye = BT.itemProcs[1]
+    assertEq(eye and (eye.name .. " " .. eye.school .. " " .. eye.amount .. " x" .. eye.times .. " " .. eye.versus),
+        "Cursed Murloc Eye 32 2 x4 Murloc", "read from the trinket: 2 Shadow, 4 times as much to Murlocs")
+    local function hiddenOn(n, school) fire("UNIT_COMBAT", "target", "WOUND", "", Secret(n), school) end
+    -- Beside your swing, hidden: named after the trinket, its number still drawn by the game
+    wound(40, 1)
+    hiddenOn(2, 32)
+    assertEq(#lines("outgoing"), 2, "your swing and the Eye's hit")
+    BT:FlushHits(true)
+    local a = BT.areas.outgoing.active
+    assertEq(a[#a].text.__shown, "Cursed Murloc Eye <secret>", "the hidden hit is the Eye's")
+    clear()
+    -- Hide hits below 5: the Eye's 2 goes, hidden number or not; your swing stays
+    BT.db.minDamage = 5
+    wound(40, 1)
+    hiddenOn(2, 32)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "hidden hits below 5: the Eye's hidden 2 isn't shown")
+    Advance(2)
+    wound(41, 1)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 2, 32)
+    assertEq(last("outgoing"), "41", "nor a readable one")
+    -- With a Frost spell's hit too (spells, not only attacks)
+    Advance(2)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
+    hiddenOn(2, 32)
+    assertEq(last("outgoing"), "120", "beside a spell's hit it's hidden too")
+    -- A Shadow hit of 2 on its own, with nothing of yours beside it: not the Eye's, shown
+    Advance(3)
+    hiddenOn(2, 32)
+    assertEq(#lines("outgoing"), 1, "a hidden Shadow hit with no hit of yours beside it still shows")
+    clear()
+    -- A Murloc takes 8: with Hide hits below 5 it shows; below 10 it doesn't
+    STATE.unit.mobA.creature = "Murloc"
+    wound(40, 1)
+    hiddenOn(8, 32)
+    assertEq(#lines("outgoing"), 2, "on a Murloc it does 8, more than 5: shown")
+    clear()
+    BT.db.minDamage = 10
+    wound(40, 1)
+    hiddenOn(8, 32)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "and hidden below 10")
+    STATE.unit.mobA.creature = nil
+    clear()
+    -- Two hidden Shadow hits side by side (a Shadow Bolt and the Eye) can't be told apart: neither
+    -- is taken for the Eye, so a big one is never hidden by mistake
+    BT.db.minDamage = 5
+    hiddenOn(300, 32)
+    hiddenOn(2, 32)
+    assertEq(#lines("outgoing"), 2, "two hidden Shadow hits together: both shown")
+    clear()
+    BT.db.minDamage = 0
+    STATE.equipped[13] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, false)
+    BT.struck, BT.db.merge = nil, true
+    clear()
+end
+
+step("a hunter's pet and other hits while you shoot don't show your melee weapon (CurseForge)")
+-- Tinter: "any damage not from my ranged weapon on hunter outputs with a symbol of my melee weapon.
+-- Including pet/hawk damage." A physical hit nothing named got the main hand's icon. While you're
+-- shooting (a ranged swing lately and no melee swing), it isn't your weapon's: with your pet on
+-- that mob it's your pet's, marked (Pet); otherwise it gets the plain Attack icon.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    SetIcons(true)
+    STATE.spellNames[75], STATE.spellIcons[75], STATE.spellIcons[6603] = "Auto Shot", 132369, 135274
+    BT.iconCache = nil
+    STATE.equipped[16] = { name = "Axe", icon = 132400, lines = {} }
+    BT.hands, BT.meleeAt, BT.swungAt, BT.flying = nil, nil, nil, nil
+    -- Shooting: ranged swings (swingType 2)
+    fire("PLAYER_SWING", 2.8, 2)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-as", 75)
+    Advance(0.4)
+    wound(70, 1)
+    assertEq(last("outgoing"), "|T132369:0|t Auto Shot 70", "your Auto Shot, named")
+    Advance(0.3)
+    wound(33, 1)
+    assertEq(last("outgoing"), "|T135274:0|t 33", "a physical hit with no pet: the Attack icon, not the axe")
+    -- Your pet on the mob: its hits are your pet's
+    STATE.pet = true
+    STATE.unit.mobA.target = "pet"
+    Advance(0.3)
+    wound(21, 1)
+    assertEq(last("outgoing"), "(Pet) 21", "your pet's hit: marked (Pet), no weapon icon")
+    fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
+    assertEq(last("outgoing"), "(Pet) Dodge", "and its dodged attack")
+    BT.db.outPet = false
+    Advance(0.3)
+    wound(22, 1)
+    assertEq(last("outgoing"), "(Pet) Dodge", "\"Pet\" off hides them")
+    BT.db.outPet = true
+    clear()
+    -- In melee (a main hand swing lately), your hit is your axe's as before, pet or not
+    fire("PLAYER_SWING", 2.6, 0)
+    Advance(0.4)
+    wound(50, 1)
+    assertEq(last("outgoing"), "|T132400:0|t 50", "your own melee swing: the axe")
+    Advance(0.5)
+    wound(51, 1)
+    assertEq(last("outgoing"), "|T132400:0|t 51", "and while you're in melee, a hit with no swing still is")
+    STATE.pet, STATE.unit.mobA.target = false, "me"
+    STATE.equipped[16] = nil
+    SetIcons(false)
+    BT.hands, BT.meleeAt, BT.swungAt = nil, nil, nil
+    BT.db.merge = true
+    clear()
+end
+
+step("wand hits show when their line comes a frame late (CurseForge)")
+-- ModsAndAddonsAreGreat: wand damage didn't show consistently. With the "My actions" lines on,
+-- 1.21.4 let only a line in the hit's own frame vouch for a hit, and a wand hit's line can come a
+-- frame after it: that hit was dropped as "no line of yours with it". The shot's own line, from
+-- your cast, now vouches for its hit.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    STATE.spellNames[5019] = "Shoot"
+    BT.flying, BT.flightLeast = nil, nil
+    BT.hiddenSeen, BT.credits = true, nil
+    local shown = 0
+    for k = 1, 4 do
+        fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-w" .. k, 5019)
+        hidden(100 + k)   -- (the shot's line)
+        Advance(0.4)
+        fire("UNIT_COMBAT", "target", "WOUND", "", Secret(20), 32)
+        BT:FlushHits(true)
+        shown = shown + #BT.areas.outgoing.active
+        Advance(0.02)
+        hidden(200 + k)   -- (its hit's line, a frame later)
+        Advance(1.2)
+        clear()
+    end
+    assertEq(shown, 4, "every wand hit shows")
+    -- Someone else's wand hit with no shot of yours on its way still isn't yours
+    STATE.group = true
+    Advance(2)
+    hidden(300)
+    Advance(0.5)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 25, 32)
+    assertEq(#lines("outgoing"), 0, "a party member's wand hit isn't yours")
+    STATE.group = false
+    BT.hiddenSeen, BT.credits, BT.flying = nil, nil, nil
+    BT.db.merge = true
+    clear()
+end
+
 step("icons for swings and ranged attacks (issue #8)")
 STATE.who.target, STATE.who.nameplate1 = "mobA", "mobA"
 freshFight()
@@ -5585,11 +5745,48 @@ do
     assertEq(notifyText(), "", "nor one shorter than 8 seconds")
     -- In a fight the game hides how long: it's announced all the same
     cast(8643, { duration = Secret(20), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
-    Advance(3)
+    Advance(19.6)
     assertEq(notifyText(), "", "a hidden length: still cooling")
     STATE.cooldowns[8643] = nil
     Advance(0.3)
     assertEq(notifyText(), "Kidney Shot ready", "and ready when the game says it's over")
+    clear()
+    -- CurseForge (1.21.5): "Shoot ready" after every wand shot. Shoot, Auto Shot and Throw repeat
+    -- on their own (their cooldown is the weapon's speed, its length hidden in a fight)
+    STATE.spellNames[5019], STATE.spellNames[75] = "Shoot", "Auto Shot"
+    cast(5019, { duration = Secret(1.6), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(1.2)
+    STATE.cooldowns[5019] = nil
+    Advance(0.3)
+    cast(5019, { duration = Secret(1.6), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(1.2)
+    STATE.cooldowns[5019] = nil
+    Advance(0.3)
+    cast(5019, { duration = Secret(1.6), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(1.2)
+    STATE.cooldowns[5019] = nil
+    Advance(0.3)
+    cast(75, { duration = Secret(2.8), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(2.6)
+    STATE.cooldowns[75] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "", "no \"Shoot ready\" or \"Auto Shot ready\" after each shot")
+    -- Nor any short cooldown whose length the game hides: it's timed from the cast
+    STATE.spellNames[9999] = "Quick Jab"
+    cast(9999, { duration = Secret(4), startTime = Secret(1), isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(3.6)
+    STATE.cooldowns[9999] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "", "a hidden cooldown over within 8 seconds isn't announced")
+    -- (a spell the game says repeats on its own isn't watched at all)
+    STATE.autoRepeat = { [9998] = true }
+    STATE.spellNames[9998] = "Odd Shot"
+    cast(9998, { duration = 10, isEnabled = true, isActive = true, isOnGCD = false })
+    Advance(9.6)
+    STATE.cooldowns[9998] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "", "an auto repeat spell isn't announced")
+    STATE.autoRepeat = nil
     clear()
     -- Held until you come out (Stealth): it starts later
     cast(1784, { duration = 0, isEnabled = false, isActive = false })

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.21.6
+
+- **"Shoot ready" no longer pops up after every wand shot.** Shoot, Auto Shot and Throw fire again on their own, so their "cooldown" is just your weapon's speed. The game hides how long it is in a fight, so BattleText announced it every time. Spells that repeat on their own are never announced now, and a cooldown the game hides is only announced if it really lasted 8 seconds or more. No need to hide Shoot on the Spells tab any more. (Thanks to ModsAndAddonsAreGreat and Quarnok for the report.)
+- **Wand hits show every time again.** With the game's combat lines on, 1.21.4 only counted a hit as yours when its line arrived right with it. A wand hit's line can come a moment later, so some wand hits went missing. Your shot now vouches for its own hit, and a party member's wand hits still don't show as yours.
+- **A hunter's pet no longer shows your melee weapon's icon.** While you're shooting, a physical hit that isn't your Auto Shot isn't your melee weapon's: with your pet on that mob it shows as "(Pet)" (and "Pet" off on the Outgoing tab hides it), otherwise it gets the plain Attack icon. In melee, your swings show your weapon as before. (Thanks to Tinter for the report.)
+- **Cursed Murloc Eye's 2 Shadow damage is named, and "Hide hits below" hides it.** The game hides that number in a fight, and hidden numbers always showed. BattleText now knows gear that adds the same amount to every hit (2, or 8 on Murlocs), names it after the trinket, and hides it when it's below your setting. (Thanks to OdysseaLUL for the report.)
+
 ## 1.21.5
 
 - **`/btf copy` works again after a fight with hidden amounts.** When a hit waited for Touch of the Grave (or a seal or damage shield) and nothing came, its line in the debug log held the game's hidden number, and `/btf copy` stopped with a Lua error instead of opening. Those lines now say "(hidden amount)" like the rest, and if a hidden value ever sneaks into the log again, the copy window shows a short note for that line and opens anyway. (Thanks to Ethn91081 for the report.)
