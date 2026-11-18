@@ -6009,5 +6009,98 @@ do
     clear()
 end
 
+---------------------------------------------------------------------------
+step("Holy Shock heals while the lines flow (a CurseForge comment: 9 in 10 went missing)")
+do
+    clear()
+    local whoWas, unitWas, helpfulWas = STATE.who, STATE.unit, STATE.helpful
+    STATE.who = { target = "friend" }
+    STATE.unit = { friend = { guid = "Player-5555-0FRIEND1" }, ally = { guid = "Player-5555-0FRIEND2" },
+        mob = { enemy = true, guid = "Creature-0-1-2-3-4-000097", target = "me" } }
+    STATE.group = false
+    STATE.spellNames[1311606], STATE.spellIcons[1311606] = "Holy Shock", 135972
+    STATE.spellNames[9999901], STATE.spellIcons[9999901] = "Holy Shock", 135972   -- (the heal the server casts for it: its ID on Forever isn't known)
+    STATE.helpful = { [9999901] = true }
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    Advance(1)
+    -- Holy Shock's cast, and the heal the server casts for it, in the frame its heal lands
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs1", 1311606)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs2", 9999901)
+    hidden(31)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 112, 2)
+    assertEq(last("outgoing"), "Holy Shock +112", "the cast and its heal share a name: one cast, and the heal is named")
+    Advance(1)
+    -- The heal a frame after the cast
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs3", 1311606)
+    Advance(0.05)
+    hidden(32)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 114, 2)
+    assertEq(last("outgoing"), "Holy Shock +114", "a heal a moment after your cast on that friend is still yours")
+    Advance(1)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 7, 1)
+    assertEq(last("outgoing"), "Holy Shock +114", "but not someone else's heal on them later")
+    -- On an enemy it hurts: the two casts are still one, and its hit is named
+    STATE.who.target = "mob"
+    Advance(1)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs4", 1311606)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs5", 9999901)
+    hidden(33)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 133, 2)
+    assertEq(last("outgoing"), "Holy Shock 133", "Holy Shock's damage, named")
+    fire("UNIT_COMBAT", "player", "HEAL", "", 50, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+50", "and someone's heal on you then isn't your Holy Shock")
+    -- On yourself (no friend targeted): the game may not call it helpful, it's still your heal
+    STATE.who.target = nil
+    STATE.helpful = {}
+    Advance(1)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs6", 1311606)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 116, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+116 Holy Shock", "Holy Shock on yourself, named")
+    clear()
+
+    -- Light's Vigil: on a party member, then your Holy Shock on them heals them and their party
+    STATE.helpful = { [9999901] = true, [1310911] = true }
+    STATE.spellNames[1310911], STATE.spellIcons[1310911] = "Light's Vigil", 236251
+    STATE.group, STATE.who = true, { target = "friend", party1 = "friend", party2 = "ally" }
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-lv1", 1310911)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 40, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+40", "Light's Vigil heals nothing as it's cast")
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs7", 1311606)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs8", 9999901)
+    hidden(34) fire("UNIT_COMBAT", "target", "HEAL", "", 115, 2)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 115, 2)   -- (the same heal under its other name)
+    hidden(35) fire("UNIT_COMBAT", "target", "HEAL", "", 330, 2)
+    hidden(36) fire("UNIT_COMBAT", "party2", "HEAL", "", 331, 2)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 332, 2)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Holy Shock +115 / Light's Vigil +330 / Light's Vigil +331",
+        "Holy Shock's heal, then the Vigil's on them and on the rest of the party")
+    assertEq(last("incoming"), "+332 Light's Vigil", "and on you")
+    Advance(1)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 333, 2)
+    assertEq(last("outgoing"), "Light's Vigil +331", "a heal on the party later is someone else's")
+    clear()
+    -- The Vigil is set off only by your Holy Shock on the one who has it
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-lv2", 1310911)
+    Advance(2)
+    STATE.who.target = "ally"
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs9", 1311606)
+    hidden(37) fire("UNIT_COMBAT", "target", "HEAL", "", 117, 2)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 117, 2)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 334, 2)
+    assertEq(table.concat(lines("outgoing"), " / "), "Holy Shock +117",
+        "a Holy Shock on someone else leaves the Vigil waiting, and a heal on its friend isn't yours")
+    STATE.group = false
+    STATE.who, STATE.unit, STATE.helpful = whoWas, unitWas, helpfulWas
+    BT.db.healWho = true
+    clear()
+end
+
 assertClean("by the end")
 print("ALL TESTS PASSED")

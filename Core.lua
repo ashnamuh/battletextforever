@@ -1288,10 +1288,16 @@ end
 -- as it lands (Regrowth) leaves a buff, so it's learned as one (SeenBuffs), but it's a heal.
 local HEAL_CAST_TIME = 0.3
 function BT:NoteHealCast(id, name)
+    -- (the server's own cast of the same name, just after Holy Shock's: the same one)
+    local was = self.healCast
+    if was and was.name == name and GetTime() - was.at < 0.05 then return end
     self.healCast = nil
     if not (id and name and C_Spell and C_Spell.IsSpellHelpful) then return end
     local ok, helpful = pcall(C_Spell.IsSpellHelpful, id)
-    if not ok or IsSecret(helpful) or helpful ~= true then return end
+    local either = self:HealsOrHarms(name)   -- (Holy Shock: on an enemy it hurts, else it heals you)
+    if either and Flag(UnitCanAttack, "player", "target") then return end
+    if self:IsVigil(name) then return end   -- (Light's Vigil heals nothing as it's cast)
+    if not either and (not ok or IsSecret(helpful) or helpful ~= true) then return end
     local seals = self:SealLists()
     local hot = (self:SpellLists())[name]
     local healsNow = hot ~= nil and hot.heal and hot.direct
@@ -1420,7 +1426,9 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             if BT:LogDelivers("heal") then return end   -- the log's line for it arrived meanwhile
             -- Touch of the Grave's (its hit just named), or a heal you cast on yourself just
             -- then (Holy Light): named after it
-            local cast = BT:GraveHealFor(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
+            -- (Light's Vigil's heal, set off by your Holy Shock: the first heal on you is the Holy Shock's
+            -- when you Holy Shocked yourself)
+            local cast = BT:GraveHealFor(at) or BT:VigilOnYou(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
             local after, color = "", C.heal
             if cast then
                 local rule = BT:SpellRule(cast.name)
@@ -1605,6 +1613,19 @@ local DISPEL_SPELLS = {
 }
 local DISPEL_WAIT = 0.5   -- seconds a cast waits for its dispel line before showing on its own
 
+-- Spells that heal a friend or hurt an enemy, whichever you cast them on: { spell ID, English name }.
+-- Forever's Holy Shock (rank 1 is new: 1311606) has a dummy effect: the server casts the heal itself,
+-- as a second spell of the same name, and the heal can land a frame after the cast.
+local HEAL_OR_HARM = {
+    { 1311606, "Holy Shock" }, { 20473, "Holy Shock" }, { 20929, "Holy Shock" }, { 20930, "Holy Shock" },
+}
+local FRIEND_HEAL_TIME = 0.5   -- seconds after your cast on a friend that its heal may land on them
+-- Light's Vigil (Forever's 31-point Holy talent): put on a friend, your next Holy Shock on them also
+-- heals them and their party. Its heal has no cast of its own: it comes with that Holy Shock.
+local LIGHTS_VIGIL = { 1310911, 1311590, 1311595, name = "Light's Vigil" }
+local VIGIL_LASTS = 30    -- seconds the Vigil waits on its friend for your Holy Shock
+local VIGIL_TIME = 0.5    -- seconds after the Holy Shock that the party's heals land
+
 local function SpellName(id)
     if not (C_Spell and C_Spell.GetSpellName) then return nil end
     local ok, name = pcall(C_Spell.GetSpellName, id)
@@ -1648,6 +1669,114 @@ function BT:SpellLists()
         end
     end
     return self.periodic, self.shields
+end
+
+-- Names of a list of spell IDs: the English name, and each ID's name in the game's language
+local function NameSet(ids, english)
+    local out = { [english] = true }
+    for _, id in ipairs(ids) do
+        local name = SpellName(id)
+        if name then out[name] = true end
+    end
+    return out
+end
+
+-- Holy Shock and the like: a heal on a friend, damage on an enemy (HEAL_OR_HARM)
+function BT:HealsOrHarms(name)
+    if not name then return false end
+    if not self.healOrHarm then
+        self.healOrHarm = {}
+        for _, e in ipairs(HEAL_OR_HARM) do
+            self.healOrHarm[e[2]] = true
+            local local_ = SpellName(e[1])
+            if local_ then self.healOrHarm[local_] = true end
+        end
+    end
+    return self.healOrHarm[name] == true
+end
+
+function BT:IsVigil(name)
+    if not name then return false end
+    self.vigilNames = self.vigilNames or NameSet(LIGHTS_VIGIL, LIGHTS_VIGIL.name)
+    return self.vigilNames[name] == true
+end
+
+-- Who a helpful spell you cast just now went to: your target when it's a friend, else you
+local function HelpedGUID()
+    local unit = BT:HealGoesToTarget() and "target" or "player"
+    local ok, guid = pcall(UnitGUID, unit)
+    return ok and Str(guid) or nil, unit
+end
+
+-- Light's Vigil put on a friend (or on you), and your Holy Shock on them setting it off: the heals
+-- that land on them and their party in the next VIGIL_TIME are the Vigil's, one on each, except
+-- the first on the one you Holy Shocked (that's Holy Shock's own heal).
+function BT:NoteVigilCast(id, name)
+    if self:IsVigil(name) then
+        if Flag(UnitCanAttack, "player", "target") then return end   -- (on an enemy it adds damage, not heals)
+        local guid = HelpedGUID()
+        self.vigil = { id = id, name = name, at = GetTime(), guid = guid }
+        return
+    end
+    local v = self.vigil
+    if not v or not self:HealsOrHarms(name) or Flag(UnitCanAttack, "player", "target") then return end
+    if GetTime() - v.at > VIGIL_LASTS then self.vigil = nil return end
+    local guid, unit = HelpedGUID()
+    if v.guid and guid and v.guid ~= guid then return end   -- (a Holy Shock on someone else)
+    self.vigil = nil
+    self.vigilHeal = { id = v.id, name = v.name, at = GetTime(), key = guid or (unit == "target" and "target" or nil),
+        onYou = unit == "player", done = {} }
+end
+
+-- A heal on someone else (a hit from ResolveFrame) that's Light's Vigil's
+function BT:VigilFor(h)
+    local v = self.vigilHeal
+    if not v or h.kind ~= "heal" or h.time < v.at - 0.05 or h.time - v.at > VIGIL_TIME then return nil end
+    local key = h.key or h.unit
+    if v.done[key] then return nil end
+    if v.key and key == v.key and not v.shock then
+        v.shock = true   -- the first heal on the one you Holy Shocked is Holy Shock's
+        return nil
+    end
+    v.done[key] = true
+    return v
+end
+
+-- A heal on you that's Light's Vigil's
+function BT:VigilOnYou(at)
+    local v = self.vigilHeal
+    if not v or v.done.player or at < v.at - 0.05 or at - v.at > VIGIL_TIME then return nil end
+    if v.onYou and not v.shock then
+        v.shock = true
+        return nil
+    end
+    v.done.player = true
+    return v
+end
+
+-- Your cast on a friend: its heal may land a frame after the cast (Holy Shock), and a heal on them
+-- in the next FRIEND_HEAL_TIME is still that cast's. A spell the game calls helpful, or one that
+-- heals a friend and hurts an enemy. The server's own cast of the same name in that frame is the same one.
+function BT:NoteFriendCast(id, name)
+    if not self:HealGoesToTarget() then return end
+    local now, f = GetTime(), self.friendHeal
+    if f and f.name == name and now - f.at < 0.05 then return end
+    local helpful = false
+    if C_Spell and C_Spell.IsSpellHelpful then
+        local ok, h = pcall(C_Spell.IsSpellHelpful, id)
+        helpful = ok and not IsSecret(h) and h == true
+    end
+    if not helpful and not self:HealsOrHarms(name) then return end
+    if self:IsVigil(name) or (self:SealLists())[name] then return end
+    self.friendHeal = { id = id, name = name, at = now, key = HelpedGUID() or "target" }   -- (as UnitKey has it)
+end
+
+function BT:FriendHealFor(h)
+    local f = self.friendHeal
+    if not f or h.kind ~= "heal" or not h.key or h.key ~= f.key then return nil end
+    if h.time < f.at - 0.05 or h.time - f.at > FRIEND_HEAL_TIME then return nil end
+    self.friendHeal = nil
+    return f
 end
 
 -- Attacks on your next swing, by name (English, and the game's language)
@@ -2710,6 +2839,8 @@ function BT:OnSpellcast(spellId)
         self.buffShields[name] = { name = name, id = id, school = shields[name].school }
     end
     self.lastCast = { name = name, at = GetTime(), onFriend = self:HealGoesToTarget() }
+    self:NoteVigilCast(id, name)
+    self:NoteFriendCast(id, name)
     self:NoteHealCast(id, name)
     if self:IsDispelSpell(id, name) then self:DispelCast(id, name) end
     local seals = self:SealLists()
@@ -3315,6 +3446,7 @@ end
 -- tick of your heal over time.
 function BT:GraveHealLanded(at, school)
     if self.healCast and math.abs(self.healCast.at - at) <= HEAL_CAST_TIME then return end
+    if self.vigilHeal and math.abs(self.vigilHeal.at - at) <= VIGIL_TIME then return end
     if self:SelfHotFor(at, school) then return end
     local list = self.graveWait
     local e = list and list[1]
@@ -3369,7 +3501,10 @@ function BT:ResolveFrame(seq, first, last)
     local periodic = self:SpellLists()
     local cast, castAt, casts = nil, nil, 0
     for i = first, last do
-        if seq[i].cast then cast, castAt, casts = seq[i], i, casts + 1 end
+        local c = seq[i]
+        -- (a spell whose effect the server casts as a second spell of the same name, Holy Shock on
+        -- Forever, sends two casts in one frame: that's one cast, the first)
+        if c.cast and not (cast and c.name and cast.name == c.name) then cast, castAt, casts = c, i, casts + 1 end
     end
     if casts ~= 1 or not cast.id then cast = nil end   -- two casts in a frame: no telling which did what
     local castSchool   -- the school of the hits this frame's cast has been given
@@ -3480,9 +3615,13 @@ function BT:ResolveFrame(seq, first, last)
         elseif h.hit and not h.splash then
             local mask = Num(h.school)
             local what, spell = "hit", nil
+            -- Light's Vigil's heals on the party, set off by your Holy Shock in this frame or just before
+            local vigil = self:VigilFor(h)
+            if vigil then
+                what, spell = "cast", vigil
             -- Without a line to go by, the cast's hit comes after the cast (a hit ahead of it in
             -- the frame is something else)
-            if cast and ((byLine and byLine[i]) or (not byLine and i > castAt)) then
+            elseif cast and ((byLine and byLine[i]) or (not byLine and i > castAt)) then
                 local info = periodic[cast.name or ""]
                 if h.kind ~= "damage" then
                     if not (castFlight and h.kind == "miss" and not flightMiss(h)) then spell = cast end
@@ -3514,7 +3653,13 @@ function BT:ResolveFrame(seq, first, last)
                         self:NoteFlightHit(cast.id, h)
                     end
                     if self.thrownItems[cast.name or ""] then self:ThrowLanded(cast.name, h.time) end
+                    if h.kind == "heal" then self:FriendHealFor(h) end   -- (its heal has landed)
                 end
+            end
+            -- Your heal on a friend landing a frame after its cast (Holy Shock)
+            if not spell and h.kind == "heal" then
+                local f = self:FriendHealFor(h)
+                if f then what, spell = "cast", f end
             end
             -- In a group, a hit is yours only with a line of yours (see ClaimHit), a swing of yours
             -- (ClaimSwing), or as your cast's in its own frame (a miss of it has no line: "My actions"
@@ -4055,6 +4200,8 @@ function BT:CheckGameData()
     for _, e in ipairs(INTERRUPT_SPELLS) do spell(e[1], e[2], "interrupt") end
     spell(JUDGEMENT[1], JUDGEMENT[2], "seal")
     for _, id in ipairs(TOUCH_OF_THE_GRAVE) do spell(id, TOUCH_OF_THE_GRAVE.name, "racial") end
+    for _, e in ipairs(HEAL_OR_HARM) do spell(e[1], e[2], "heal or harm") end
+    for _, id in ipairs(LIGHTS_VIGIL) do spell(id, LIGHTS_VIGIL.name, "party heal") end
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
     line(Str(SKILL_RANK_UP) ~= nil, "text SKILL_RANK_UP: " .. tostring(Str(SKILL_RANK_UP)))

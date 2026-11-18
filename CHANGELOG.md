@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.24.0
+
+- **Holy Shock heals show again.** Since BattleText started by itself in 1.23.0, most Holy Shock heals went missing. On Forever, Holy Shock's heal is cast by the game as a second "Holy Shock" right after yours, and BattleText saw two spells at once and couldn't tell which one healed, so it left the heal out. It now knows those are the same Holy Shock. A heal that lands a moment after you cast it on a friend is still counted as yours, and Holy Shock on yourself shows its name too. (Thanks to envenomnesea for the report.)
+- **Light's Vigil heals get their name and icon.** When your Holy Shock sets off Light's Vigil, the heals on that player and their party (you too, if you're in it) now show as Light's Vigil with its icon, and count toward it in the fight summary. The first heal on the player you Holy Shocked is still shown as Holy Shock.
+
 ## 1.23.0
 
 - **BattleText starts by itself.** No more clicking Start BattleText every time you log in. BattleText now turns on the game's combat lines as soon as you log in, so bleed ticks get their names and other people's hits are left out from your first fight. (Thanks to Dzib for asking, and for the nudge to look again.)
