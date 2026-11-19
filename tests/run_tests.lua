@@ -4496,6 +4496,99 @@ BT.struck = nil
 BT.db.merge = true
 clear()
 
+step("rogue poisons: Instant, Wound and Deadly Poison on your weapons")
+-- CurseForge (TheFarbod, 1.24.0): poison damage showed as plain numbers. A poison's tooltip line
+-- has its rank and time left ("Instant Poison III (30 min)"), so it never matched an enchant's
+-- name; and Deadly Poison ticks every 3s for 12s, long after the blow that put it on.
+do
+    STATE.who.target, STATE.who.nameplate1 = "mobA", "mobA"
+    freshFight()
+    BT.struck, BT.poisonTicks = nil, nil
+    BT.db.merge = false
+    STATE.spellNames[8680], STATE.spellNames[13218], STATE.spellNames[2818] = "Instant Poison", "Wound Poison", "Deadly Poison"
+    STATE.spellIcons[8680], STATE.spellIcons[2818], STATE.spellIcons[13218] = 132273, 132290, 134197
+    local function on(amount, school) fire("UNIT_COMBAT", "target", "WOUND", "", amount, school) end
+    -- Instant Poison alone, on the main hand
+    STATE.equipped[16] = { name = "Kingsfall", icon = 135662, lines = { "Instant Poison III (30 min)" } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    local p1 = BT.itemProcs[1]
+    assertEq(p1 and (p1.name .. " " .. p1.school .. " " .. p1.id), "Instant Poison 8 8680",
+        "the poison's line is read past its rank and time left")
+    wound(60, 1)
+    on(25, 8)
+    assertEq(last("outgoing"), "Instant Poison 25", "Instant Poison beside your blow is named")
+    SetIcons(true)
+    wound(60, 1)
+    on(26, 8)
+    assertEq(last("outgoing"), "|T132273:0|t Instant Poison 26", "with the poison's icon")
+    SetIcons(false)
+    Advance(3)
+    on(27, 8)
+    assertEq(last("outgoing"), "27", "with no blow of yours just before: not the poison")
+    -- Wound Poison, any rank, with charges in its line too
+    STATE.equipped[16].lines = { "Wound Poison IV (12 min) (40 charges)" }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    wound(60, 1)
+    on(20, 8)
+    assertEq(last("outgoing"), "Wound Poison 20", "Wound Poison's line, rank, time and charges: named")
+    -- Instant Poison on the main hand, Deadly Poison on the off hand (both Nature)
+    STATE.equipped[16].lines = { "Instant Poison VI (29 min)" }
+    STATE.equipped[17] = { name = "Gutgore Ripper", icon = 135651, lines = { "Deadly Poison V (30 min)" } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 17, true)
+    assertEq(#BT.itemProcs, 2, "a poison on each hand")
+    Advance(5)
+    wound(60, 1)
+    on(110, 8)
+    assertEq(last("outgoing"), "Instant Poison 110", "beside your blow, in its frame: Instant Poison")
+    Advance(3)
+    on(30, 8)
+    assertEq(last("outgoing"), "Deadly Poison 30", "3s after your blow, alone: a Deadly Poison tick")
+    Advance(1.8)
+    wound(60, 1)
+    Advance(0.4)
+    on(110, 8)
+    assertEq(last("outgoing"), "Instant Poison 110", "just after your blow, off Deadly's beat: Instant Poison")
+    Advance(0.8)
+    on(30, 8)
+    assertEq(last("outgoing"), "Deadly Poison 30", "on Deadly's beat, even within a moment of your blow")
+    Advance(3)
+    wound(60, 1)
+    on(115, 8)
+    assertEq(last("outgoing"), "Instant Poison 115", "in your blow's own frame, even on Deadly's beat: Instant Poison")
+    Advance(3)
+    on(31, 8)
+    Advance(3)
+    on(32, 8)
+    assertEq(last("outgoing"), "Deadly Poison 32", "it keeps ticking after you stop swinging")
+    Advance(10)
+    on(33, 8)
+    assertEq(last("outgoing"), "33", "long after your last blow on it: not Deadly Poison")
+    -- Deadly Poison alone: its ticks are its, and "DoT ticks" off hides them
+    STATE.equipped[16] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
+    wound(60, 1)
+    Advance(3)
+    on(30, 8)
+    assertEq(last("outgoing"), "Deadly Poison 30", "Deadly Poison alone: its tick is named")
+    BT.db.outTicks = false
+    Advance(3)
+    local before = #lines("outgoing")
+    on(30, 8)
+    assertEq(#lines("outgoing"), before, "a Deadly Poison tick is a DoT tick: hidden with ticks off")
+    BT.db.outTicks = true
+    -- A poison's name on another slot (a trinket called that) is not a poison on your weapon
+    STATE.equipped[17] = nil
+    STATE.equipped[13] = { name = "Odd Trinket", lines = { "Instant Poison" } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, true)
+    assertEq(#BT.itemProcs, 0, "only a weapon carries a poison")
+    STATE.equipped[13] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, false)
+    BT.struck, BT.poisonTicks = nil, nil
+    STATE.who.nameplate1 = nil
+    BT.db.merge = true
+    clear()
+end
+
 step("gear that adds a set amount to every hit: Cursed Murloc Eye, and Hide hits below")
 -- CurseForge (1.21.5): "Cursed Murloc Eye still shows the 2 shadow damage even you hide hits below
 -- 5". The Eye adds 2 Shadow to every spell and attack; the game hides its number in a fight, and

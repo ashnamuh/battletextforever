@@ -2899,6 +2899,25 @@ end
 local SCHOOL_WORDS = { physical = 1, holy = 2, fire = 4, nature = 8, frost = 16, shadow = 32, arcane = 64 }
 -- Weapon enchants that hurt the mob you hit, by the line they add to the weapon's tooltip
 local ENCHANT_PROCS = { ["Fiery Weapon"] = 4, ["Icy Chill"] = 16, ["Lifestealing"] = 32, ["Unholy Weapon"] = 32 }
+-- A rogue's poisons on a weapon, by the line the poison adds to its tooltip: its name, its
+-- rank and the time left ("Instant Poison III (30 min)"). Each is named after a spell of its
+-- (for the icon). dot: its damage comes as ticks after the blow that put it on the mob.
+local POISONS = {
+    ["Instant Poison"] = { id = 8680, school = 8 },
+    ["Wound Poison"] = { id = 13218, school = 8 },
+    ["Deadly Poison"] = { id = 2818, school = 8, dot = true },
+}
+local POISON_SPELLS = { { 8680, "Instant Poison" }, { 13218, "Wound Poison" }, { 2818, "Deadly Poison" } }
+-- A temporary enchant's line without what follows its name: "(30 min)", "(59 sec)", "(1 hour)",
+-- charges, and the rank ("III")
+local function EnchantBase(text)
+    local base = text
+    repeat
+        local before = base
+        base = base:gsub("%s*%b()%s*$", "")
+    until base == before
+    return (base:gsub("%s+[IVXL]+$", ""))
+end
 -- A "Chance on hit" line's damage: "for 75 Fire damage", "150 to 250 Nature damage"; the most it does
 local function ProcDamage(text)
     local low, high, word = text:match("(%d+) to (%d+) (%a+) damage")
@@ -2941,6 +2960,11 @@ function BT:ScanItemShields()
                         procs[#procs + 1] = { name = name, school = procSchool, most = most, icon = icon }
                     elseif ENCHANT_PROCS[text] then
                         procs[#procs + 1] = { name = text, school = ENCHANT_PROCS[text], icon = icon }
+                    elseif (slot == 16 or slot == 17) and POISONS[EnchantBase(text)] then
+                        local base = EnchantBase(text)
+                        local poison = POISONS[base]
+                        procs[#procs + 1] = { name = base, id = poison.id, school = poison.school,
+                            poison = true, dot = poison.dot, slot = slot }
                     end
                     -- Gear that adds a set amount to every hit (Cursed Murloc Eye: "Equip: Spells and
                     -- attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs.")
@@ -3307,31 +3331,63 @@ end
 -- Your weapons' and gear's "Chance on hit" (self.itemProcs, read from the tooltips with the
 -- damage shields): a hit of its school, not too big for it, on a unit you struck with a
 -- weapon in this frame or just before (a bolt it sends can take a moment to land).
+-- Poisons (CurseForge, 1.24.0: a rogue's poison damage showed as plain numbers): Instant and
+-- Wound Poison hit like a proc; Deadly Poison ticks every 3s for 12s after the blow that put it
+-- on, so its hits come long after any swing. With both on (Instant in one hand, Deadly in the
+-- other, both Nature), a hit beside your blow in this frame is Instant's; one on Deadly's 3s beat
+-- on that unit, or later than PROC_TIME after your last blow there, is a Deadly tick.
 local PROC_TIME = 1.5
+local POISON_LASTS = 12.5   -- Deadly Poison's ticks come up to this long after your last blow on the mob
+local POISON_BEAT = 3       -- and this far apart
 function BT:ProcFor(h, seq, first, last, at)
     local procs = self.itemProcs
     if not procs or #procs == 0 or h.kind ~= "damage" then return nil end
     local mask = Num(h.school)
     if not mask or mask == 1 then return nil end
     local struck = h.key and self.struck and self.struck[h.key]
-    local near = struck and h.time - struck <= PROC_TIME
-    if not near then
-        for j = first, last do
-            local o = seq[j]
-            if j ~= at and o.hit and not o.splash and o.kind == "damage" and Num(o.school) == 1
-                    and ((h.key and o.key == h.key) or (not h.key and o.unit == h.unit)) then
-                near = true
-                break
+    local since = struck and h.time - struck
+    local inFrame = false
+    for j = first, last do
+        local o = seq[j]
+        if j ~= at and o.hit and not o.splash and o.kind == "damage" and Num(o.school) == 1
+                and ((h.key and o.key == h.key) or (not h.key and o.unit == h.unit)) then
+            inFrame = true
+            break
+        end
+    end
+    local near = inFrame or (since and since >= 0 and since <= PROC_TIME)
+    local onHit, dot
+    for _, p in ipairs(procs) do
+        if not p.every and p.school == mask and not (p.most and h.n and h.n > p.most * (h.crit and 1.6 or 1.05)) then
+            if p.dot then
+                dot = dot or p
+            elseif not onHit then
+                onHit = p
             end
         end
     end
-    if not near then return nil end
-    for _, p in ipairs(procs) do
-        if not p.every and p.school == mask and not (p.most and h.n and h.n > p.most * (h.crit and 1.6 or 1.05)) then
-            return p
-        end
+    local dotNear = dot and (inFrame or (since and since >= 0 and since <= POISON_LASTS))
+    local pick
+    if onHit and near and (inFrame or not (dotNear and (self:PoisonBeat(h) or not since or since > PROC_TIME))) then
+        pick = onHit
+    elseif dotNear then
+        pick = dot
     end
-    return nil
+    if pick and pick.dot and h.key then
+        self.poisonTicks = self.poisonTicks or {}
+        self.poisonTicks[h.key] = h.time
+    end
+    return pick
+end
+
+-- Whether this hit is on Deadly Poison's beat on its unit: a whole number of beats after its last tick
+function BT:PoisonBeat(h)
+    local lastTick = h.key and self.poisonTicks and self.poisonTicks[h.key]
+    if not lastTick then return false end
+    local since = h.time - lastTick
+    if since <= 0 or since > POISON_LASTS then return false end
+    local beats = math.floor(since / POISON_BEAT + 0.5)
+    return beats >= 1 and math.abs(since - beats * POISON_BEAT) <= TICK_SLACK
 end
 
 -- Gear that adds a set amount of a magic school to each of your hits (self.itemProcs with
@@ -3743,7 +3799,8 @@ function BT:ResolveFrame(seq, first, last)
             end
             if not spell and claimed then
                 local proc = self:ProcFor(h, seq, first, last, i)
-                if proc then what, spell = "proc", proc end
+                -- (Deadly Poison's hits are ticks: "DoT ticks" off hides them, and the tick window adds them up)
+                if proc then what, spell = proc.dot and "tick" or "proc", proc end
             end
             if not spell and claimed then
                 local each = self:EveryHitFor(h, seq, first, last, i)
@@ -4197,6 +4254,7 @@ function BT:CheckGameData()
     for _, e in ipairs(AREA_SPELLS) do spell(e[1], e[2], "keeps hitting") end
     for _, e in ipairs(REACTIVE_SPELLS) do spell(e[1], e[2], "alert") end
     for _, e in ipairs(DISPEL_SPELLS) do spell(e[1], e[2], "dispel") end
+    for _, e in ipairs(POISON_SPELLS) do spell(e[1], e[2], "poison") end
     for _, e in ipairs(INTERRUPT_SPELLS) do spell(e[1], e[2], "interrupt") end
     spell(JUDGEMENT[1], JUDGEMENT[2], "seal")
     for _, id in ipairs(TOUCH_OF_THE_GRAVE) do spell(id, TOUCH_OF_THE_GRAVE.name, "racial") end

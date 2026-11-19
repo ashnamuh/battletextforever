@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.24.1
+
+- **Rogue poisons get their name and icon.** Instant Poison, Wound Poison and Deadly Poison hits used to show up as plain numbers with no name. BattleText reads the poison off your weapon (any rank), so poison hits now show as "Instant Poison 110", and they count under their own name in `/btf last`. Deadly Poison's ticks are named too, even the ones that land after you stop swinging. If you have Instant on one hand and Deadly on the other, a poison hit that lands with your swing is Instant, and the steady 3-second ticks are Deadly. Deadly Poison's ticks count as DoT ticks, so "DoT ticks" on the Outgoing tab and the tick window apply to them. (Thanks to TheFarbod for the report and the fix ideas.)
+
 ## 1.24.0
 
 - **Holy Shock heals show again.** Since BattleText started by itself in 1.23.0, most Holy Shock heals went missing. On Forever, Holy Shock's heal is cast by the game as a second "Holy Shock" right after yours, and BattleText saw two spells at once and couldn't tell which one healed, so it left the heal out. It now knows those are the same Holy Shock. A heal that lands a moment after you cast it on a friend is still counted as yours, and Holy Shock on yourself shows its name too. (Thanks to envenomnesea for the report.)
