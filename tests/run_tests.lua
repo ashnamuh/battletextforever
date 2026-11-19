@@ -4722,11 +4722,46 @@ do
     fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
     hiddenOn(2, 32)
     assertEq(last("outgoing"), "120", "beside a spell's hit it's hidden too")
-    -- A Shadow hit of 2 on its own, with nothing of yours beside it: not the Eye's, shown
+    -- A Shadow hit of 2 on its own, with nothing of yours beside it: it waits a moment for your
+    -- swing, and when none comes it isn't the Eye's: shown
     Advance(3)
     hiddenOn(2, 32)
+    assertEq(#lines("outgoing"), 0, "a hidden Shadow hit alone waits for your swing")
+    Advance(1.3)
     assertEq(#lines("outgoing"), 1, "a hidden Shadow hit with no hit of yours beside it still shows")
     clear()
+    -- GitHub #25 (1.24.3): with the combat lines on, the Eye's hit comes with its line, up to a
+    -- second ahead of your swing's hit. It waits for the swing, then is the Eye's and is hidden.
+    do
+        local was = { STATE.filterApplied, STATE.filteredEvents }
+        STATE.filterApplied, STATE.filteredEvents = true, true
+        Advance(3)
+        hidden(1)
+        hiddenOn(2, 32)
+        Advance(0.4)
+        fire("PLAYER_SWING", 2.6, 0)
+        hidden(2)
+        wound(40, 1)
+        Advance(1.3)
+        assertEq(table.concat(lines("outgoing"), " / "), "40", "the Eye's hit ahead of your swing: hidden below 5")
+        clear()
+        BT.db.minDamage = 0
+        Advance(3)
+        hidden(1)
+        hiddenOn(2, 32)
+        Advance(0.4)
+        fire("PLAYER_SWING", 2.6, 0)
+        hidden(2)
+        wound(40, 1)
+        BT:FlushHits(true)
+        local shown = {}
+        for _, l in ipairs(BT.areas.outgoing.active) do shown[#shown + 1] = l.text.__shown end
+        assertEq(table.concat(shown, " / "), "40 / Cursed Murloc Eye <secret>", "and named after the trinket, shown at 0 (once your swing lands)")
+        BT.db.minDamage = 5
+        STATE.filterApplied, STATE.filteredEvents = was[1], was[2]
+        BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.swings = nil, nil, nil, nil
+        clear()
+    end
     -- A Murloc takes 8: with Hide hits below 5 it shows; below 10 it doesn't
     STATE.unit.mobA.creature = "Murloc"
     wound(40, 1)
@@ -4746,9 +4781,28 @@ do
     hiddenOn(2, 32)
     assertEq(#lines("outgoing"), 2, "two hidden Shadow hits together: both shown")
     clear()
-    BT.db.minDamage = 0
+    -- Thorncursed Grips (GitHub #25): "Your melee weapon attacks deal 2 Nature damage to both you
+    -- and your target". Only beside a weapon blow: a Nature hit of 2 beside a spell isn't theirs.
     STATE.equipped[13] = nil
-    fire("PLAYER_EQUIPMENT_CHANGED", 13, false)
+    STATE.equipped[10] = { name = "Thorncursed Grips", icon = 132939,
+        lines = { "Equip: Your melee weapon attacks deal 2 Nature damage to both you and your target." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 10, true)
+    local grips = BT.itemProcs[1]
+    assertEq(grips and (grips.name .. " " .. grips.school .. " " .. grips.amount .. " " .. tostring(grips.melee)),
+        "Thorncursed Grips 8 2 true", "read from the gloves: 2 Nature, melee only")
+    Advance(3)
+    wound(40, 1)
+    hiddenOn(2, 8)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "the Grips' hidden 2 beside your swing: hidden below 5")
+    Advance(3)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
+    hiddenOn(2, 8)
+    Advance(1.3)
+    assertEq(#lines("outgoing"), 2, "beside a Frost spell's hit only (and no swing after it), a Nature hit isn't the Grips'")
+    clear()
+    BT.db.minDamage = 0
+    STATE.equipped[10] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 10, false)
     BT.struck, BT.db.merge = nil, true
     clear()
 end

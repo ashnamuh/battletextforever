@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.24.4
+
+- **"Hide hits below" really hides Cursed Murloc Eye's 2 damage now.** Since BattleText started turning the combat lines on by itself (1.23.0), the Eye's hit usually arrives a moment before your swing's hit, not with it. BattleText only looked for your swing alongside or just before the Eye's hit, so it never knew it was the Eye's and always showed it. Now it waits a moment for your swing, then names it after the trinket and hides it if it's below your setting.
+- **Thorncursed Grips are known too.** Their 2 Nature damage on every melee swing is named after the gloves and hidden by "Hide hits below" the same way. Only their hit on the mob is hidden this way; the 2 they deal to you still shows on the incoming side. (Thanks to agalakov-AI for the report.)
+
 ## 1.24.3
 
 - **No more false "couldn't open the Combat Log tab" warning.** BattleText said this after you clicked Start BattleText even with the normal chat window and its Combat Log tab right there. It now only says it when the Combat Log tab really can't be seen (a chat addon like Chattynator hiding it). BattleText also notices the Combat Log window opening even if the game hasn't fully set it up yet.

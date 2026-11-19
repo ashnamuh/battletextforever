@@ -2413,7 +2413,8 @@ end
 function BT:WaitForSwing(h)
     local seal = h.key and self:SealOn(h)
     local shield = self:ShieldOn(h)
-    if shield and not seal and self.lastBlow and h.time - self.lastBlow >= 0
+    local every = h.key and not seal and not h.everyUnsure and self:EveryOn(h)
+    if shield and not seal and not every and self.lastBlow and h.time - self.lastBlow >= 0
             and h.time - self.lastBlow <= SEAL_AFTER_SWING then
         local why = self:ShowUnitHit(h, "shield", shield)
         if self.db.debug then
@@ -2421,9 +2422,9 @@ function BT:WaitForSwing(h)
         end
         return true
     end
-    if not seal and not shield then return false end
+    if not seal and not shield and not every then return false end
     self.sealWait = self.sealWait or {}
-    local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield }
+    local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield, every = every or nil }
     table.insert(self.sealWait, entry)
     local function over()
         for i, e in ipairs(BT.sealWait or {}) do
@@ -2457,6 +2458,8 @@ function BT:Resolved(key, at)
         if at - e.h.time <= SEAL_SWING_TIME then
             if key and e.seal and e.h.key == key then
                 what, spell = "seal", e.seal
+            elseif key and e.every and e.h.key == key then
+                what, spell = "proc", e.every   -- (gear that adds to every hit: its amount is known)
             elseif not key and e.shield and not answered[e.shield.name] then
                 what, spell = "shield", e.shield
             end
@@ -3012,12 +3015,20 @@ function BT:ScanItemShields()
                     end
                     -- Gear that adds a set amount to every hit (Cursed Murloc Eye: "Equip: Spells and
                     -- attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs.")
+                    -- Or only to your weapon blows (Thorncursed Grips: "Equip: Your melee weapon attacks
+                    -- deal 2 Nature damage to both you and your target.")
                     local each, word = text:match("[Ss]pells and attacks deal (%d+) (%a+) damage")
+                    local melee = false
+                    if not word then
+                        each, word = text:match("[Mm]elee weapon attacks deal (%d+) (%a+) damage")
+                        melee = word ~= nil
+                    end
                     local eachSchool = word and SCHOOL_WORDS[word:lower()]
                     if eachSchool and eachSchool ~= 1 then
                         local times, versus = text:match("(%d+) times as much damage to (%a+)")
                         procs[#procs + 1] = { name = name, school = eachSchool, icon = icon, every = true,
-                            amount = tonumber(each), times = tonumber(times), versus = versus and versus:gsub("s$", "") }
+                            melee = melee or nil, amount = tonumber(each), times = tonumber(times),
+                            versus = versus and versus:gsub("s$", "") }
                     end
                 end
             end
@@ -3430,35 +3441,54 @@ end
 -- the same frame or just after your swing. Its amount is known even when the game hides it, so
 -- "Hide hits below" can catch it (CurseForge, 1.21.5: the Eye's 2 showed with it set to 5). Two
 -- hidden hits of its school beside each other can't be told apart, so then neither is it.
-function BT:EveryHitFor(h, seq, first, last, at)
+-- The gear (self.itemProcs with every) a hit can be, by its school and (when readable) its
+-- amount, whatever is beside it: { name, icon, school, fixed, melee }
+function BT:EveryOn(h)
     local procs = self.itemProcs
     if not procs or h.kind ~= "damage" then return nil end
     local mask = Num(h.school)
     if not mask or mask == 1 then return nil end
-    local item
-    for _, p in ipairs(procs) do
-        if p.every and p.school == mask then item = p break end
+    for _, item in ipairs(procs) do
+        if item.every and item.school == mask then
+            -- How much it does to this mob: more to some kinds ("4 times as much damage to Murlocs")
+            local fixed = item.amount
+            if item.times and item.versus and UnitCreatureType then
+                local ok, kind = pcall(UnitCreatureType, h.unit)
+                if ok and Str(kind) == item.versus then fixed = item.amount * item.times end
+            end
+            if not h.n or h.n == fixed or (item.times and h.n == item.amount * item.times) then
+                return { name = item.name, icon = item.icon, school = item.school, fixed = h.n or fixed,
+                    melee = item.melee }
+            end
+        end
     end
+    return nil
+end
+
+-- Its hit beside one of yours (in the frame, or just after your swing). While the combat lines
+-- are on, the gear's hit comes with its line, up to a second AHEAD of the swing's own hit (as a
+-- seal's does): that one waits for the swing (WaitForSwing) instead (GitHub #25, 1.24.3: the
+-- Eye's 2 still showed with "Hide hits below" at 5).
+function BT:EveryHitFor(h, seq, first, last, at)
+    local item = self:EveryOn(h)
     if not item then return nil end
-    -- How much it does to this mob: more to some kinds ("4 times as much damage to Murlocs")
-    local fixed = item.amount
-    if item.times and item.versus and UnitCreatureType then
-        local ok, kind = pcall(UnitCreatureType, h.unit)
-        if ok and Str(kind) == item.versus then fixed = item.amount * item.times end
-    end
-    if h.n and h.n ~= fixed and not (item.times and h.n == item.amount * item.times) then return nil end
+    local mask = Num(h.school)
     local struck = h.key and self.struck and self.struck[h.key]
     local near = struck and h.time - struck >= 0 and h.time - struck <= PROC_TIME
     for j = first, last do
         local o = seq[j]
         if j ~= at and o.hit and not o.splash and o.kind == "damage"
                 and ((h.key and o.key == h.key) or (not h.key and o.unit == h.unit)) then
-            if Num(o.school) == mask and h.secret and o.secret then return nil end
-            near = true
+            if Num(o.school) == mask and h.secret and o.secret then
+                h.everyUnsure = true   -- (nor does it wait for a swing: WaitForSwing)
+                return nil
+            end
+            -- (gear that adds to melee weapon attacks only goes off beside a weapon blow)
+            if not item.melee or Num(o.school) == 1 then near = true end
         end
     end
     if not near then return nil end
-    return { name = item.name, icon = item.icon, school = item.school, fixed = h.n or fixed }
+    return item
 end
 
 -- Touch of the Grave, the Undead racial on Forever (1.60.x): your attacks and damaging spells
@@ -3858,7 +3888,7 @@ function BT:ResolveFrame(seq, first, last)
                 -- player regenerating, someone else's heal). In a group, a line of yours vouches for it.
                 why = "no heal of yours with it"
             elseif not spell and self:WaitForSwing(h) then
-                why = "waiting: your seal's or your shield's?"
+                why = "waiting: your seal's, your shield's or your gear's?"
             elseif not spell and self:WaitForGrave(h) then
                 why = "waiting: Touch of the Grave?"
                 h.mine = { what = "hit" }   -- (a splash of its school beside it is still yours)
