@@ -4503,7 +4503,7 @@ step("rogue poisons: Instant, Wound and Deadly Poison on your weapons")
 do
     STATE.who.target, STATE.who.nameplate1 = "mobA", "mobA"
     freshFight()
-    BT.struck, BT.poisonTicks = nil, nil
+    BT.struck = nil
     BT.db.merge = false
     STATE.spellNames[8680], STATE.spellNames[13218], STATE.spellNames[2818] = "Instant Poison", "Wound Poison", "Deadly Poison"
     STATE.spellIcons[8680], STATE.spellIcons[2818], STATE.spellIcons[13218] = 132273, 132290, 134197
@@ -4546,15 +4546,13 @@ do
     Advance(1.8)
     wound(60, 1)
     Advance(0.4)
-    on(110, 8)
-    assertEq(last("outgoing"), "Instant Poison 110", "just after your blow, off Deadly's beat: Instant Poison")
-    Advance(0.8)
     on(30, 8)
-    assertEq(last("outgoing"), "Deadly Poison 30", "on Deadly's beat, even within a moment of your blow")
+    assertEq(last("outgoing"), "Deadly Poison 30",
+        "a moment after your blow, not in its frame: Deadly's tick (its first one has no beat to go by)")
     Advance(3)
     wound(60, 1)
     on(115, 8)
-    assertEq(last("outgoing"), "Instant Poison 115", "in your blow's own frame, even on Deadly's beat: Instant Poison")
+    assertEq(last("outgoing"), "Instant Poison 115", "in your blow's own frame: Instant Poison")
     Advance(3)
     on(31, 8)
     Advance(3)
@@ -4563,8 +4561,29 @@ do
     Advance(10)
     on(33, 8)
     assertEq(last("outgoing"), "33", "long after your last blow on it: not Deadly Poison")
+    -- Instant Poison alone keeps the moment after your blow (its hit can come a frame late)
+    STATE.equipped[17] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 17, false)
+    wound(60, 1)
+    Advance(0.4)
+    on(105, 8)
+    assertEq(last("outgoing"), "Instant Poison 105", "Instant alone: a moment after your blow is still its")
+    -- A weapon's own Nature "Chance on hit" on the other hand: the poison goes off far more often
+    -- (on the main hand, read first; the poison on the off hand)
+    local poisoned = STATE.equipped[16]
+    STATE.equipped[16] = { name = "Electrocutioner Leg", icon = 135650,
+        lines = { "Chance on hit: Blasts your enemy with lightning, dealing 10 to 20 Nature damage." } }
+    STATE.equipped[17] = poisoned
+    fire("PLAYER_EQUIPMENT_CHANGED", 17, true)
+    Advance(2)
+    wound(60, 1)
+    on(15, 8)
+    assertEq(last("outgoing"), "Instant Poison 15", "a poison comes before a weapon's own Nature proc")
+    STATE.equipped[16], STATE.equipped[17] = poisoned, nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 17, false)
     -- Deadly Poison alone: its ticks are its, and "DoT ticks" off hides them
     STATE.equipped[16] = nil
+    STATE.equipped[17] = { name = "Gutgore Ripper", icon = 135651, lines = { "Deadly Poison V (30 min)" } }
     fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
     wound(60, 1)
     Advance(3)
@@ -4576,6 +4595,36 @@ do
     on(30, 8)
     assertEq(#lines("outgoing"), before, "a Deadly Poison tick is a DoT tick: hidden with ticks off")
     BT.db.outTicks = true
+    -- The game colors the poison's line, and putting a poison on fires UNIT_INVENTORY_CHANGED, a
+    -- moment before the tooltip has it (CurseForge, TheFarbod, 1.24.1)
+    STATE.equipped[17] = nil
+    STATE.equipped[16] = { name = "Kingsfall", icon = 135662 }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    assertEq(#BT.itemProcs, 0, "no poison on yet")
+    fire("UNIT_INVENTORY_CHANGED", "player")
+    STATE.equipped[16].lines = { "|cff00ff00Instant Poison VI (30 min) (60 charges)|r" }
+    Advance(0.1)
+    fire("UNIT_INVENTORY_CHANGED", "player")
+    Advance(0.2)
+    assertEq(#BT.itemProcs, 0, "the gear is read a moment after the last change, not at once")
+    Advance(0.2)
+    assertEq(BT.itemProcs[1] and BT.itemProcs[1].name, "Instant Poison",
+        "read after the poison went on, past its color codes, charges and time left")
+    -- No icon from the poison's spell: the one the game shows for the weapon's poison
+    STATE.weaponEnchants = { [0] = { { hasEnchant = true, enchantType = 0, timeLeft = 1800000, charges = 60,
+        enchantID = 625, enchantIconID = 136007 } } }
+    STATE.spellIcons[8680], BT.iconCache = nil, nil
+    fire("UNIT_INVENTORY_CHANGED", "player")
+    Advance(0.5)
+    SetIcons(true)
+    Advance(2)
+    wound(60, 1)
+    on(90, 8)
+    assertEq(last("outgoing"), "|T136007:0|t Instant Poison 90", "with the icon the game shows for the weapon's poison")
+    SetIcons(false)
+    STATE.weaponEnchants = nil
+    STATE.equipped[16] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
     -- A poison's name on another slot (a trinket called that) is not a poison on your weapon
     STATE.equipped[17] = nil
     STATE.equipped[13] = { name = "Odd Trinket", lines = { "Instant Poison" } }
@@ -4583,9 +4632,36 @@ do
     assertEq(#BT.itemProcs, 0, "only a weapon carries a poison")
     STATE.equipped[13] = nil
     fire("PLAYER_EQUIPMENT_CHANGED", 13, false)
-    BT.struck, BT.poisonTicks = nil, nil
+    BT.struck = nil
     STATE.who.nameplate1 = nil
     BT.db.merge = true
+    clear()
+end
+
+step("Serpent Sting: its ticks are timed from when the shot lands")
+-- CurseForge (1.24.1): "Serpent Sting for Hunters is only showing a number. No name or icon." The
+-- sting is a shot: it lands a moment after the cast, and its ticks were off the beat counted
+-- from the cast, so none was ever named.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    STATE.spellNames[1978], STATE.spellIcons[1978] = "Serpent Sting", 132204
+    BT.periodic = nil
+    local function on(amount) fire("UNIT_COMBAT", "target", "WOUND", "", amount, 8) end
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-sting", 1978)
+    Advance(3.8)   -- (landed 0.8s after the cast)
+    on(12)
+    assertEq(last("outgoing"), "Serpent Sting 12", "its first tick, late by the shot's flight: named")
+    SetIcons(true)
+    Advance(3)
+    on(12)
+    assertEq(last("outgoing"), "|T132204:0|t Serpent Sting 12", "then on its own beat, with its icon")
+    SetIcons(false)
+    Advance(1.5)
+    on(40)
+    assertEq(last("outgoing"), "40", "a Nature hit off its beat isn't it")
+    BT.dots = nil
     clear()
 end
 

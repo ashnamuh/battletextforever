@@ -1503,6 +1503,11 @@ local PERIODIC_SPELLS = {
     { 8050, "Flame Shock", 3, 4, true },
     { 774, "Rejuvenation", 3, 8, false, true }, { 8936, "Regrowth", 3, 8, true, true }, { 139, "Renew", 3, 2, false, true },
 }
+-- Damage over time put on by something that flies (a hunter's sting is a shot): its ticks are
+-- timed from when it lands, up to STING_FLIGHT after the cast (CurseForge, 1.24.1: Serpent
+-- Sting's ticks were off the beat counted from the cast, and showed with no name or icon)
+local FLYING_DOTS = { [1978] = true }
+local STING_FLIGHT = 1.5
 -- Attacks on your next swing, which replace it: { first rank's ID, English name }
 local NEXT_SWING_SPELLS = {
     { 6807, "Maul" }, { 78, "Heroic Strike" }, { 845, "Cleave" }, { 2973, "Raptor Strike" },
@@ -1648,7 +1653,7 @@ function BT:SpellLists()
     for _, e in ipairs(PERIODIC_SPELLS) do
         for _, name in ipairs(names(e)) do
             self.periodic[name] = { period = e[3], school = e[4], direct = e[5] or false, heal = e[6] or false,
-                wrack = WRACK_SPEEDS[e[1]] or nil }
+                wrack = WRACK_SPEEDS[e[1]] or nil, flies = FLYING_DOTS[e[1]] or nil }
         end
     end
     for _, e in ipairs(SHIELD_SPELLS) do
@@ -2832,7 +2837,7 @@ function BT:OnSpellcast(spellId)
         self.dots = self.dots or {}
         self.dots[key] = self.dots[key] or {}
         self.dots[key][name] = { id = id, name = name, at = GetTime(), period = dot.period, school = dot.school,
-            heal = dot.heal, wrack = dot.wrack }
+            heal = dot.heal, wrack = dot.wrack, flies = dot.flies }
     end
     if shields[name] then
         self.buffShields = self.buffShields or {}
@@ -2926,6 +2931,40 @@ local function ProcDamage(text)
     if not school or school == 1 then return nil end
     return school, tonumber(high or low)
 end
+-- Putting a poison on a weapon (or it wearing off) fires UNIT_INVENTORY_CHANGED, not
+-- PLAYER_EQUIPMENT_CHANGED (CurseForge, TheFarbod, 1.24.1), and the tooltips can't be read in a
+-- fight (PLAYER_REGEN_DISABLED comes too late for it). The event fires for every bag change too,
+-- so the gear is read once, a moment after the last of a burst.
+-- The event also comes a moment before the tooltip has the new poison's line (TheFarbod's
+-- tests): the read waits GEAR_SCAN_WAIT after the latest one.
+local GEAR_SCAN_WAIT = 0.3
+function BT:RescanGearSoon()
+    self.gearScanAt = GetTime() + GEAR_SCAN_WAIT
+    if self.gearScanPending then return end
+    if not (C_Timer and C_Timer.After) then self:ScanItemShields() return end
+    self.gearScanPending = true
+    local function check()
+        local left = (self.gearScanAt or 0) - GetTime()
+        if left > 0.01 then C_Timer.After(left, check) return end
+        self.gearScanPending = nil
+        self:ScanItemShields()
+    end
+    C_Timer.After(GEAR_SCAN_WAIT, check)
+end
+
+-- The icon the game shows for the poison on a weapon (its buff by the minimap), for when the
+-- poison's spell gives none: C_Item.GetWeaponEnchantInfo (Enum.WeaponSlot: 0 main hand, 1 off hand)
+local function PoisonIcon(slot)
+    if not (C_Item and C_Item.GetWeaponEnchantInfo) then return nil end
+    local ok, enchants = pcall(C_Item.GetWeaponEnchantInfo, slot - 16)
+    if not ok or IsSecret(enchants) or type(enchants) ~= "table" then return nil end
+    for _, e in pairs(enchants) do
+        if type(e) == "table" and e.hasEnchant == true and Num(e.enchantIconID) and e.enchantIconID > 0 then
+            return e.enchantIconID
+        end
+    end
+    return nil
+end
 function BT:ScanItemShields()
     if not (C_TooltipInfo and C_TooltipInfo.GetInventoryItem) then return end
     if InCombatLockdown() then return end
@@ -2943,6 +2982,9 @@ function BT:ScanItemShields()
                         if type(arg) == "table" and arg.field == "leftText" then text = Str(arg.stringVal) end
                     end
                 end
+                -- (without color codes: the game colors a weapon's poison line, "|cff00ff00Instant
+                -- Poison III (30 min)|r", CurseForge 1.24.1)
+                if text then text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") end
                 if text then
                     name = name or text   -- the first line is the item's name
                     local amount, school = text:match("[Ii]nflicts (%d+) (%a+) damage to the attacker")
@@ -2964,7 +3006,7 @@ function BT:ScanItemShields()
                         local base = EnchantBase(text)
                         local poison = POISONS[base]
                         procs[#procs + 1] = { name = base, id = poison.id, school = poison.school,
-                            poison = true, dot = poison.dot, slot = slot }
+                            poison = true, dot = poison.dot, slot = slot, icon = PoisonIcon(slot) }
                     end
                     -- Gear that adds a set amount to every hit (Cursed Murloc Eye: "Equip: Spells and
                     -- attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs.")
@@ -3116,6 +3158,11 @@ function BT:TickFor(h, close)
             local beats = math.floor(since / period + 0.5)
             local off = math.abs(since - beats * period)
             local slack = (close and dot.last) and TICK_CLOSE or TICK_SLACK
+            -- (before its first tick, one that flies ticks late by however long it took to land)
+            if dot.flies and not dot.last and since >= period then
+                local late = since - math.floor(since / period) * period
+                if late <= STING_FLIGHT + slack then beats, off = math.floor(since / period), 0 end
+            end
             if beats >= 1 and off <= slack and (h.kind == "heal") == dot.heal
                     and (dot.heal and SameHealSchool(mask, dot.school) or not mask or mask == dot.school)
                     and (not best or off < bestOff) then
@@ -3334,11 +3381,9 @@ end
 -- Poisons (CurseForge, 1.24.0: a rogue's poison damage showed as plain numbers): Instant and
 -- Wound Poison hit like a proc; Deadly Poison ticks every 3s for 12s after the blow that put it
 -- on, so its hits come long after any swing. With both on (Instant in one hand, Deadly in the
--- other, both Nature), a hit beside your blow in this frame is Instant's; one on Deadly's 3s beat
--- on that unit, or later than PROC_TIME after your last blow there, is a Deadly tick.
+-- other, both Nature), a hit beside your blow in this frame is Instant's; any other is a Deadly tick.
 local PROC_TIME = 1.5
 local POISON_LASTS = 12.5   -- Deadly Poison's ticks come up to this long after your last blow on the mob
-local POISON_BEAT = 3       -- and this far apart
 function BT:ProcFor(h, seq, first, last, at)
     local procs = self.itemProcs
     if not procs or #procs == 0 or h.kind ~= "damage" then return nil end
@@ -3361,33 +3406,21 @@ function BT:ProcFor(h, seq, first, last, at)
         if not p.every and p.school == mask and not (p.most and h.n and h.n > p.most * (h.crit and 1.6 or 1.05)) then
             if p.dot then
                 dot = dot or p
-            elseif not onHit then
-                onHit = p
+            elseif not onHit or (p.poison and not onHit.poison) then
+                onHit = p   -- (a poison before a weapon's own Nature proc: it goes off far more often)
             end
         end
     end
     local dotNear = dot and (inFrame or (since and since >= 0 and since <= POISON_LASTS))
     local pick
-    if onHit and near and (inFrame or not (dotNear and (self:PoisonBeat(h) or not since or since > PROC_TIME))) then
+    -- With Deadly Poison on too, only a hit in your blow's own frame is the on-hit one: Deadly's
+    -- first tick has no beat to go by yet, and can land within PROC_TIME of a blow (TheFarbod's tests)
+    if onHit and near and (inFrame or not dotNear) then
         pick = onHit
     elseif dotNear then
         pick = dot
     end
-    if pick and pick.dot and h.key then
-        self.poisonTicks = self.poisonTicks or {}
-        self.poisonTicks[h.key] = h.time
-    end
     return pick
-end
-
--- Whether this hit is on Deadly Poison's beat on its unit: a whole number of beats after its last tick
-function BT:PoisonBeat(h)
-    local lastTick = h.key and self.poisonTicks and self.poisonTicks[h.key]
-    if not lastTick then return false end
-    local since = h.time - lastTick
-    if since <= 0 or since > POISON_LASTS then return false end
-    local beats = math.floor(since / POISON_BEAT + 0.5)
-    return beats >= 1 and math.abs(since - beats * POISON_BEAT) <= TICK_SLACK
 end
 
 -- Gear that adds a set amount of a magic school to each of your hits (self.itemProcs with
@@ -3913,9 +3946,11 @@ function BT:ShowUnitHit(h, what, spell, area)
     local icon = ""
     if spell and spell.id then
         icon = self:IconText(spell.id)
-    elseif spell and spell.icon then
-        icon = self:IconTag(spell.icon)   -- an item's
     end
+    if icon == "" and spell and spell.icon then
+        icon = self:IconTag(spell.icon)   -- an item's (or, for a poison, the one its weapon buff shows)
+    end
+    if icon == "" and spell and spell.poison then icon = self:IconText(spell.name) end
     -- Nothing to name it by: a swing (a physical hit, or a plain miss)
     local swing = what == "hit" and not spell and (h.kind == "miss" or (h.kind == "damage" and Num(h.school) == 1))
     local petSwing
@@ -5070,6 +5105,7 @@ pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_START", "player"
 pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_STOP", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_AURA", "player")
 pcall(events.RegisterEvent, events, "PLAYER_EQUIPMENT_CHANGED")
+pcall(events.RegisterUnitEvent, events, "UNIT_INVENTORY_CHANGED", "player")
 pcall(events.RegisterEvent, events, "GROUP_ROSTER_UPDATE")   -- (InGroup asks again)
 pcall(events.RegisterEvent, events, "PLAYER_SWING")   -- your own auto attacks (vouches for them in a group)
 -- Ability alerts that the game's own buttons know about, and combo points
@@ -5159,6 +5195,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
         if a1 == 16 or a1 == 17 then BT.dualWield = nil end   -- (a weapon changed: an off hand swing will say again)
         BT:ScanItemShields()
+    elseif event == "UNIT_INVENTORY_CHANGED" then
+        BT:RescanGearSoon()
     elseif event == "SPELL_UPDATE_USABLE" or event == "UNIT_HEALTH" then
         BT:CheckUsable()
     elseif event == "PLAYER_TARGET_CHANGED" then

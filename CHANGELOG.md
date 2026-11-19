@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.24.2
+
+- **Poisons are picked up as soon as you put them on.** In 1.24.1 BattleText only noticed a new poison after you swapped weapons or reloaded. It now reads your weapons a moment after you apply or refresh a poison, and it reads the poison line even with the game's coloring on it. Poison hits also show the poison's icon.
+- **Instant and Deadly Poison together are told apart better.** With Deadly Poison on, only a poison hit that lands right with your swing counts as Instant. Everything else is a Deadly tick, including its very first one. A poison also wins over a weapon's own Nature "Chance on hit" (like Electrocutioner Leg), since the poison goes off far more often. (Thanks again to TheFarbod for testing all of this.)
+- **Serpent Sting shows its name and icon.** Serpent Sting is a shot, so it lands a moment after you fire it, and its ticks come that much later than BattleText expected. It never matched them, so they showed as plain numbers. Its ticks are now timed from when the shot lands. (Thanks to user_mh4740vmz90ckp8o for the report.)
+
 ## 1.24.1
 
 - **Rogue poisons get their name and icon.** Instant Poison, Wound Poison and Deadly Poison hits used to show up as plain numbers with no name. BattleText reads the poison off your weapon (any rank), so poison hits now show as "Instant Poison 110", and they count under their own name in `/btf last`. Deadly Poison's ticks are named too, even the ones that land after you stop swinging. If you have Instant on one hand and Deadly on the other, a poison hit that lands with your swing is Instant, and the steady 3-second ticks are Deadly. Deadly Poison's ticks count as DoT ticks, so "DoT ticks" on the Outgoing tab and the tick window apply to them. (Thanks to TheFarbod for the report and the fix ideas.)

@@ -458,7 +458,9 @@ function GetShapeshiftFormInfo(i)
     if i ~= 1 or not STATE.form then return nil end
     return STATE.form.icon, true, true, STATE.form.spellId
 end
-C_Item = { GetItemIconByID = function(id) return 134000 + id end }
+C_Item = { GetItemIconByID = function(id) return 134000 + id end,
+    -- STATE.weaponEnchants[slot]: a weapon's temporary enchants (0 main hand, 1 off hand), as the game lists them
+    GetWeaponEnchantInfo = function(slot) return (STATE.weaponEnchants or {})[slot] or {} end }
 
 -- The chat tabs (General, Combat Log, Loot), and the Combat Log window behind the second one
 ChatFrame1 = newObj("ScrollingMessageFrame", "ChatFrame1")
