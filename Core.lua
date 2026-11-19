@@ -2714,6 +2714,7 @@ function BT:OnSwing(duration, swingType)
     while swings[1] and (now - swings[1] > CREDIT_TIME or #swings >= 6) do table.remove(swings, 1) end
     swings[#swings + 1] = now
     self.swungAt = now
+    self.actedInFight = true
     -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept.
     local hand = Num(swingType)
     if hand == 0 or hand == 1 then
@@ -2802,6 +2803,7 @@ function BT:OnSpellcast(spellId)
     local name = id and SpellName(id) or nil
     if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
     self:Queue({ cast = true, id = id, name = name })
+    self.actedInFight = true
     if not name then return end
     local periodic, shields = self:SpellLists()
     -- A spell that flies is on its way to your target: its hit comes later (FlightFor)
@@ -4341,8 +4343,10 @@ end
 ---------------------------------------------------------------------------
 -- The Combat Log window. COMBATLOG is set by Blizzard's Combat Log code once
 -- it has loaded and put its own show/hide handlers on the window.
+-- Before that (Blizzard_CombatLog is load-on-demand), the window is ChatFrame2 all the same
+-- (FloatingChatFrame's IsCombatLog), so its OnShow is hooked either way.
 function BT:CombatLogFrame()
-    return _G.COMBATLOG
+    return _G.COMBATLOG or _G.ChatFrame2
 end
 
 function BT:KeepLogFlowing()
@@ -4462,6 +4466,10 @@ end
 function BT:CheckStarted()
     local function check()
         if BT.started or BT.startFailSaid then return end
+        -- (the game's Combat Log tab is right there: the click reached it, so a chat addon isn't the
+        -- reason; the button stays for another try and nothing is said)
+        local tab = _G.ChatFrame2Tab
+        if tab and tab.IsVisible and tab:IsVisible() then return end
         BT.startFailSaid = true
         Print("the click couldn't open the game's Combat Log tab. A chat addon (like Chattynator) may be "
             .. "hiding it, and there's no real way around that. Alone, your hits still show without it; in a group, "
@@ -4493,6 +4501,10 @@ end
 -- button shows, and (once a session) a line in chat says so
 function BT:CheckAutoStart()
     if self.started or not self.db.enabled then return end
+    -- "My actions" has lines only for what you do: a fight where you only got hit (a mob caught you
+    -- and you ran, or it died to someone else) proves nothing (1.24.2: the button and its chat line
+    -- came for a player whose lines were fine)
+    if not self.actedInFight then return end
     self.startNeeded = true
     self:UpdateStartButton()
     if not self.startReminded then
@@ -5213,6 +5225,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:KeepLogFlowing()   -- (in case something turned the lines off since)
         if BT.db.nCombat then BT:Notify("+Combat", BT.TEXT_COLORS.combat) end
         BT.fight = { start = GetTime(), damage = 0, heal = 0 }
+        BT.actedInFight = false
     elseif event == "PLAYER_REGEN_ENABLED" then
         if BT.db.nCombat then BT:Notify("-Combat", BT.TEXT_COLORS.notify) end
         BT:FightSummary()

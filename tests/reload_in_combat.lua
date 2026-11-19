@@ -30,6 +30,7 @@ assertEq(BT.db.debug, false, "debug from last session is off again (BT-024)")
 for _, line in ipairs(LOG) do assert(not line:find("loaded. Type /btf", 1, true), "login message turned off: " .. line) end
 fire("PLAYER_ENTERING_WORLD")
 fire("UNIT_COMBAT", "player", "WOUND", "", 23, 1)
+fire("PLAYER_SWING", 2.6, 0)   -- (you fight back: lines would come for that)
 do   -- The lines are kept on from login (they flow if the game loaded its filter)
     STATE.filteredEvents = false
     Advance(4)

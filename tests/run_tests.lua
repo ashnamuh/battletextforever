@@ -324,7 +324,14 @@ LOG = {}
 Advance(30)
 assertEq(#reminders(), 0, "nothing before a fight")
 assertEq(BT.startButton:IsShown(), false, "and no Start button")
+-- A fight where you only got hit (you did nothing): "My actions" has no line for that
 fire("PLAYER_REGEN_DISABLED")
+fire("PLAYER_REGEN_ENABLED")
+assertEq(#reminders(), 0, "a fight you didn't act in proves nothing: no reminder")
+assertEq(BT.startButton:IsShown(), false, "and no Start button")
+fire("PLAYER_REGEN_DISABLED")
+fire("PLAYER_SWING", 2.6, 0)   -- (you swung)
+BT.swungAt, BT.meleeAt, BT.hands, BT.swings = nil, nil, nil, nil
 assertEq(log(swing(27)), false, "the game isn't writing lines (its filter didn't load)")
 fire("PLAYER_REGEN_ENABLED")
 assertEq(#reminders(), 1, "one reminder when the fight ends")
@@ -332,6 +339,7 @@ assertEq(BT.startButton:IsShown(), true, "and the Start button shows")
 assert(reminders()[1]:find("|cffe8a040BattleText Forever|r: click", 1, true), "it comes from BattleText, with the shared chat prefix: " .. reminders()[1])
 assert(not reminders()[1]:find("press", 1, true), "no key is named when none is bound")
 fire("PLAYER_REGEN_DISABLED")
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-again", 6603)   -- (a cast counts as acting too)
 fire("PLAYER_REGEN_ENABLED")
 assertEq(#reminders(), 1, "and only the one")
 -- With a key bound to Start, the reminder names it
@@ -360,6 +368,12 @@ LOG = {}
 assertClean("after the reminder")
 
 step("start button: the combat log needs opening once")
+do   -- (the Combat Log window is ChatFrame2 before Blizzard's Combat Log code names it, too)
+    local was = COMBATLOG
+    rawset(_G, "COMBATLOG", nil)
+    assertEq(BT:CombatLogFrame(), ChatFrame2, "the Combat Log window, before COMBATLOG is set")
+    rawset(_G, "COMBATLOG", was)
+end
 local start = BT.startButton
 assertEq(start:IsShown(), true, "Start button shows after that fight")
 assertEq(BT.started, nil, "not started yet")
@@ -409,7 +423,12 @@ STATE.filterApplied = false
 BT:UpdateStartButton()
 local realTab = ChatFrame2Tab.__scripts.OnClick
 ChatFrame2Tab.__scripts.OnClick = function() end
+-- (the tab is there to see: the click reached it, so a chat addon isn't why; nothing is said)
 local said = #LOG
+ClickButton(start)
+Advance(0.5)
+assertEq(#LOG, said, "with the game's Combat Log tab in sight, no chat-addon warning")
+ChatFrame2Tab:Hide()
 ClickButton(start)
 Advance(0.5)
 assertEq(start:IsShown(), true, "the click opened nothing: the button stays")
@@ -425,6 +444,7 @@ assertEq(STATE.filterApplied, false, "without running the click's macro")
 BT:RemindStart()
 assertEq(#LOG, said, "and no reminder about it")
 ChatFrame2Tab.__scripts.OnClick = realTab
+ChatFrame2Tab:Show()
 STATE.filterApplied = wasApplied
 BT.started, BT.startHidden = true, nil
 BT:UpdateStartButton()

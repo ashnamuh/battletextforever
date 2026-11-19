@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.24.3
+
+- **No more false "couldn't open the Combat Log tab" warning.** BattleText said this after you clicked Start BattleText even with the normal chat window and its Combat Log tab right there. It now only says it when the Combat Log tab really can't be seen (a chat addon like Chattynator hiding it). BattleText also notices the Combat Log window opening even if the game hasn't fully set it up yet.
+- **The Start button stops showing up for no reason.** It came up after any fight that had no combat lines, including fights where you never attacked (a mob hit you and you ran, or someone else killed it). The game only writes lines for what you do, so those fights don't mean anything is wrong. Now the button only shows after a fight where you swung or cast and still no line came.
+
 ## 1.24.2
 
 - **Poisons are picked up as soon as you put them on.** In 1.24.1 BattleText only noticed a new poison after you swapped weapons or reloaded. It now reads your weapons a moment after you apply or refresh a poison, and it reads the poison line even with the game's coloring on it. Poison hits also show the poison's icon.
