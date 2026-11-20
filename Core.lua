@@ -2492,6 +2492,18 @@ function BT:SealFor(h, seq, first, last, at, frameOnly)
     return nil
 end
 
+-- A shield's hit partly resisted: a quarter, half or three quarters of what it hits for is
+-- taken off (a 9 lands as 7, 5 or 2 on a mob that resists Nature, like an elemental)
+local PART_RESISTS = { 0.25, 0.5, 0.75 }
+local function PartResist(n, known)
+    if not (n and known) or n < 1 or n >= known then return false end
+    for _, part in ipairs(PART_RESISTS) do
+        local left = known * (1 - part)
+        if n == math.floor(left) or n == math.ceil(left) then return true end
+    end
+    return false
+end
+
 -- A damage shield of yours (Retribution Aura, Thorns) hurting a mob that's after you: its
 -- amount is often hidden, so it can't be learned (KnownShield). The shield's hit comes with its
 -- line, the mob's blow on you trails it like a swing: a hit of the shield's school that nothing
@@ -2504,7 +2516,9 @@ function BT:ShieldOn(h)
     for name, shield in pairs(self.buffShields or {}) do
         -- (a readable amount that isn't the one it's known to hit for is something else)
         local known = self.db.shieldAmounts[name]
-        if shield.school == mask and not (h.n and known and h.n ~= known) then return shield end
+        if shield.school == mask and not (h.n and known and h.n ~= known and not PartResist(h.n, known)) then
+            return shield
+        end
     end
     return nil
 end
@@ -4141,6 +4155,10 @@ function BT:ShowUnitHit(h, what, spell, area)
         local color = (rule and rule.color) or MASK_COLORS[mask or 1]
             or ((spellName or (mask and mask ~= 1)) and C.spell) or C.melee
         local note = FLAG_NOTES[h.flag or ""]
+        -- (a shield's hit for less than it does: partly resisted, though the game doesn't say)
+        if not note and what == "shield" and spellName and PartResist(h.n, db.shieldAmounts[spellName]) then
+            note = FLAG_NOTES.RESIST
+        end
         note = note and (" |cffb0b0b0(" .. note .. ")|r") or ""
         if self:BigCrit(h.crit, h.n) and db.soundCrit then self:PlayAlert("crit") end
         local key = spell and (what .. ":" .. tostring(spell.id or spellName)) or nil

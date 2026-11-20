@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.25.1
+
+- **A partly resisted Thorns is still called Thorns.** When a mob shrugged off part of your Thorns (elementals and other mobs that resist Nature), its hit came in smaller than usual, say a 2 instead of a 9, and showed as a bare green number with no name. It now shows as "Thorns 2 (resisted)", with the icon. The same goes for Lightning Shield, Retribution Aura and Fire Shield.
+
 ## 1.25.0
 
 - **Low health and low mana warnings.** BattleText can now warn you with a big "Low health!" or "Low mana!" and a sound when you drop low, so you notice before it's too late. Turn them on in the options, Incoming tab, under Warnings, and pick a sound for each. Low health warns at 35% health: the game hides your health from addons, so BattleText goes by the game's own red screen edges, which come up at 35% (keep "flash screen at low health" on in the game's options). Low mana warns at 35% to start with, and you can move that line. Each warns once as you drop below, and again only after you've recovered, so a bit of regen won't set it off over and over. (Thanks to rroquette for asking.)
