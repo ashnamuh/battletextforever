@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.27.2
+
+- **Life Tap's mana really shows now.** It turns out the game hides your mana from addons (1.27.1's debug said "mana hidden" on every cast), so BattleText could never see it go up. It now takes the numbers from Life Tap's own description ("Converts 315 health into 315 mana") and shows "+315 Mana Life Tap" right as you cast, along with the health it cost. Remember to turn on "Power gains" on the Incoming tab. If your mana is already full you'll still see the mana line, since BattleText can't tell. (Thanks again to mtfic for testing.)
+
 ## 1.27.1
 
 - **Life Tap's mana shows now.** In 1.27.0 the health part showed but the mana never did: the mana reaches your bar a little before or after the cast, and BattleText only waited a split second for it. It now catches the mana from just before the cast up to a second and a half after, and also reads the mana bar itself while it waits, in case the game doesn't say the mana changed. With /btf debug on, it also writes down your mana around each Life Tap, so if it still goes missing a debug log will show why. (Thanks to mtfic for testing.)

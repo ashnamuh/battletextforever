@@ -3037,15 +3037,21 @@ function BT:IsLifeTap(id, name)
     return name == LIFE_TAP.name or name == SpellName(LIFE_TAP[1])
 end
 
--- The health Life Tap's description says it takes ("Converts 200 health into 200 mana."): the
--- first number in it. Only used when the mana can't say (your mana was full).
-local function LifeTapCost(id)
+-- The health and mana Life Tap's description names ("Converts 200 health into 200 mana."): its
+-- first two numbers (one number: both). Used when the mana bar can't say: it was full, or the
+-- game hides it (issue #26, 1.27.1's debug: "LIFE TAP mana hidden" on every cast).
+local function LifeTapAmounts(id)
     if not (id and C_Spell and C_Spell.GetSpellDescription) then return nil end
     local ok, text = pcall(C_Spell.GetSpellDescription, id)
     text = ok and Str(text) or nil
     if not text then return nil end
-    local digits = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match("%d[%d,%.]*")
-    return digits and tonumber((digits:gsub("[,%.]", ""))) or nil
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    local found = {}
+    for digits in text:gmatch("%d[%d,%.]*") do
+        found[#found + 1] = tonumber((digits:gsub("[,%.]", "")))
+        if #found == 2 then break end
+    end
+    return found[1], found[2] or found[1]
 end
 
 -- Your mana went up or down (UNIT_POWER_UPDATE, UNIT_POWER_FREQUENT). A rise is Life Tap's when it
@@ -3082,6 +3088,11 @@ function BT:LifeTapCast(id, name)
             .. (rise and (" (rose " .. rise.amount .. " " .. ("%.2f"):format(at - rise.at) .. "s before)") or ""))
     end
     if rise and at - rise.at <= LIFE_TAP_BEFORE then return self:ShowLifeTap(tap, rise.amount, rise.full, "before") end
+    -- The game hides your mana: the description says what it gives
+    if not now then
+        tap.hidden = true
+        return self:ShowLifeTap(tap, nil, false, "hidden")
+    end
     if not (C_Timer and C_Timer.After) then return end
     -- The mana events may not come (or not for this): the bar itself is looked at too
     local waited = 0
@@ -3119,9 +3130,10 @@ function BT:ShowLifeTap(tap, gain, full, how)
     local db, C = self.db, self.TEXT_COLORS
     local rule = self:SpellRule(tap.name)
     if rule and rule.hide then return end
+    local cost, gives = LifeTapAmounts(tap.id)
+    if tap.hidden and not gain then gain = gives end
     local hurt = gain
     if full or not hurt then
-        local cost = LifeTapCost(tap.id)
         if cost and cost > (hurt or 0) then hurt = cost end
     end
     local icon, name = self:SpellParts("in", self:IconText(tap.id), tap.name)

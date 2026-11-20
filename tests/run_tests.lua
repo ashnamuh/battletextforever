@@ -6747,14 +6747,23 @@ do
     tap()
     Advance(2)
     assertEq(table.concat(lines("incoming"), " / "), "", "no number to show")
-    -- Hidden mana: nothing to read
+    -- Hidden mana (as in game, issue #26: "LIFE TAP mana hidden" on every cast): the description
+    -- says both, right away
     mana(1000)
     Advance(1)
     STATE.manaHidden = true
+    STATE.spellDescriptions[1456] = "Converts |cffffffff315|r health into |cffffffff315|r mana."
     tap()
+    assertEq(table.concat(lines("incoming"), " / "), "-315 Life Tap / +315 Mana Life Tap",
+        "while the game hides your mana")
     mana(1200)
     Advance(2)
-    assertEq(table.concat(lines("incoming"), " / "), "", "nothing while the game hides your mana")
+    assertEq(table.concat(lines("incoming"), " / "), "-315 Life Tap / +315 Mana Life Tap", "and only once")
+    clear()
+    STATE.spellDescriptions[1456] = nil
+    tap()
+    Advance(2)
+    assertEq(table.concat(lines("incoming"), " / "), "", "hidden and no description: nothing made up")
     STATE.manaHidden = nil
     mana(1200)
     -- Power gains off (as it starts): only the health
