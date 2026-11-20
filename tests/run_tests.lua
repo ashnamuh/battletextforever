@@ -5109,11 +5109,16 @@ do
     STATE.unit.mobA.target = "pet"
     Advance(1)
     wound(31, 1)
-    assertEq(last("outgoing"), "(Fluffy/Hawk) 31", "pet and hawk both on it: both names")
+    assertEq(last("outgoing"), "(Fluffy) 31", "pet and hawk both on it: your pet's name")
     BT.db.outPet = false
     Advance(0.3)
     wound(32, 1)
-    assertEq(last("outgoing"), "(Fluffy/Hawk) 31", "\"Pet\" off hides the hawk's hits too")
+    assertEq(last("outgoing"), "(Fluffy) 31", "\"Pet\" off hides them")
+    STATE.unit.mobA.target = "me"
+    Advance(0.3)
+    wound(35, 1)
+    assertEq(last("outgoing"), "(Fluffy) 31", "and the hawk's hits too")
+    STATE.unit.mobA.target = "pet"
     BT.db.outPet = true
     -- 18s after the cast the hawk has gone
     Advance(15)

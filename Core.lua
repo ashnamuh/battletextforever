@@ -2874,12 +2874,13 @@ function BT:HawkOn(h)
 end
 
 -- Who an unnamed physical hit (or plain miss) that isn't your swing came from, as the mark in
--- front of it: your pet's name, "(Hawk) ", or both when both are on that mob (the game doesn't
--- say which hit was whose). nil: yours. icon: the Attack icon when it isn't your weapon's.
+-- front of it: your pet's name, or "(Hawk) " on a mob your hawk is on and your pet isn't (with
+-- both on it the game doesn't say which hit was whose: it's taken for your pet's).
+-- nil: yours. notYours: the Attack icon, as it isn't your weapon's.
 function BT:SwingOwner(h, hand)
     if hand ~= nil then return nil end
     if self:HawkOn(h) then
-        if PetOn(h.unit) then return "(" .. self:PetName() .. "/Hawk) " end
+        if PetOn(h.unit) then return self:PetLabel() end
         return "(Hawk) "
     end
     local whose = self:NotYourSwing(h)

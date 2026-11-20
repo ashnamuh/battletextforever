@@ -3,7 +3,7 @@
 ## 1.26.0
 
 - **Your pet's hits show its name.** Instead of "(Pet) 21" you now get "(Fluffy) 21", with whatever you named your pet. In places where the game hides names (some dungeons), BattleText keeps the name it last saw, and falls back to "(Pet)" if it never saw one.
-- **Your hawk's damage is shown on its own.** Summon Hawk's dive now shows as "Summon Hawk" with its icon, and the hawk's hits after that are marked "(Hawk)" for as long as it's out (18 seconds). The game doesn't say who landed a hit, so when your pet and your hawk are both on the same mob, their hits are marked with both, like "(Fluffy/Hawk) 31". The Pet switch on the Outgoing tab turns the hawk's hits off too. (Thanks to Tinter for asking.)
+- **Your hawk's damage is shown on its own.** Summon Hawk's dive now shows as "Summon Hawk" with its icon, and the hawk's hits after that are marked "(Hawk)" for as long as it's out (18 seconds). The game doesn't say who landed a hit, so when your pet and your hawk are both on the same mob, those hits show your pet's name. The Pet switch on the Outgoing tab turns the hawk's hits off too. (Thanks to Tinter for asking.)
 
 ## 1.25.1
 
