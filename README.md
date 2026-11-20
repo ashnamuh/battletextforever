@@ -58,7 +58,7 @@ The options have the same look as TauntMaster Forever, ToppedOff Forever and Out
 | **Notifications** | Show: combat, killing blows, experience, reputation, honor, loot, money, skill ups, seals, buffs, ability alerts, combo points, dispels, fight summary, cooldowns ready, interrupts, icons, crit sound and kill sound (each with its own pick of sound). Appearance: size, opacity, movement and scroll upward |
 | **Layout** | Which area each kind of text shows in: your hits, your misses, heals you do, damage you take, attacks you avoid, heals you get, power gains, notifications |
 | **Spells** | Type a spell's name to put it on your list, then hide it or give it its own color |
-| **Colors** | The color of your hits, spells, misses, damage you take, avoids, power gains, heals, notifications, combat and killing blows, experience, loot, seals, buffs, ability alerts, combo points and dispels; reset colors |
+| **Colors** | The color of your hits, spells, misses, damage you take, avoids, power gains, heals, notifications, combat and killing blows, experience, loot, seals, buffs, ability alerts, combo points, dispels, low health and low mana; reset colors |
 
 ### Keybindings
 
