@@ -444,7 +444,9 @@ local function BuildIncoming(p, refs)
         function(k) BT:SetAlertSound("lowHealth", k) end, PICK_TIP, function() return BT.db.warnHealth end)
     Setting(warn, "Low mana", COL2, -32, "warnMana",
         "\"Low mana!\" and a sound when your mana drops to the line below. It warns again once your mana is 10% "
-        .. "above it. Only when the game lets BattleText read your mana. Pick the sound in the list beside it.")
+        .. "above it. Pick the sound in the list beside it. If the game hides your mana from addons (it does for "
+        .. "some players), BattleText can't tell when it drops, so instead a steady \"Low mana\" shows above the "
+        .. "notifications while you're under the line, with no sound.")
     refs.lowManaDropdown = Dropdown(warn, COL2 + 118, -30, 126, SoundKeys(), SoundName, "lowManaSound",
         function(k) BT:SetAlertSound("lowMana", k) end, PICK_TIP, function() return BT.db.warnMana end)
     refs.lowHealthDropdown.menuScroll, refs.lowManaDropdown.menuScroll = 20 * 12, 20 * 12

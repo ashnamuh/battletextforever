@@ -755,6 +755,49 @@ Advance(6)
 STATE.mana, STATE.manaHidden = 100, true
 fire("UNIT_POWER_UPDATE", "player", "MANA")
 assertEq(#STATE.sounds, heard + 1, "nothing while the game hides your mana")
+-- ...but a steady "Low mana" above the notifications, shown by the game's own percent: the addon
+-- hands it a curve and gives the hidden answer straight to SetAlpha (issue #26: Forever hides it)
+local sign = BT.manaSign
+assert(sign and sign:IsShown(), "a sign while your mana is hidden")
+assertEq(sign.text:GetText(), "Low mana", "that says so")
+assert(issecretvalue(sign.__alpha), "its see-through-ness is the game's hidden answer, never read")
+assertEq(sign.__alpha.v, 1, "seen at 10% (line 35%)")
+assertEq(BT.manaLow, false, "the addon still can't tell")
+STATE.mana = 360
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(sign.__alpha.v, 0, "see-through at 36%")
+STATE.mana = 350
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(sign.__alpha.v, 1, "the line itself is low, as when it's read")
+BT.db.lowManaAt = 30
+BT:ApplyAreas()   -- (what the slider does)
+assertEq(sign.__alpha.v, 0, "a lower line moves it")
+BT.db.lowManaAt = 35
+BT:ApplyAreas()
+assertEq(sign.__alpha.v, 1, "and back")
+assertEq(#STATE.sounds, heard + 1, "no sound: the addon can't tell when to play one")
+BT.db.warnMana = false
+BT:ApplyAreas()
+assert(not sign:IsShown(), "gone with the warning off")
+BT.db.warnMana = true
+BT:ApplyAreas()
+assert(sign:IsShown(), "back with it on")
+STATE.dead = true
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assert(not sign:IsShown(), "not while dead")
+STATE.dead = false
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assert(sign:IsShown(), "back once alive")
+STATE.mana, STATE.manaHidden = 1000, nil
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assert(not sign:IsShown(), "mana the addon can read: the usual warning instead")
+STATE.manaHidden = true
+local GAME = getmetatable(_G).__index
+local keepPercent = GAME.UnitPowerPercent
+GAME.UnitPowerPercent = nil
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assert(not sign:IsShown(), "a game without the percent: nothing")
+GAME.UnitPowerPercent = keepPercent
 STATE.manaHidden = nil
 STATE.mana, STATE.manaMax = 0, 0
 fire("UNIT_POWER_UPDATE", "player", "MANA")

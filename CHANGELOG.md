@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.0
+
+- **The low mana warning works when the game hides your mana.** For some players the game won't let addons see their mana (we found this while fixing Life Tap), so "Low mana!" could never go off for them. BattleText still can't see the number, but the game lets it hand over your line and show the answer. So when your mana is hidden and you're under your "Low mana at" line, a steady blue "Low mana" now shows just above your notifications, and goes away once you're back above it. There's no sound in this case, since BattleText can't tell the moment you cross the line. If your mana can be read, nothing changes: "Low mana!" scrolls by with its sound as before. Turn it on with "Low mana" in the Warnings card on the Incoming tab.
+
 ## 1.27.2
 
 - **Life Tap's mana really shows now.** It turns out the game hides your mana from addons (1.27.1's debug said "mana hidden" on every cast), so BattleText could never see it go up. It now takes the numbers from Life Tap's own description ("Converts 315 health into 315 mana") and shows "+315 Mana Life Tap" right as you cast, along with the health it cost. Remember to turn on "Power gains" on the Incoming tab. If your mana is already full you'll still see the mana line, since BattleText can't tell. (Thanks again to mtfic for testing.)

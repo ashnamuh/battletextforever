@@ -411,7 +411,37 @@ C_CombatLog = {
     AreFilteredEventsEnabled = function() return STATE.filteredEvents end,
     ApplyFilterSettings = ApplyFilterSettings,
 }
-Enum = { CombatLogMessageOrder = { Newest = 0, Oldest = 1 }, PowerType = { Mana = 0, ComboPoints = 4 } }
+Enum = { CombatLogMessageOrder = { Newest = 0, Oldest = 1 }, PowerType = { Mana = 0, ComboPoints = 4 },
+    LuaCurveType = { Linear = 0, Step = 1 } }
+-- The game's curves (C_CurveUtil): only the step kind, as BattleText uses. A point's value holds from
+-- that point up to the next one.
+C_CurveUtil = {
+    CreateCurve = function()
+        local c = { points = {} }
+        function c:SetType(t) self.type = t end
+        function c:AddPoint(x, y)
+            self.points[#self.points + 1] = { x, y }
+            table.sort(self.points, function(p, q) return p[1] < q[1] end)
+        end
+        function c:Evaluate(x)
+            assert(self.type == Enum.LuaCurveType.Step, "only step curves in the tests")
+            local y = 0
+            for _, p in ipairs(self.points) do if x >= p[1] then y = p[2] end end
+            return y
+        end
+        return c
+    end,
+}
+-- Your power as a fraction (0 to 1), or a curve's answer for it. Hidden like UnitPower
+-- (SecretWhenUnitPowerRestricted).
+function UnitPowerPercent(unit, kind, unmodified, curve)
+    local n, most = UnitPower(unit, kind), UnitPowerMax(unit, kind)
+    local hidden = issecretvalue(n)
+    if hidden then n = n.v end
+    local v = (most or 0) > 0 and n / most or 0
+    if curve then v = curve:Evaluate(v) end
+    return hidden and Secret(v) or v
+end
 C_Spell = {
     GetSpellTexture = function(spell) return STATE.spellIcons[spell] end,
     GetSpellName = function(id) return STATE.spellNames[id] end,

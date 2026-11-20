@@ -485,6 +485,7 @@ function BT:ApplyAreas()
         a:SetPoint("CENTER", UIParent, "CENTER", pos.x, pos.y)
         a.mover:SetShown(not self.db.locked)
     end
+    if self.manaSign then self:CheckLowMana() end   -- (the line, the area or the switch may have changed)
 end
 
 function BT:SaveAreaPosition(a)
@@ -1233,6 +1234,7 @@ end
 
 function BT:CheckLowMana()
     local pct = Dead() and 100 or self:ManaPercent()
+    self:UpdateManaSign(pct == nil)
     if pct == nil then return end
     local line = self.db.lowManaAt
     local was = self.manaLow
@@ -1242,6 +1244,72 @@ function BT:CheckLowMana()
     elseif was == nil or pct >= line + MANA_BACK or pct >= 100 then
         self.manaLow = false
     end
+end
+
+-- When the game hides your mana (Forever does for some players: issue #26's debug), BattleText
+-- can't tell when it drops below the line, so no "Low mana!" line or sound can be timed. The game
+-- still lets an addon hand its hidden mana percent to a curve and show the answer: a steady
+-- "Low mana" just above the notifications, see-through above the line (UnitPowerPercent with a
+-- step curve: 1 below the line, 0 from it up, given straight to SetAlpha, never read back).
+function BT:ManaSignCurve()
+    local line = self.db.lowManaAt
+    if self.manaCurve and self.manaCurveAt == line then return self.manaCurve end
+    if not (C_CurveUtil and C_CurveUtil.CreateCurve) then return nil end
+    local ok, curve = pcall(C_CurveUtil.CreateCurve)
+    if not ok or not curve then return nil end
+    if Enum and Enum.LuaCurveType and curve.SetType then pcall(curve.SetType, curve, Enum.LuaCurveType.Step) end
+    -- (a step curve takes a point's value from that point up: the line itself still counts as low)
+    pcall(curve.AddPoint, curve, 0, 1)
+    pcall(curve.AddPoint, curve, line / 100 + 0.001, 0)
+    self.manaCurve, self.manaCurveAt = curve, line
+    return curve
+end
+
+-- hidden: the game hides your mana right now. Shows or hides the sign (nothing to show when mana
+-- can be read: then "Low mana!" scrolls by as usual).
+function BT:UpdateManaSign(hidden)
+    local sign = self.manaSign
+    local area = self.areas and self.areas[self:Area("Notify")]
+    local kind = Enum and Enum.PowerType and Enum.PowerType.Mana or 0
+    local okM, most = pcall(UnitPowerMax or function() end, "player", kind)
+    local show = hidden and area and self.db.warnMana and self.db.enabled   -- (dead: CheckLowMana says not hidden)
+        and okM and (Num(most) or 0) > 0 and UnitPowerPercent ~= nil
+    local alpha
+    if show then
+        local curve = self:ManaSignCurve()
+        local ok, a = false, nil
+        if curve then ok, a = pcall(UnitPowerPercent, "player", kind, false, curve) end
+        if ok and a ~= nil then alpha = a else show = false end
+    end
+    if not show then
+        if sign then sign:Hide() end
+        return
+    end
+    if not sign then
+        sign = CreateFrame("Frame", nil, UIParent)
+        sign:SetSize(10, 10)
+        sign:SetFrameStrata("HIGH")
+        sign.text = sign:CreateFontString(nil, "OVERLAY")
+        sign.text:SetPoint("BOTTOM", sign, "BOTTOM", 0, 0)
+        sign.text:SetText("Low mana")
+        self.manaSign = sign
+        if self.db.debug then self:Record("LOW MANA mana hidden: the sign goes by the game's own percent") end
+    end
+    if sign.area ~= area then
+        sign.area = area
+        sign:ClearAllPoints()
+        sign:SetPoint("BOTTOM", area, "TOP", 0, 6)
+    end
+    local size = math.floor(self.db.fontSize * self.db.critScale / 100 + 0.5)
+    local flags = self:OutlineFlags(true)
+    if flags == "SHADOW" then flags = "" end
+    if not sign.text:SetFont(self:FontPath(), size, flags) and STANDARD_TEXT_FONT then
+        sign.text:SetFont(STANDARD_TEXT_FONT, size, flags)
+    end
+    local c = self.TEXT_COLORS.lowMana
+    sign.text:SetTextColor(c[1], c[2], c[3])
+    sign:SetAlpha(alpha)   -- (a hidden number: only the game reads it)
+    sign:Show()
 end
 
 -- The red edges coming and going are what says your health is low, when it's hidden
