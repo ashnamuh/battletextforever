@@ -4157,7 +4157,7 @@ function BT:ShowUnitHit(h, what, spell, area)
         local note = FLAG_NOTES[h.flag or ""]
         -- (a shield's hit for less than it does: partly resisted, though the game doesn't say)
         if not note and what == "shield" and spellName and PartResist(h.n, db.shieldAmounts[spellName]) then
-            note = FLAG_NOTES.RESIST
+            note = Commas(db.shieldAmounts[spellName] - h.n) .. " resisted"
         end
         note = note and (" |cffb0b0b0(" .. note .. ")|r") or ""
         if self:BigCrit(h.crit, h.n) and db.soundCrit then self:PlayAlert("crit") end

@@ -2,7 +2,7 @@
 
 ## 1.25.1
 
-- **A partly resisted Thorns is still called Thorns.** When a mob shrugged off part of your Thorns (elementals and other mobs that resist Nature), its hit came in smaller than usual, say a 2 instead of a 9, and showed as a bare green number with no name. It now shows as "Thorns 2 (resisted)", with the icon. The same goes for Lightning Shield, Retribution Aura and Fire Shield.
+- **A partly resisted Thorns is still called Thorns.** When a mob shrugged off part of your Thorns (elementals and other mobs that resist Nature), its hit came in smaller than usual, say a 2 instead of a 9, and showed as a bare green number with no name. It now shows as "Thorns 2 (7 resisted)", with the icon: what landed, and how much the mob shrugged off. The same goes for Lightning Shield, Retribution Aura and Fire Shield.
 
 ## 1.25.0
 
