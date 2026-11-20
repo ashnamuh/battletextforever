@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.27.0
+
+- **Life Tap shows what it costs and what it gives.** When a warlock casts Life Tap, you now see the health it took on the incoming side ("-200 Life Tap") and the mana it gave as a power gain ("+200 Mana Life Tap"), both with its icon. The game doesn't report Life Tap in the combat log at all, so BattleText reads the mana off your mana bar as you cast it. The game hides your health from addons, so the health shown is the same as the mana gained (Life Tap trades them one for one). If your mana was already full or close to it, the health comes from the spell's own description instead. The mana line follows the "Power gains" switch on the Incoming tab, which starts off, so turn it on to see it. (Thanks to mtfic for asking.)
+
 ## 1.26.1
 
 - **Gear that hits back is named beside Thorns.** With Thorns up and a ring like the Spiked Shell Band ("When struck in combat, inflicts 2 Nature damage to the attacker"), every blow on you is answered twice, both in Nature. BattleText named only one of them Thorns and showed the ring's 2 as a bare green number. Now each blow names both: "Thorns 9" and "Spiked Shell Band 2", with the ring's icon. This works for any shield buff (Thorns, Lightning Shield, Retribution Aura, Fire Shield) together with any gear that stings back.

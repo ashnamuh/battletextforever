@@ -6645,5 +6645,95 @@ do
     clear()
 end
 
+---------------------------------------------------------------------------
+step("Life Tap: the health it costs and the mana it gives (issue #26)")
+do
+    -- The game sends only the cast: no combat log line, no UNIT_COMBAT. The mana is read off the bar.
+    local function tap(id) fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-lt", id or 1456) end
+    local function mana(n) STATE.mana = n fire("UNIT_POWER_UPDATE", "player", "MANA") end
+    STATE.spellNames[1456], STATE.spellNames[11689] = "Life Tap", "Life Tap"
+    STATE.mana, STATE.manaMax = 500, 2000
+    fire("UNIT_POWER_UPDATE", "player", "MANA")
+    local powerWas = BT.db.inPower
+    BT.db.inPower = true
+    clear()
+    Advance(1)
+    tap()
+    mana(700)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap / +200 Mana Life Tap",
+        "the mana it gave, and the same in health")
+    clear()
+    -- The mana can come in just before the cast's event, in the same frame
+    Advance(1)
+    mana(900)
+    tap(11689)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap / +200 Mana Life Tap", "either way round")
+    clear()
+    -- Or a moment after
+    Advance(1)
+    tap()
+    Advance(0.2)
+    mana(1100)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap / +200 Mana Life Tap", "a frame or two late")
+    clear()
+    -- Regen and drinking aren't Life Tap
+    Advance(1)
+    mana(1150)
+    Advance(1)
+    tap()
+    Advance(1)
+    mana(1200)
+    assertEq(table.concat(lines("incoming"), " / "), "", "mana long before or after it isn't its")
+    clear()
+    -- Mana nearly full: the gain is cut short, so the health is the description's number
+    STATE.spellDescriptions[1456] = "Converts 200 health into 200 mana."
+    mana(1900)
+    Advance(1)
+    tap()
+    mana(2000)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap / +100 Mana Life Tap", "capped at full mana")
+    clear()
+    -- Already full: no mana, but the health still went
+    Advance(1)
+    tap()
+    Advance(1)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap", "full mana: only the health")
+    clear()
+    -- ...and with no description to read, nothing is made up
+    STATE.spellDescriptions[1456] = nil
+    tap()
+    Advance(1)
+    assertEq(table.concat(lines("incoming"), " / "), "", "no number to show")
+    -- Hidden mana: nothing to read
+    mana(1000)
+    Advance(1)
+    STATE.manaHidden = true
+    tap()
+    mana(1200)
+    Advance(1)
+    assertEq(table.concat(lines("incoming"), " / "), "", "nothing while the game hides your mana")
+    STATE.manaHidden = nil
+    mana(1200)
+    -- Power gains off (as it starts): only the health
+    BT.db.inPower = false
+    Advance(1)
+    tap()
+    mana(1400)
+    assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap", "the mana follows Power gains")
+    clear()
+    -- If the game does send its own line for the mana, that one shows instead
+    BT.db.inPower = true
+    Advance(1)
+    tap()
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 200, 0)
+    mana(1600)
+    assertEq(table.concat(lines("incoming"), " / "), "+200 / -200 Life Tap", "not twice")
+    BT.db.inPower = powerWas
+    STATE.spellNames[1456], STATE.spellNames[11689] = nil, nil
+    STATE.mana, STATE.manaMax = 1000, 1000
+    fire("UNIT_POWER_UPDATE", "player", "MANA")
+    clear()
+end
+
 assertClean("by the end")
 print("ALL TESTS PASSED")

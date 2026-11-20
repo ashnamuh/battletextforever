@@ -1360,6 +1360,7 @@ function BT:ShowCombat(info)
         if not info.amount then return false end
         if info.toMe then
             self:NoteLogIncoming("power")
+            self:LifeTapLogged()
             if db.inPower then
                 self:Emit(self:Area("InPower"), "+" .. Commas(info.amount) .. (info.unit and (" " .. info.unit) or ""), C.power)
             end
@@ -1573,6 +1574,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
         end
         if C_Timer and C_Timer.After then C_Timer.After(0.25, show) else show() end
     elseif action == "ENERGIZE" then
+        self:LifeTapLogged()
         if self:LogCovers("power") or not db.inPower then return end
         local power = PowerName()
         power = power and (" " .. power) or ""
@@ -1761,6 +1763,10 @@ local FRIEND_HEAL_TIME = 0.5   -- seconds after your cast on a friend that its h
 local LIGHTS_VIGIL = { 1310911, 1311590, 1311595, name = "Light's Vigil" }
 local VIGIL_LASTS = 30    -- seconds the Vigil waits on its friend for your Holy Shock
 local VIGIL_TIME = 0.5    -- seconds after the Holy Shock that the party's heals land
+-- Life Tap (warlock): health into mana. The game says nothing of it but the cast (issue #26: no
+-- combat log line, no UNIT_COMBAT), so the mana is read off your mana bar (LifeTapCast).
+local LIFE_TAP = { 1454, 1455, 1456, 11687, 11688, 11689, name = "Life Tap" }
+local LIFE_TAP_TIME = 0.5   -- seconds after the cast that its mana may come in
 
 local function SpellName(id)
     if not (C_Spell and C_Spell.GetSpellName) then return nil end
@@ -3013,6 +3019,94 @@ function BT:ClaimHit(now, h)
     return false
 end
 
+-- Your mana as it is, and the most you can have (nil when hidden)
+local function ManaNow()
+    local kind = Enum and Enum.PowerType and Enum.PowerType.Mana or 0
+    local okN, n = pcall(UnitPower, "player", kind)
+    local okM, most = pcall(UnitPowerMax, "player", kind)
+    return okN and Num(n) or nil, okM and Num(most) or nil
+end
+
+function BT:IsLifeTap(id, name)
+    for _, tapId in ipairs(LIFE_TAP) do
+        if id == tapId then return true end
+    end
+    if not name then return false end
+    return name == LIFE_TAP.name or name == SpellName(LIFE_TAP[1])
+end
+
+-- The health Life Tap's description says it takes ("Converts 200 health into 200 mana."): the
+-- first number in it. Only used when the mana can't say (your mana was full).
+local function LifeTapCost(id)
+    if not (id and C_Spell and C_Spell.GetSpellDescription) then return nil end
+    local ok, text = pcall(C_Spell.GetSpellDescription, id)
+    text = ok and Str(text) or nil
+    if not text then return nil end
+    local digits = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match("%d[%d,%.]*")
+    return digits and tonumber((digits:gsub("[,%.]", ""))) or nil
+end
+
+-- Your mana went up or down (UNIT_POWER_UPDATE). A rise is Life Tap's when it comes with the cast,
+-- in its frame (before or after the cast's event) or up to LIFE_TAP_TIME after it.
+function BT:OnMana()
+    local n, most = ManaNow()
+    local was = self.manaSeen
+    self.manaSeen = n
+    if not n or not was or n <= was then return end
+    local at = GetTime()
+    local full = most ~= nil and n >= most
+    local tap = self.lifeTap
+    if tap and not tap.done and at - tap.at <= LIFE_TAP_TIME then
+        self:ShowLifeTap(tap, n - was, full)
+    else
+        self.manaRise = { at = at, amount = n - was, full = full }
+    end
+end
+
+function BT:LifeTapCast(id, name)
+    local at = GetTime()
+    local tap = { id = id, name = name, at = at }
+    self.lifeTap = tap
+    local rise = self.manaRise
+    self.manaRise = nil
+    if rise and at - rise.at <= 0.01 then return self:ShowLifeTap(tap, rise.amount, rise.full) end
+    -- No mana came in (it was full already, or it's hidden): the health still went
+    local function late() if not tap.done then BT:ShowLifeTap(tap, nil, true) end end
+    if C_Timer and C_Timer.After then C_Timer.After(LIFE_TAP_TIME, late) end
+end
+
+-- A line from the game for the mana (if it ever sends one) shows it instead
+function BT:LifeTapLogged()
+    local tap = self.lifeTap
+    if tap and not tap.done and GetTime() - tap.at <= LIFE_TAP_TIME then tap.logged = true end
+end
+
+-- "-200 Life Tap" on the incoming side and "+200 Mana Life Tap" as a power gain. Your health is
+-- hidden on Forever, so what it cost is taken to be the mana it gave (1:1). With your mana full,
+-- the gain is cut short (or nothing), so the description's number is used if it's more.
+function BT:ShowLifeTap(tap, gain, full)
+    tap.done = true
+    if self.lifeTap == tap then self.lifeTap = nil end
+    local db, C = self.db, self.TEXT_COLORS
+    local rule = self:SpellRule(tap.name)
+    if rule and rule.hide then return end
+    local hurt = gain
+    if full or not hurt then
+        local cost = LifeTapCost(tap.id)
+        if cost and cost > (hurt or 0) then hurt = cost end
+    end
+    local icon, name = self:SpellParts("in", self:IconText(tap.id), tap.name)
+    local after = SpellAfter(icon, name)
+    if hurt and hurt > 0 and db.inDamage then
+        self:Emit(self:Area("InDamage"), "-" .. Commas(hurt) .. after, (rule and rule.color) or C.inDamage,
+            { amount = hurt })
+    end
+    if gain and gain > 0 and db.inPower and not tap.logged then
+        local mana = Str(_G.MANA) or "Mana"
+        self:Emit(self:Area("InPower"), "+" .. Commas(gain) .. " " .. mana .. after, C.power)
+    end
+end
+
 -- Your own casts. A hit in the very frame a cast finishes is that spell (an
 -- instant attack, a spell with no travel time). A cast of a damage-over-time
 -- spell is remembered against your target, to name its ticks later.
@@ -3022,6 +3116,7 @@ function BT:OnSpellcast(spellId)
     if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
     self:Queue({ cast = true, id = id, name = name })
     self.actedInFight = true
+    if self:IsLifeTap(id, name) then self:LifeTapCast(id, name) end
     if not name then return end
     local periodic, shields = self:SpellLists()
     -- A spell that flies is on its way to your target: its hit comes later (FlightFor)
@@ -4545,6 +4640,7 @@ function BT:CheckGameData()
     for _, id in ipairs(TOUCH_OF_THE_GRAVE) do spell(id, TOUCH_OF_THE_GRAVE.name, "racial") end
     for _, e in ipairs(HEAL_OR_HARM) do spell(e[1], e[2], "heal or harm") end
     for _, id in ipairs(LIGHTS_VIGIL) do spell(id, LIGHTS_VIGIL.name, "party heal") end
+    for _, id in ipairs(LIFE_TAP) do spell(id, LIFE_TAP.name, "health into mana") end
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
     line(Str(SKILL_RANK_UP) ~= nil, "text SKILL_RANK_UP: " .. tostring(Str(SKILL_RANK_UP)))
@@ -5472,7 +5568,10 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "UNIT_POWER_UPDATE" then
         local kind = Str(a2)
         if kind == "COMBO_POINTS" then BT:OnComboPoints()
-        elseif kind == "MANA" then BT:CheckLowMana() end
+        elseif kind == "MANA" then
+            BT:OnMana()
+            BT:CheckLowMana()
+        end
     elseif event == "PLAYER_REGEN_DISABLED" then
         BT:ScanShield()      -- last look at your buffs and gear before the fight hides them
         BT:ScanItemShields()
@@ -5509,6 +5608,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnXP()
         BT:CheckLowHealth()
         BT:CheckLowMana()
+        BT.manaSeen = ManaNow()
     elseif event == "PLAYER_XP_UPDATE" then
         BT:OnXP()
     elseif event == "CHAT_MSG_LOOT" then
