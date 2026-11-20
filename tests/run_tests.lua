@@ -2413,28 +2413,6 @@ Advance(0.5)
 blow()
 Advance(1)
 assertEq(last("outgoing"), "<secret fmt>", "not a hit of another school than your shields'")
--- A shield's hit partly resisted (Tyler: a bare "2" beside "Thorns 9" on water elementals):
--- a quarter, half or three quarters taken off is still the shield's, and says so
-clear()
-Advance(1)
-wound(6, 8)
-Advance(0.6)
-blow()
-Advance(1)
-assertEq(last("outgoing"), "Lightning Shield 6 |cffb0b0b0(7 resisted)|r", "half of 13 resisted: still the shield's")
-clear()
-Advance(1)
-blow()
-Advance(0.2)
-wound(2, 8)
-assertEq(last("outgoing"), "Thorns 2 |cffb0b0b0(1 resisted)|r", "three quarters of 3 resisted, a blow just before: named at once")
-clear()
-Advance(1)
-wound(5, 8)
-Advance(0.6)
-blow()
-Advance(1)
-assertEq(last("outgoing"), "5", "an amount no resist of a known shield leaves: just a hit")
 -- Two damage shields answer one blow (a CurseForge comment: a paladin with Retribution Aura
 -- and a druid's Thorns; one blow named only one of them, and the other showed unnamed, even
 -- with "Damage shields" off)
@@ -2475,6 +2453,47 @@ do
     table.sort(named)
     assertEq(table.concat(named, " / "), "nothing came for it: shown / shield of Thorns",
         "the same shield twice for one blow: the second isn't its answer")
+    -- Thorns and a ring that stings back, both Nature, both hidden (Tyler's debug log, 1.25.1:
+    -- every blow had two Nature hits; the Spiked Shell Band's 2 showed unnamed beside Thorns)
+    STATE.buffs = { { name = "Thorns", spellId = 782 } }
+    fire("PLAYER_REGEN_ENABLED")
+    STATE.equipped[11] = { name = "Spiked Shell Band", icon = 133345,
+        lines = { "Equip: When struck in combat, inflicts 2 Nature damage to the attacker." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 11, true)
+    local function shieldsNamed()
+        local list = {}
+        for _, r in ipairs(BT.recorded) do
+            local what = r:match(": (shield of .+)$") or r:match(": (nothing came for it: shown)$")
+            if what then list[#list + 1] = what end
+        end
+        return table.concat(list, " / ")
+    end
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(9), 8) wound(Secret(2), 8)
+    Advance(0.6) blow() Advance(1.5)
+    assertEq(shieldsNamed(), "shield of Thorns / shield of Spiked Shell Band", "the blow names both: Thorns, then the ring")
+    -- the blow just before: the same
+    BT.recorded = {}
+    Advance(2)
+    blow() Advance(0.1)
+    wound(Secret(9), 8) wound(Secret(2), 8)
+    Advance(1.5)
+    assertEq(shieldsNamed(), "shield of Thorns / shield of Spiked Shell Band", "a blow just before names both too")
+    -- a readable 2 is the ring's, whichever comes first
+    BT.db.shieldAmounts = { Thorns = 9 }
+    BT.recorded = {}
+    Advance(2)
+    wound(2, 8) wound(9, 8)
+    Advance(0.6) blow() Advance(1.5)
+    local shown = table.concat(lines("outgoing"), " / ")
+    assert(shown:find("Spiked Shell Band 2", 1, true) and shown:find("Thorns 9", 1, true), "readable: each by its amount (" .. shown .. ")")
+    STATE.equipped[11] = nil
+    fire("PLAYER_EQUIPMENT_CHANGED", 11, false)
+    BT.db.shieldAmounts = {}
+    STATE.buffs = { { name = "Thorns", spellId = 782 }, { name = "Retribution Aura", spellId = 10301 } }
+    fire("PLAYER_REGEN_ENABLED")
+    clear()
 
     -- Unsealed Wrath (Forever's Retribution talent; same comment's author: it showed no damage).
     -- A Holy hit with your swing, no seal that hurts on you, is the talent's, not Retribution

@@ -2523,33 +2523,42 @@ function BT:SealFor(h, seq, first, last, at, frameOnly)
     return nil
 end
 
--- A shield's hit partly resisted: a quarter, half or three quarters of what it hits for is
--- taken off (a 9 lands as 7, 5 or 2 on a mob that resists Nature, like an elemental)
-local PART_RESISTS = { 0.25, 0.5, 0.75 }
-local function PartResist(n, known)
-    if not (n and known) or n < 1 or n >= known then return false end
-    for _, part in ipairs(PART_RESISTS) do
-        local left = known * (1 - part)
-        if n == math.floor(left) or n == math.ceil(left) then return true end
-    end
-    return false
-end
-
 -- A damage shield of yours (Retribution Aura, Thorns) hurting a mob that's after you: its
 -- amount is often hidden, so it can't be learned (KnownShield). The shield's hit comes with its
 -- line, the mob's blow on you trails it like a swing: a hit of the shield's school that nothing
 -- named, on a mob after you, is the shield's when a blow lands on you just before or soon after.
-function BT:ShieldOn(h)
+-- Gear that stings back counts too (Tyler, 1.25.1: Thorns and a Spiked Shell Band, both Nature,
+-- both hidden; the band's 2 showed unnamed beside "Thorns 9"). ShieldsOn: every shield the hit
+-- can be, buffs first (the game sends the buff's answer first: real_fight3.txt, Thorns then
+-- Sporid Cape), so each one a blow answers names one hit.
+function BT:ShieldsOn(h)
     if h.kind ~= "damage" then return nil end   -- (with "Damage shields" off it's still named, then hidden)
     local mask = Num(h.school)
     if not mask or mask == 1 then return nil end
     if not TargetsYou(h.unit) then return nil end
-    for name, shield in pairs(self.buffShields or {}) do
+    local list = {}
+    local names = {}
+    for name in pairs(self.buffShields or {}) do names[#names + 1] = name end
+    table.sort(names)   -- (always the same order)
+    for _, name in ipairs(names) do
+        local shield = self.buffShields[name]
         -- (a readable amount that isn't the one it's known to hit for is something else)
         local known = self.db.shieldAmounts[name]
-        if shield.school == mask and not (h.n and known and h.n ~= known and not PartResist(h.n, known)) then
-            return shield
-        end
+        if shield.school == mask and not (h.n and known and h.n ~= known) then list[#list + 1] = shield end
+    end
+    for _, item in ipairs(self.itemShields or {}) do
+        if item.school == mask and not (h.n and item.amount and h.n ~= item.amount) then list[#list + 1] = item end
+    end
+    return list[1] and list or nil
+end
+function BT:ShieldOn(h)
+    local list = self:ShieldsOn(h)
+    return list and list[1] or nil
+end
+-- The first of a hit's shields that this blow hasn't had an answer from yet
+local function Unanswered(shields, answered)
+    for _, s in ipairs(shields or {}) do
+        if not answered[s.name] then return s end
     end
     return nil
 end
@@ -2558,10 +2567,17 @@ end
 -- you): held up to SEAL_SWING_TIME, then shown as it is. Returns true if it's held.
 function BT:WaitForSwing(h)
     local seal = h.key and self:SealOn(h)
-    local shield = self:ShieldOn(h)
+    local shields = self:ShieldsOn(h)
+    local shield = shields and shields[1]
     local every = h.key and not seal and not h.everyUnsure and self:EveryOn(h)
     if shield and not seal and not every and self.lastBlow and h.time - self.lastBlow >= 0
             and h.time - self.lastBlow <= SEAL_AFTER_SWING then
+        -- (the blow just before: each of its shields names one hit)
+        if self.blowAnswered == nil or self.blowAnswered.at ~= self.lastBlow then
+            self.blowAnswered = { at = self.lastBlow, names = {} }
+        end
+        shield = Unanswered(shields, self.blowAnswered.names) or shield
+        self.blowAnswered.names[shield.name] = true
         local why = self:ShowUnitHit(h, "shield", shield)
         if self.db.debug then
             self:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or ("shield of " .. shield.name)), h.time)
@@ -2570,7 +2586,8 @@ function BT:WaitForSwing(h)
     end
     if not seal and not shield and not every then return false end
     self.sealWait = self.sealWait or {}
-    local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield, every = every or nil }
+    local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield, shields = shields,
+        every = every or nil }
     table.insert(self.sealWait, entry)
     local function over()
         for i, e in ipairs(BT.sealWait or {}) do
@@ -2606,8 +2623,8 @@ function BT:Resolved(key, at)
                 what, spell = "seal", e.seal
             elseif key and e.every and e.h.key == key then
                 what, spell = "proc", e.every   -- (gear that adds to every hit: its amount is known)
-            elseif not key and e.shield and not answered[e.shield.name] then
-                what, spell = "shield", e.shield
+            elseif not key and e.shield and Unanswered(e.shields, answered) then
+                what, spell = "shield", Unanswered(e.shields, answered)
             end
         end
         if what then
@@ -4224,10 +4241,6 @@ function BT:ShowUnitHit(h, what, spell, area)
         local color = (rule and rule.color) or MASK_COLORS[mask or 1]
             or ((spellName or (mask and mask ~= 1)) and C.spell) or C.melee
         local note = FLAG_NOTES[h.flag or ""]
-        -- (a shield's hit for less than it does: partly resisted, though the game doesn't say)
-        if not note and what == "shield" and spellName and PartResist(h.n, db.shieldAmounts[spellName]) then
-            note = Commas(db.shieldAmounts[spellName] - h.n) .. " resisted"
-        end
         note = note and (" |cffb0b0b0(" .. note .. ")|r") or ""
         if self:BigCrit(h.crit, h.n) and db.soundCrit then self:PlayAlert("crit") end
         local key = spell and (what .. ":" .. tostring(spell.id or spellName)) or nil

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.26.1
+
+- **Gear that hits back is named beside Thorns.** With Thorns up and a ring like the Spiked Shell Band ("When struck in combat, inflicts 2 Nature damage to the attacker"), every blow on you is answered twice, both in Nature. BattleText named only one of them Thorns and showed the ring's 2 as a bare green number. Now each blow names both: "Thorns 9" and "Spiked Shell Band 2", with the ring's icon. This works for any shield buff (Thorns, Lightning Shield, Retribution Aura, Fire Shield) together with any gear that stings back.
+- **1.25.1's "resisted" Thorns is undone.** That 2 was never a resisted Thorns, it was the ring, so it no longer shows as "Thorns 2 (7 resisted)".
+
 ## 1.26.0
 
 - **Your pet's hits show its name.** Instead of "(Pet) 21" you now get "(Fluffy) 21", with whatever you named your pet. In places where the game hides names (some dungeons), BattleText keeps the name it last saw, and falls back to "(Pet)" if it never saw one.
