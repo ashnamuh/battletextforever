@@ -3884,6 +3884,53 @@ STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
 STATE.unit.mobB, STATE.unit.mobC = nil, nil
 freshFight()
 
+step("a spell on its way makes its mob yours: the opener of a pull, and the overkill")
+STATE.spellNames[1326079] = "Arcane Wrath"
+STATE.group = false
+STATE.unit.mobB = { enemy = true, guid = "Creature-0-1-2-3-100-00000B" }   -- not after you yet
+STATE.unit.mobC = { enemy = true, guid = "Creature-0-1-2-3-100-00000C" }
+STATE.who.target, STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = "mobB", "mobA", "mobB", "mobC"
+freshFight()
+BT.fought, BT.flying = nil, nil
+SetIcons(false)
+-- Cast to open the pull, then on to the next mob before it lands: the mob isn't after you
+-- yet and isn't your target
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-aw1", 1326079)
+STATE.who.target = "mobA"
+Advance(0.9)
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 900, 64)
+assertEq(last("outgoing"), "Arcane Wrath 900", "the opener lands on a mob that isn't after you yet")
+-- It kills the mob: dead, no target, and not yours the moment it lands
+clear()
+STATE.who.target = "mobC"
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-aw2", 1326079)
+STATE.unit.mobC.dead = true
+STATE.who.target = nil
+Advance(1.0)
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 1500, 64)
+assertEq(last("outgoing"), "Arcane Wrath 1,500", "the overkill on a mob it killed still shows")
+-- Only a hit of its school, while it can still be on its way
+clear()
+STATE.unit.mobC.dead = nil
+STATE.who.target = "mobC"
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-aw3", 1326079)
+STATE.who.target = nil
+Advance(0.5)
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 40, 4)
+assertEq(#lines("outgoing"), 0, "a fire hit on that mob isn't yours")
+Advance(2.2)
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 41, 64)
+assertEq(#lines("outgoing"), 0, "nor an arcane hit long after the cast")
+-- And when it needs no time to land, the hit in the cast's own frame is it
+STATE.who.target = "mobA"
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-aw4", 1326079)
+fire("UNIT_COMBAT", "target", "WOUND", "", 950, 64)
+assertEq(last("outgoing"), "Arcane Wrath 950", "in its cast's frame")
+STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
+STATE.unit.mobB, STATE.unit.mobC = nil, nil
+BT.flying = nil
+freshFight()
+
 step("a paladin's seals")
 STATE.spellNames[21084], STATE.spellNames[20375], STATE.spellNames[20271] = "Seal of Righteousness", "Seal of Command", "Judgement"
 STATE.spellIcons[21084] = 132325

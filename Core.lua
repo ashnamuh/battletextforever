@@ -1548,6 +1548,7 @@ local FLIGHT_SPELLS = {
     { 5176, "Wrath", 8 }, { 2912, "Starfire", 64 },
     { 403, "Lightning Bolt", 8 }, { 421, "Chain Lightning", 8 },
     { 24275, "Hammer of Wrath", 2 }, { 3044, "Arcane Shot", 64 },
+    { 1326079, "Arcane Wrath", 64 },   -- Forever's own (an Arcane mage's long-cast nuke)
 }
 local FLIGHT_TIME = 2.5   -- the longest a spell can be on its way (about 40 yards)
 -- Your ranged attacks, by spell ID (wands and bows both cast "Shoot"): { English name, school }.
@@ -2620,6 +2621,21 @@ local function FlightSchool(f, mask)
     if mask == nil then return false end
     if f.wand then return mask ~= 1 end
     return mask == f.school
+end
+
+-- A spell of yours on its way to this unit, of the hit's school: the unit is in your fight even
+-- before it has turned on you (a nuke cast to open the pull) and once it's dead or has dropped its
+-- target (the overkill of a big nuke: the mob dies from it). Without this, both were "not your
+-- fight" and the hit never showed (CurseForge, 1.24.4: Arcane Wrath).
+function BT:FlightOn(unit, now, school)
+    local list = self.flying
+    if not list or #list == 0 then return false end
+    local key, mask = UnitKey(unit), Num(school)
+    if not key then return false end
+    for _, f in ipairs(list) do
+        if f.key == key and now >= f.at and now - f.at <= FLIGHT_TIME and FlightSchool(f, mask) then return true end
+    end
+    return false
 end
 
 -- Forms that fight with claws, not the weapon: their own icon goes on your swings
@@ -4118,11 +4134,12 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
         why = "someone else's mob"
     elseif healing and not grouped and not myPet and not Flag(UnitIsUnit, unit, "target") then
         why = "not your target"
-    elseif not healing and not Fighting(unit) and kind ~= "damage" then
+    elseif not healing and not Fighting(unit) and kind ~= "damage" and not self:FlightOn(unit, now, school) then
         why = "not your fight"
     elseif not self:FirstSight(unit, now) then
         why = "same hit, under another name"
-    elseif not healing and not Fighting(unit) and not self:Finishing(unit, now) then
+    elseif not healing and not Fighting(unit) and not self:Finishing(unit, now)
+            and not self:FlightOn(unit, now, school) then
         -- Damage on a mob that isn't after you or your pet: yours only if it lands with a
         -- hit of yours on one that is, of the same school (an area spell hits them all at once)
         splash = true

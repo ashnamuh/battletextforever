@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.24.5
+
+- **Arcane Wrath shows its name and icon.** BattleText didn't know Arcane Wrath, so its hit showed as a plain number with no name. It's now known as an Arcane spell that lands a moment after the cast, like Fireball and Frostbolt, so its hit is named after it.
+- **A spell that opens the pull or kills the mob still shows.** When a spell of yours was on its way to a mob that wasn't after you yet (casting to open a pull), or the mob died from it (the overkill hit), BattleText thought it wasn't your fight and dropped the hit. A hit of the right school on the mob your spell was cast at now counts as yours while the spell can still be on its way. This helps Fireball, Frostbolt, Shadow Bolt, Wrath and the other spells that fly too. (Thanks to xnmd for the report.)
+
 ## 1.24.4
 
 - **"Hide hits below" really hides Cursed Murloc Eye's 2 damage now.** Since BattleText started turning the combat lines on by itself (1.23.0), the Eye's hit usually arrives a moment before your swing's hit, not with it. BattleText only looked for your swing alongside or just before the Eye's hit, so it never knew it was the Eye's and always showed it. Now it waits a moment for your swing, then names it after the trinket and hides it if it's below your setting.
