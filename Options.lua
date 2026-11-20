@@ -391,7 +391,7 @@ local function BuildOutgoing(p)
         .. "spells and abilities. Without the game's combat "
         .. "lines, a physical hit BattleText can't name counts as a swing.", Either("outDamage", "outMisses"))
     Setting(card, "Pet", COL2, -56, "outPet",
-        "Your pet's hits and heals, marked (Pet). This only works when the game lets BattleText read its combat "
+        "Your pet's hits and heals, marked with its name, and a hunter's hawks (Summon Hawk), marked (Hawk). This only works when the game lets BattleText read its combat "
         .. "lines; when it doesn't, your pet's hits can't be told from yours and show with them.")
     Setting(card, "Damage shields", 12, -82, "outShields",
         "What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura "

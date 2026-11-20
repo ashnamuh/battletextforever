@@ -967,6 +967,28 @@ function BT:SpellParts(section, icon, name)
     return db[section .. "Icons"] and icon or "", db[section .. "Names"] and name or nil
 end
 
+-- Your pet's name, to mark its hits with ("Pet" when it can't be read). UnitName is
+-- SecretWhenUnitNameIdentityRestricted on Forever, so the last name read is kept for the same
+-- pet (Tinter on CurseForge: "add your pet's name instead of just (Pet)").
+function BT:PetName()
+    local okName, name = pcall(UnitName, "pet")
+    name = okName and Str(name) or nil
+    local okGuid, guid = pcall(UnitGUID, "pet")
+    guid = okGuid and Str(guid) or nil
+    if name and name ~= "" and name ~= UNKNOWNOBJECT then
+        self.petName = { name = name, guid = guid }
+        return name
+    end
+    local kept = self.petName
+    if kept and (not guid or not kept.guid or kept.guid == guid) then return kept.name end
+    return "Pet"
+end
+
+-- The mark in front of your pet's hits: "(Fluffy) "
+function BT:PetLabel()
+    return "(" .. self:PetName() .. ") "
+end
+
 -- Your pet's line: the one who did it is your pet (the line's link says who)
 function BT:IsPetLine(info)
     if info.fromMe or not info.srcGUID or not UnitGUID then return false end
@@ -1241,7 +1263,8 @@ function BT:ShowCombat(info)
     local icon, name = self:SpellParts(section, spellIcon, info.spell)
     local mine = info.fromMe == true
     local pet = not mine and self:IsPetLine(info)
-    local outLabel = icon .. (name and (name .. " ") or "") .. (pet and "(Pet) " or "")
+    local petTag = pet and self:PetLabel() or ""
+    local outLabel = icon .. (name and (name .. " ") or "") .. petTag
 
     if info.kind == "damage" then
         if not info.amount then return false end
@@ -1256,7 +1279,7 @@ function BT:ShowCombat(info)
             return true
         elseif (mine or pet) and not info.split then
             self:CountFight("damage", info.amount)
-            self:CountSpell((pet and "(Pet) " or "") .. (info.spell or "Auto attack"), info.amount, info.crit, false,
+            self:CountSpell(petTag .. (info.spell or "Auto attack"), info.amount, info.crit, false,
                 spellIcon)
             if pet and not db.outPet then return true end
             if mine and (info.melee or self:IsRangedName(info.spell)) and not db.outSwings then return true end
@@ -1304,7 +1327,7 @@ function BT:ShowCombat(info)
             return true
         elseif mine or pet then
             self:CountFight("heal", info.amount)
-            self:CountSpell((pet and "(Pet) " or "") .. (info.spell or "Unnamed heal"), info.amount, info.crit, true,
+            self:CountSpell(petTag .. (info.spell or "Unnamed heal"), info.amount, info.crit, true,
                 spellIcon)
             if pet and not db.outPet then return true end
             if rule and rule.hide then return true end
@@ -1651,6 +1674,13 @@ local FLIGHT_SPELLS = {
     { 1326079, "Arcane Wrath", 64 },   -- Forever's own (an Arcane mage's long-cast nuke)
 }
 local FLIGHT_TIME = 2.5   -- the longest a spell can be on its way (about 40 yards)
+-- Forever's Summon Hawk (Beast Mastery talent, 1.60.1; every rank has this name): a hawk dives at
+-- your target (a physical hit, named like a spell that flies), then keeps attacking it for
+-- HAWK_TIME seconds; two can be out at once. Its hits come with no name: on that mob, an
+-- unnamed physical hit that isn't your swing is marked (Hawk) (Tinter on CurseForge).
+local HAWK_SPELL = { 1293241, "Summon Hawk" }
+local HAWK_TIME = 18
+local HAWK_MOST = 2
 -- Your ranged attacks, by spell ID (wands and bows both cast "Shoot"): { English name, school }.
 -- No school: a wand's, which is its own (any but physical). They fly like spells and count as
 -- auto attacks (the "Auto attacks" switch hides them too).
@@ -1763,6 +1793,7 @@ function BT:SpellLists()
     for _, e in ipairs(FLIGHT_SPELLS) do
         for _, name in ipairs(names(e)) do self.flights[name] = { school = e[3], period = e[4] } end
     end
+    for _, name in ipairs(names(HAWK_SPELL)) do self.flights[name] = { school = 1, hawk = true } end
     self.thrownItems = {}
     for _, e in ipairs(THROWN_ITEMS) do
         for _, name in ipairs(names(e)) do self.thrownItems[name] = { school = e[3] } end
@@ -2259,7 +2290,7 @@ function BT:OnInterrupted(unit, castGUID, spellId, interruptedBy)
     local id = Num(spellId)
     local name = id and SpellName(id)
     local icon = self.db.nIcons and self:IconText(id or (kick and kick.id)) or ""
-    local text = (pet and "(Pet) " or "") .. (name and ("Interrupted " .. name) or "Interrupted!")
+    local text = (pet and self:PetLabel() or "") .. (name and ("Interrupted " .. name) or "Interrupted!")
     self:Notify(icon .. text, self.TEXT_COLORS.alert, { crit = true })
 end
 
@@ -2277,7 +2308,7 @@ function BT:ShowDispel(info, mine, pet)
     if rule and rule.hide then return true end
     local word = info.stolen and "Stole" or (info.aura == "BUFF" and not info.toMe) and "Purged" or "Dispelled"
     local icon = self.db.nIcons and self:IconText(info.extraSpellId or what) or ""
-    self:Notify(icon .. (pet and "(Pet) " or "") .. word .. " " .. what, self.TEXT_COLORS.dispel)
+    self:Notify(icon .. (pet and self:PetLabel() or "") .. word .. " " .. what, self.TEXT_COLORS.dispel)
     return true
 end
 
@@ -2821,6 +2852,42 @@ function BT:NotYourSwing(h)
     return nil
 end
 
+-- Your Summon Hawk sent a hawk at this unit (key: UnitKey). The oldest goes when a third comes.
+function BT:SendHawk(key)
+    self.hawks = self.hawks or {}
+    while #self.hawks >= HAWK_MOST do table.remove(self.hawks, 1) end
+    self.hawks[#self.hawks + 1] = { key = key, at = GetTime() }
+end
+
+-- A hawk of yours is attacking this hit's unit
+function BT:HawkOn(h)
+    if not self.hawks or not h or not h.key or not h.time then return false end
+    for i = #self.hawks, 1, -1 do
+        local hawk = self.hawks[i]
+        if h.time - hawk.at > HAWK_TIME then
+            table.remove(self.hawks, i)
+        elseif hawk.key == h.key and h.time > hawk.at then
+            return true
+        end
+    end
+    return false
+end
+
+-- Who an unnamed physical hit (or plain miss) that isn't your swing came from, as the mark in
+-- front of it: your pet's name, "(Hawk) ", or both when both are on that mob (the game doesn't
+-- say which hit was whose). nil: yours. icon: the Attack icon when it isn't your weapon's.
+function BT:SwingOwner(h, hand)
+    if hand ~= nil then return nil end
+    if self:HawkOn(h) then
+        if PetOn(h.unit) then return "(" .. self:PetName() .. "/Hawk) " end
+        return "(Hawk) "
+    end
+    local whose = self:NotYourSwing(h)
+    if whose == "pet" then return self:PetLabel() end
+    if whose then return nil, true end
+    return nil
+end
+
 -- In a group, a hit on a mob could be anyone's. The combat log lines can't be
 -- read, but with the "My actions" filter each one is something you did. So a
 -- hit is taken for yours only if a line came with it or shortly before it,
@@ -2948,6 +3015,7 @@ function BT:OnSpellcast(spellId)
         while #self.flying >= 10 do table.remove(self.flying, 1) end
         self.flying[#self.flying + 1] = { id = id, name = name, at = GetTime(), key = flightKey,
             school = flight.school, period = flight.period, wand = flight.wand, auto = flight.auto }
+        if flight.hawk then self:SendHawk(flightKey) end
     end
     -- A spell that keeps hitting for a while (AreaFor)
     if self.areaSpells[name] then self:StartArea(name, id) end
@@ -4118,10 +4186,10 @@ function BT:ShowUnitHit(h, what, spell, area)
     local petSwing
     if swing then
         local hand = self:SwingHand(h)
-        local whose = hand == nil and self:NotYourSwing(h)
-        if whose == "pet" then
-            petSwing, icon = true, ""
-        elseif whose then
+        local owner, notYours = self:SwingOwner(h, hand)
+        if owner then
+            petSwing, icon = owner, ""
+        elseif notYours then
             icon = self:IconText(ATTACK_SPELL)
         else
             icon = self:SwingIcon(hand)
@@ -4129,7 +4197,7 @@ function BT:ShowUnitHit(h, what, spell, area)
     end
     if h.kind == "damage" or h.kind == "heal" then
         self:CountFight(h.kind, h.n)
-        self:CountSpell((petSwing and "(Pet) " or "")
+        self:CountSpell((petSwing or "")
             .. (spellName or (h.kind == "heal" and "Unnamed heal") or UnnamedHit(Num(h.school))), h.n, h.crit,
             h.kind == "heal", icon)
     end
@@ -4144,7 +4212,7 @@ function BT:ShowUnitHit(h, what, spell, area)
     if rule and rule.hide then return "hidden on the Spells tab" end
     local name
     icon, name = self:SpellParts(h.kind == "heal" and "heal" or "out", icon, spellName)
-    local label = icon .. (name and (name .. " ") or "") .. (petSwing and "(Pet) " or "")
+    local label = icon .. (name and (name .. " ") or "") .. (petSwing or "")
     if h.kind == "damage" then
         if what == "shield" and not db.outShields then return "damage shields are turned off" end
         if not db.outDamage then return "damage is turned off" end
@@ -4449,6 +4517,7 @@ function BT:CheckGameData()
     for _, e in ipairs(SELF_BUFFS) do spell(e[1], e[2], "buff") end
     for _, e in ipairs(NEXT_SWING_SPELLS) do spell(e[1], e[2], "next swing") end
     for _, e in ipairs(FLIGHT_SPELLS) do spell(e[1], e[2], "flies") end
+    spell(HAWK_SPELL[1], HAWK_SPELL[2], "hawk")
     for id, e in pairs(RANGED_SPELLS) do spell(id, e[1], "ranged") end
     line(self:IconText(ATTACK_SPELL) ~= "", "swing icon " .. ATTACK_SPELL .. " (no weapon): "
         .. (self:IconText(ATTACK_SPELL) ~= "" and "found" or "missing"))

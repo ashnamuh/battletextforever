@@ -5060,6 +5060,82 @@ do
     clear()
 end
 
+step("your pet's name instead of (Pet), and your hawk's hits on their own (CurseForge)")
+-- Tinter: "Is there a way to separate damage coming from your hawk on hunter? And also a way to
+-- add your pets name instead of just (pet)". Summon Hawk (Forever's Beast Mastery talent) sends
+-- a hawk at your target: it dives (a physical hit) and keeps attacking for 18s, and its hits come
+-- with no name, like your pet's.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    SetIcons(true)
+    STATE.spellNames[75], STATE.spellIcons[75], STATE.spellIcons[6603] = "Auto Shot", 132369, 135274
+    STATE.spellNames[1293241], STATE.spellIcons[1293241] = "Summon Hawk", 132172
+    BT.iconCache, BT.periodic = nil, nil
+    BT.hands, BT.meleeAt, BT.swungAt, BT.flying, BT.hawks, BT.petName = nil, nil, nil, nil, nil, nil
+    fire("PLAYER_SWING", 2.8, 2)
+    -- Your pet, by its name
+    STATE.pet, STATE.unit.pet = true, { name = "Fluffy" }
+    STATE.unit.mobA.target = "pet"
+    Advance(0.3)
+    wound(21, 1)
+    assertEq(last("outgoing"), "(Fluffy) 21", "your pet's hit, with its name")
+    -- Its name hidden (a dungeon): the one read before stays
+    STATE.unit.pet.secretName = true
+    Advance(0.3)
+    wound(22, 1)
+    assertEq(last("outgoing"), "(Fluffy) 22", "a hidden name: the last one read")
+    BT.petName = nil
+    Advance(0.3)
+    wound(23, 1)
+    assertEq(last("outgoing"), "(Pet) 23", "never read: (Pet)")
+    STATE.unit.pet.secretName = nil
+    -- A readable line of your pet's has its name too
+    log(real("pet's spell"))
+    assertEq(last("outgoing"), "Bite (Fluffy) 20", "a pet's line, with its name")
+    -- The hawk, with your pet on another mob
+    STATE.unit.mobA.target = "me"
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hawk", 1293241)
+    Advance(0.5)
+    wound(120, 1)
+    assertEq(last("outgoing"), "|T132172:0|t Summon Hawk 120", "the hawk's dive: named Summon Hawk")
+    Advance(1.5)
+    wound(30, 1)
+    assertEq(last("outgoing"), "(Hawk) 30", "the hawk's next hit: (Hawk)")
+    fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
+    assertEq(last("outgoing"), "(Hawk) Dodge", "and its dodged attack")
+    -- Your pet on that mob too: the game doesn't say which of the two hit
+    STATE.unit.mobA.target = "pet"
+    Advance(1)
+    wound(31, 1)
+    assertEq(last("outgoing"), "(Fluffy/Hawk) 31", "pet and hawk both on it: both names")
+    BT.db.outPet = false
+    Advance(0.3)
+    wound(32, 1)
+    assertEq(last("outgoing"), "(Fluffy/Hawk) 31", "\"Pet\" off hides the hawk's hits too")
+    BT.db.outPet = true
+    -- 18s after the cast the hawk has gone
+    Advance(15)
+    wound(33, 1)
+    assertEq(last("outgoing"), "(Fluffy) 33", "the hawk gone: your pet's again")
+    STATE.unit.mobA.target = "me"
+    Advance(0.3)
+    wound(34, 1)
+    assertEq(last("outgoing"), "|T135274:0|t 34", "and with no pet on it, the Attack icon as before")
+    -- Two hawks at most: a third cast lets the oldest go
+    BT.flying = nil
+    BT:SendHawk("x1")
+    BT:SendHawk("x2")
+    BT:SendHawk(BT.hawks[1].key)
+    assertEq(#BT.hawks, 2, "two hawks out at most")
+    STATE.pet, STATE.unit.pet, STATE.unit.mobA.target = false, nil, "me"
+    SetIcons(false)
+    BT.hands, BT.meleeAt, BT.swungAt, BT.hawks, BT.petName, BT.flying = nil, nil, nil, nil, nil, nil
+    BT.db.merge = true
+    clear()
+end
+
 step("wand hits show when their line comes a frame late (CurseForge)")
 -- ModsAndAddonsAreGreat: wand damage didn't show consistently. With the "My actions" lines on,
 -- 1.21.4 let only a line in the hit's own frame vouch for a hit, and a wand hit's line can come a
