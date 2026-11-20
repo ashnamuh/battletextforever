@@ -23,6 +23,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 - **Your look**: 23 fonts (plus any your other addons share through LibSharedMedia), an outline (thin or thick) or a drop shadow, text and crit size, a smallest crit (smaller ones show as normal hits), bigger text for bigger hits, short numbers (12.3k), scroll speed and distance, your own colors, and for each area its own size, opacity and direction (up or down, straight or curved), and left, centered or right text for the side areas.
 - **Your choice of what's shown.** Turn any kind of text off, hide your auto attacks, icons and spell names per area, hide small hits and heals, and hide the game's own numbers so nothing shows twice.
 - **Sounds** if you want them, on your crits and killing blows: pick from 18 of the game's sounds (Crit, Impact, Anvil, Battle horn, Boss defeated, Cheers, Epic loot...), or any your other addons share through LibSharedMedia.
+- **Low health and low mana warnings** if you want them: a big "Low health!" or "Low mana!" with a sound as you drop low, so you notice in time. You pick the sound, and how low your mana goes before it warns.
 - **Settings per character** if you want them, starting from a copy of your shared ones, and **share your settings** with a friend as a line of text.
 
 ## Installation
@@ -48,7 +49,7 @@ The options have the same look as TauntMaster Forever, ToppedOff Forever and Out
 | **Text** | Font (a list of 23, plus fonts other addons share through LibSharedMedia), outline and crit outline (none, thin, thick or shadow), text size, crit size, short numbers (12.3k), size by hit, icon zoom, smallest crit |
 | **Motion** | Crits stay in place, add up rapid hits, time on screen, area height, how long ticks and area hits add up |
 | **Outgoing** | Damage, misses, auto attacks, pet, damage shields, name seal hits, icons, names, hide hits below a number, DoTs and area spells; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
-| **Incoming** | Damage, avoids, "(blocked)" on partly blocked hits, power gains, icons, names; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
+| **Incoming** | Damage, avoids, "(blocked)" on partly blocked hits, power gains, icons, names; Warnings: low health and low mana, each with its own sound, and the mana line; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
 | **Healing** | Heals you get, heals you do, show overhealing, icons, names, show who you healed, hide heals below a number; Appearance: size, opacity, movement and scroll upward |
 | **Notifications** | Show: combat, killing blows, experience, reputation, honor, loot, money, skill ups, seals, buffs, ability alerts, combo points, dispels, fight summary, cooldowns ready, interrupts, icons, crit sound and kill sound (each with its own pick of sound). Appearance: size, opacity, movement and scroll upward |
 | **Layout** | Which area each kind of text shows in: your hits, your misses, heals you do, damage you take, attacks you avoid, heals you get, power gains, notifications |

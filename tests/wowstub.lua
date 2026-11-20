@@ -193,6 +193,9 @@ MenuUtil = {
     CreateContextMenu = function() violation("opened one of the game's menus (MenuUtil.CreateContextMenu)") end,
 }
 UIParent = newObj("Frame", "UIParent")
+-- The game's red screen edges at low health. The tests show and hide it as the game would.
+LowHealthFrame = newObj("Frame", "LowHealthFrame", UIParent)
+LowHealthFrame.__shown = false
 Minimap = newObj("Frame", "Minimap")
 GameTooltip = newObj("GameTooltip", "GameTooltip")
 UISpecialFrames, SlashCmdList = {}, {}
@@ -229,6 +232,8 @@ STATE = {
     -- unit: what's known about each (enemy, guid, target = the unit it's targeting; "me" and "pet" are yours).
     who = {}, unit = {},
     group = false,                -- you're in a party
+    health = 1000, healthMax = 1000,   -- yours (hidden from addons unless healthReadable)
+    mana = 1000, manaMax = 1000,
 }
 
 FAKE_TIME = 1000
@@ -332,12 +337,26 @@ end
 function IsInRaid() return false end
 function UnitPowerType() return 1, "RAGE" end
 -- Combo points (power type 4) are STATE.combo, out of 5; STATE.comboHidden hides them
+-- Mana (power type 0) is STATE.mana out of STATE.manaMax (0: you have none); STATE.manaHidden hides it
 function UnitPower(unit, kind)
     if unit ~= "player" then return 0 end
     if kind == 4 then return STATE.comboHidden and Secret(STATE.combo) or STATE.combo end
+    if kind == 0 then return STATE.manaHidden and Secret(STATE.mana) or STATE.mana end
     return 50
 end
-function UnitPowerMax(unit, kind) return kind == 4 and 5 or 100 end
+function UnitPowerMax(unit, kind)
+    if kind == 0 then return STATE.manaMax end
+    return kind == 4 and 5 or 100
+end
+-- Your health, out of STATE.healthMax. Forever always hides it from addons (SecretReturns),
+-- unless STATE.healthReadable.
+function UnitHealth(unit)
+    if unit ~= "player" then return Secret(100) end
+    return STATE.healthReadable and STATE.health or Secret(STATE.health)
+end
+function UnitHealthMax(unit) return unit == "player" and STATE.healthMax or Secret(100) end
+-- A full screen window (the world map) that's open: STATE.fullscreenPanel
+function GetUIPanel(key) return key == "fullscreen" and STATE.fullscreenPanel or nil end
 function GetCVar(name) return STATE.cvars[name] end
 function SetCVar(name, value) STATE.cvars[name] = tostring(value) end
 function GetCursorPosition() return 10, 10 end
@@ -392,7 +411,7 @@ C_CombatLog = {
     AreFilteredEventsEnabled = function() return STATE.filteredEvents end,
     ApplyFilterSettings = ApplyFilterSettings,
 }
-Enum = { CombatLogMessageOrder = { Newest = 0, Oldest = 1 }, PowerType = { ComboPoints = 4 } }
+Enum = { CombatLogMessageOrder = { Newest = 0, Oldest = 1 }, PowerType = { Mana = 0, ComboPoints = 4 } }
 C_Spell = {
     GetSpellTexture = function(spell) return STATE.spellIcons[spell] end,
     GetSpellName = function(id) return STATE.spellNames[id] end,

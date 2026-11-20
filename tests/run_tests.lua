@@ -664,6 +664,137 @@ end
 BT.db.soundCrit, BT.db.soundKill = false, false
 clear()
 
+step("low health and low mana warnings")
+do
+local function says() return table.concat(lines("notify"), " / ") end
+local edges = LowHealthFrame
+assertEq(BT.DEFAULTS.warnHealth or BT.DEFAULTS.warnMana, false, "off to start with")
+assertEq(BT.healthLow, false, "where your health is, noted at login")
+STATE.sounds = {}
+-- Off: nothing
+edges:Show()
+fire("UNIT_HEALTH", "player")
+assertEq(says(), "", "no warning while it's off")
+assertEq(#STATE.sounds, 0, "and no sound")
+edges:Hide()
+-- Your health is hidden from addons: the game's red screen edges say it's low
+BT.db.warnHealth = true
+edges:Show()
+assertEq(says(), "Low health!", "the red edges coming up warn")
+assertEq(STATE.sounds[1], 8959, "with its sound (the raid warning)")
+fire("UNIT_HEALTH", "player")
+fire("UNIT_HEALTH", "player")
+assertEq(#lines("notify"), 1, "once, while they stay up")
+assertEq(#STATE.sounds, 1, "one sound")
+-- Healed back up, then low again: it warns again (but not twice in a few seconds)
+edges:Hide()
+fire("UNIT_HEALTH", "player")
+edges:Show()
+assertEq(#lines("notify"), 1, "not again straight away")
+edges:Hide()
+Advance(6)
+edges:Show()
+assertEq(last("notify"), "Low health!", "again after healing back up")
+assertEq(#STATE.sounds, 2, "with its sound")
+edges:Hide()
+clear()
+-- In a fight the edges also flash while the map is open: that says nothing about your health
+STATE.fullscreenPanel = UIParent
+edges:Show()
+assertEq(says(), "", "the map open in a fight isn't low health")
+edges:Hide()
+STATE.fullscreenPanel = nil
+-- A game that lets addons read your health: worked out here, at the same 35%
+STATE.healthReadable = true
+STATE.health = 360
+fire("UNIT_HEALTH", "player")
+assertEq(says(), "", "36% isn't low")
+STATE.health = 350
+fire("UNIT_HEALTH", "player")
+assertEq(says(), "Low health!", "35% is, read as it is")
+STATE.health = 900
+fire("UNIT_HEALTH", "player")
+Advance(6)
+-- Dead isn't low
+STATE.health, STATE.dead = 0, true
+fire("UNIT_HEALTH", "player")
+assertEq(says(), "", "no warning as you die")
+STATE.dead = false
+STATE.health, STATE.healthReadable = 1000, nil
+fire("UNIT_HEALTH", "player")
+clear()
+-- Low mana: read as it is, at the line you pick
+BT.db.warnMana = true
+assertEq(BT.db.lowManaAt, 35, "35% to start with")
+local heard = #STATE.sounds
+STATE.mana = 360
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(says(), "", "36% mana isn't low")
+STATE.mana = 340
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(says(), "Low mana!", "34% is")
+assertEq(STATE.sounds[heard + 1], 8960, "with its own sound (the ready check)")
+-- Mana coming back a little and going again (drinking, a tick of regen) doesn't warn again
+Advance(6)
+heard = #STATE.sounds
+STATE.mana = 420
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+STATE.mana = 330
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(#STATE.sounds, heard, "not again until 10% over the line")
+STATE.mana = 450
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+STATE.mana = 300
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(last("notify"), "Low mana!", "again once it's been back up")
+assertEq(#STATE.sounds, heard + 1, "a second time")
+-- Hidden mana, or none (a warrior): nothing
+STATE.mana = 1000
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+Advance(6)
+STATE.mana, STATE.manaHidden = 100, true
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(#STATE.sounds, heard + 1, "nothing while the game hides your mana")
+STATE.manaHidden = nil
+STATE.mana, STATE.manaMax = 0, 0
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(#STATE.sounds, heard + 1, "nothing with no mana at all")
+STATE.mana, STATE.manaMax = 1000, 1000
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+clear()
+-- Logging in while low: noted, not warned
+BT.healthLow, BT.manaLow = nil, nil
+edges:Show()
+STATE.mana = 100
+fire("PLAYER_ENTERING_WORLD")
+assertEq(says(), "", "no warning for where you already are when you log in")
+assertEq(BT.healthLow and BT.manaLow, true, "but it's noted")
+edges:Hide()
+STATE.mana = 1000
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+fire("UNIT_HEALTH", "player")
+-- Turned off (/btf off): nothing
+Advance(6)
+BT.db.enabled = false
+edges:Show()
+STATE.mana = 100
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+assertEq(says(), "", "nothing while BattleText is turned off")
+BT.db.enabled = true
+edges:Hide()
+STATE.mana = 1000
+fire("UNIT_POWER_UPDATE", "player", "MANA")
+-- Picking a sound plays it
+heard = #STATE.sounds
+BT:SetAlertSound("lowMana", "RAID_WARNING")
+assertEq(BT.db.lowManaSound, "RAID_WARNING", "picked")
+assertEq(STATE.sounds[heard + 1], 8959, "and heard")
+assertEq(BT:Choices("lowManaSound").RAID_WARNING, true, "a sound shared settings text can carry")
+BT.db.lowManaSound = BT.DEFAULTS.lowManaSound
+BT.db.warnHealth, BT.db.warnMana = false, false
+clear()
+end
+
 step("fight summary")
 assertEq(BT.DEFAULTS.nSummary, true, "on to start with")
 fire("PLAYER_REGEN_DISABLED")
@@ -3456,7 +3587,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 59, "the switches are there")
+assertEq(switches, 61, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then
@@ -3568,13 +3699,13 @@ for _, f in ipairs(ALL_FRAMES) do
                 scrollTime = "time on screen", height = "area height", minDamage = "hide hits below", minHeal = "hide heals below",
                 outSize = "size", inSize = "size", healSize = "size", nSize = "size",
                 outAlpha = "opacity", inAlpha = "opacity", healAlpha = "opacity", nAlpha = "opacity",
-                tickMerge = "ticks and area hits", minCrit = "smallest crit" })[moved[1]], 1, true),
+                tickMerge = "ticks and area hits", minCrit = "smallest crit", lowManaAt = "low mana at" })[moved[1]], 1, true),
                 "slider label matches its setting: " .. tostring(f.label) .. " -> " .. moved[1])
             f.__scripts.OnValueChanged(f, snapshot[moved[1]])
         end
     end
 end
-assertEq(sliders, 16, "sixteen sliders: eight, and each area's size and opacity")
+assertEq(sliders, 17, "seventeen sliders: nine, and each area's size and opacity")
 for k, v in pairs(before) do
     if type(v) ~= "table" then assertEq(BT.db[k], v, "setting unchanged after the sliders: " .. k) end
 end

@@ -410,7 +410,20 @@ local function BuildOutgoing(p)
     AreaLook(p, -206, "out", true, function() return BT:AreaUsed("outgoing") end, "Nothing shows here (Layout tab)")
 end
 
-local function BuildIncoming(p)
+-- Every sound list shares one list of keys (sounds other addons share are added to it later)
+local soundKeys
+local function SoundKeys()
+    if not soundKeys then
+        soundKeys = {}
+        for _, s in ipairs(BT.SOUNDS) do soundKeys[#soundKeys + 1] = s.key end
+    end
+    return soundKeys
+end
+local function SoundName(k) return BT:SoundName(k) end
+local PICK_TIP = "Picking a sound plays it. If this game doesn't have it, chat says so. Sounds your other addons share "
+    .. "(through LibSharedMedia) are at the end of the list."
+
+local function BuildIncoming(p, refs)
     local card = Card(p, "What happens to you", 0, 0, PAGE_W, 116)
     Setting(card, "Damage", 12, -30, "inDamage", "The damage you take.")
     Setting(card, "Avoids", COL2, -30, "inMisses", "Attacks you dodge, parry, block or resist, and ones that miss you.")
@@ -421,7 +434,25 @@ local function BuildIncoming(p)
         .. "(\"(150 blocked)\").", function() return BT.db.inDamage end)
     IconsAndNames(card, -82, "in", "what hits you or what you avoid (only when the game says which spell)",
         Either("inDamage", "inMisses"))
-    AreaLook(p, -126, "in", true, function() return BT:AreaUsed("incoming") end, "Nothing shows here (Layout tab)")
+    local warn = Card(p, "Warnings", 0, -126, PAGE_W, 112)
+    Setting(warn, "Low health", 12, -32, "warnHealth",
+        "\"Low health!\" and a sound when your health drops to 35%. It warns again once you've healed back up. "
+        .. "The game hides your health from addons, so this goes by its own warning, the red screen edges: it can't "
+        .. "warn if you've turned those off in the game's options, or while the map is open in a fight. "
+        .. "Pick the sound in the list beside it.")
+    refs.lowHealthDropdown = Dropdown(warn, 130, -30, 126, SoundKeys(), SoundName, "lowHealthSound",
+        function(k) BT:SetAlertSound("lowHealth", k) end, PICK_TIP, function() return BT.db.warnHealth end)
+    Setting(warn, "Low mana", COL2, -32, "warnMana",
+        "\"Low mana!\" and a sound when your mana drops to the line below. It warns again once your mana is 10% "
+        .. "above it. Only when the game lets BattleText read your mana. Pick the sound in the list beside it.")
+    refs.lowManaDropdown = Dropdown(warn, COL2 + 118, -30, 126, SoundKeys(), SoundName, "lowManaSound",
+        function(k) BT:SetAlertSound("lowMana", k) end, PICK_TIP, function() return BT.db.warnMana end)
+    refs.lowHealthDropdown.menuScroll, refs.lowManaDropdown.menuScroll = 20 * 12, 20 * 12
+    T.Note(warn, "Low health goes by the game's red screen edges, at 35% health.", 12, -70, COL2 - 36)
+    Slider(warn, "Low mana at", COL2, -66, "lowManaAt", { suffix = "%", step = 5,
+        enabledIf = function() return BT.db.warnMana end,
+        tip = "How low your mana goes before \"Low mana!\"." })
+    AreaLook(p, -248, "in", true, function() return BT:AreaUsed("incoming") end, "Nothing shows here (Layout tab)")
 end
 
 local function BuildHealing(p)
@@ -494,11 +525,7 @@ local function BuildNotifications(p, refs)
     Setting(extras, "Icons", 12, -264, "nIcons",
         "Shows the icon beside loot, skill ups, seals, buffs, ability alerts, cooldowns, interrupts and dispels.",
         Either("nLoot", "nSkill", "nSeals", "nBuffs", "nAlerts", "nDispels", "nCooldowns", "nInterrupts"))
-    local soundKeys = {}
-    for _, s in ipairs(BT.SOUNDS) do soundKeys[#soundKeys + 1] = s.key end
-    local function soundName(k) return BT:SoundName(k) end
-    local pickTip = "Picking a sound plays it. If this game doesn't have it, chat says so. Sounds your other addons share "
-        .. "(through LibSharedMedia) are at the end of the list."
+    local soundKeys, soundName, pickTip = SoundKeys(), SoundName, PICK_TIP
     Setting(extras, "Crit sound", 12, -238, "soundCrit", "A sound when you crit. Pick it in the list beside it.")
     refs.critSoundDropdown = Dropdown(extras, 130, -236, 126, soundKeys, soundName, "critSound",
         function(k) BT:SetAlertSound("crit", k) end, pickTip)

@@ -33,6 +33,8 @@ BT.TEXT_COLORS = {
     alert     = { 1.00, 1.00, 0.20 },
     combo     = { 1.00, 0.60, 0.20 },
     dispel    = { 0.60, 1.00, 0.85 },
+    lowHealth = { 1.00, 0.20, 0.20 },
+    lowMana   = { 0.35, 0.60, 1.00 },
 }
 -- What they start as; db.colors holds the ones you've changed (ApplyColors)
 BT.DEFAULT_COLORS = {}
@@ -48,6 +50,7 @@ BT.COLOR_CHOICES = {
     { "loot", "Loot" }, { "seal", "Seals" },
     { "buff", "Buffs" }, { "alert", "Ability alerts" },
     { "combo", "Combo points" }, { "dispel", "Dispels" },
+    { "lowHealth", "Low health" }, { "lowMana", "Low mana" },
 }
 -- Spell damage is tinted by its school (the game's own words for them)
 local SCHOOL_KEYS = {
@@ -127,6 +130,11 @@ local DEFAULTS = {
     soundKill = false,        -- a sound on a killing blow
     critSound = "UI_PROFESSION_CRAFTING_RESULT_CRIT",   -- which ones (keys of BT.SOUNDS)
     killSound = "UI_RAID_BOSS_DEFEATED",
+    warnHealth = false,       -- "Low health!" and a sound as you drop to 35% health
+    warnMana = false,         -- "Low mana!" and a sound as your mana drops to lowManaAt
+    lowManaAt = 35,           -- percent
+    lowHealthSound = "RAID_WARNING",
+    lowManaSound = "READY_CHECK",
     hideBlizzard = false,
     minimap = true,
     startReminder = true,   -- a line in chat after logging in, while Start hasn't been clicked
@@ -1084,7 +1092,8 @@ BT.SOUNDS = {
     { key = "UI_EPICLOOT_TOAST", name = "Epic loot" },
     { key = "UI_LEGENDARY_LOOT_TOAST", name = "Legendary loot" },
 }
-local FALLBACK_SOUNDS = { crit = "MAP_PING", kill = "IG_QUEST_LIST_COMPLETE" }
+local FALLBACK_SOUNDS = { crit = "MAP_PING", kill = "IG_QUEST_LIST_COMPLETE", lowHealth = "MAP_PING",
+    lowMana = "MAP_PING" }
 
 function BT:SoundName(key)
     for _, s in ipairs(self.SOUNDS) do
@@ -1129,6 +1138,97 @@ function BT:SetAlertSound(what, key)
         Print(self:SoundName(key) .. " isn't in this game's sounds. Pick another: "
             .. "until then, " .. self:SoundName(FALLBACK_SOUNDS[what]) .. " plays instead.")
     end
+end
+
+---------------------------------------------------------------------------
+-- Low health and low mana: "Low health!" and a sound as you drop below the line. Once:
+-- it warns again only after you've been back above it.
+---------------------------------------------------------------------------
+-- Your health is hidden from addons (UnitHealth always answers with a secret), so when it
+-- can't be read BattleText goes by the game's own low health warning: the red screen edges
+-- (LowHealthFrame), which the game shows at 35% health. Mana is read as it is, when it can be.
+local LOW_HEALTH = 0.35      -- the game's line (LowHealthFrame.lowHealthPercentStart)
+local MANA_BACK = 10         -- mana comes back this many points over the line before it warns again
+local WARN_GAP = 5           -- never the same warning twice in this many seconds
+
+local function Dead()
+    if not UnitIsDeadOrGhost then return false end
+    local ok, dead = pcall(UnitIsDeadOrGhost, "player")
+    return ok and not IsSecret(dead) and dead and true or false
+end
+
+-- true: at or below 35% health. nil: can't tell right now.
+function BT:HealthLow()
+    if Dead() then return false end
+    local okH, hp = pcall(UnitHealth, "player")
+    local okM, most = pcall(UnitHealthMax, "player")
+    hp, most = okH and Num(hp) or nil, okM and Num(most) or nil
+    if hp and most and most > 0 then return hp / most <= LOW_HEALTH end
+    -- Hidden: the red screen edges say
+    local f = LowHealthFrame
+    if type(f) ~= "table" or not f.IsShown then return nil end
+    if GetUIPanel then   -- (in a fight they also flash while the map is open, whatever your health)
+        local ok, panel = pcall(GetUIPanel, "fullscreen")
+        if ok and panel then return nil end
+    end
+    local ok, shown = pcall(f.IsShown, f)
+    if not ok or IsSecret(shown) then return nil end
+    return shown and true or false
+end
+
+-- Your mana as a percent; nil if you have none or it's hidden
+function BT:ManaPercent()
+    local kind = Enum and Enum.PowerType and Enum.PowerType.Mana or 0
+    local okN, n = pcall(UnitPower, "player", kind)
+    local okM, most = pcall(UnitPowerMax, "player", kind)
+    n, most = okN and Num(n) or nil, okM and Num(most) or nil
+    if not n or not most or most <= 0 then return nil end
+    return n / most * 100
+end
+
+function BT:Warn(what)
+    local now = GetTime()
+    self.warnedAt = self.warnedAt or {}
+    if self.warnedAt[what] and now - self.warnedAt[what] < WARN_GAP then return end
+    self.warnedAt[what] = now
+    local C = self.TEXT_COLORS
+    if what == "lowHealth" then
+        self:Notify("Low health!", C.lowHealth, { crit = true })
+    else
+        self:Notify("Low mana!", C.lowMana, { crit = true })
+    end
+    self:PlayAlert(what)
+end
+
+-- The first look (at login) only notes where you are
+function BT:CheckLowHealth()
+    local low = self:HealthLow()
+    if low == nil then return end
+    local was = self.healthLow
+    self.healthLow = low
+    if low and was == false and self.db.warnHealth and self.db.enabled then self:Warn("lowHealth") end
+end
+
+function BT:CheckLowMana()
+    local pct = Dead() and 100 or self:ManaPercent()
+    if pct == nil then return end
+    local line = self.db.lowManaAt
+    local was = self.manaLow
+    if pct <= line then
+        self.manaLow = true
+        if was == false and self.db.warnMana and self.db.enabled then self:Warn("lowMana") end
+    elseif was == nil or pct >= line + MANA_BACK or pct >= 100 then
+        self.manaLow = false
+    end
+end
+
+-- The red edges coming and going are what says your health is low, when it's hidden
+function BT:HookLowHealth()
+    local f = LowHealthFrame
+    if self.lowHealthHooked or type(f) ~= "table" or not f.HookScript then return end
+    self.lowHealthHooked = true
+    f:HookScript("OnShow", function() BT:CheckLowHealth() end)
+    f:HookScript("OnHide", function() BT:CheckLowHealth() end)
 end
 
 -- One parsed combat log line (see Parser:Parse). Returns true if it's a kind
@@ -4794,6 +4894,7 @@ end
 BT.RANGES = {
     fontSize = { 10, 40 }, critScale = { 100, 250 }, scrollTime = { 1, 6 }, height = { 100, 500 },
     tickMerge = { 0, 3 }, minDamage = { 0, 500 }, minHeal = { 0, 500 }, minCrit = { 0, 1000 },
+    lowManaAt = { 10, 60 },
 }
 for _, area in pairs(BT.AREAS) do
     BT.RANGES[area.prefix .. "Size"] = { 50, 200 }
@@ -4805,7 +4906,7 @@ function BT:Choices(key)
     local list, field
     if key == "font" then list, field = self.FONTS, "name"
     elseif key == "outline" or key == "critOutline" then list, field = self.OUTLINES, "flags"
-    elseif key == "critSound" or key == "killSound" then list, field = self.SOUNDS, "key"
+    elseif key:match("Sound$") then list, field = self.SOUNDS, "key"
     elseif key:match("Style$") then list, field = self.STYLES, "key"
     elseif key:match("Align$") then list, field = self.ALIGNS, "key"
     elseif key:match("^route") then
@@ -5172,7 +5273,8 @@ for _, e in ipairs({ "SPELL_UPDATE_USABLE", "PLAYER_TARGET_CHANGED", "SPELL_ACTI
     "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" }) do
     pcall(events.RegisterEvent, events, e)
 end
-pcall(events.RegisterUnitEvent, events, "UNIT_HEALTH", "target")
+pcall(events.RegisterUnitEvent, events, "UNIT_HEALTH", "target", "player")
+pcall(events.RegisterUnitEvent, events, "UNIT_MAXHEALTH", "player")   -- (low health)
 pcall(events.RegisterUnitEvent, events, "UNIT_POWER_UPDATE", "player")
 pcall(events.RegisterEvent, events, "SPELL_UPDATE_COOLDOWN")        -- Cooldowns ready
 pcall(events.RegisterEvent, events, "UNIT_SPELLCAST_INTERRUPTED")   -- every unit: casts you stop
@@ -5212,6 +5314,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:BuildStartButton()
         BT:BuildMinimapButton()
         BT:HookCombatLog()
+        BT:HookLowHealth()
         BT.built = true
         BT:ApplySettings()
         BT:OnXP()
@@ -5256,6 +5359,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:ScanItemShields()
     elseif event == "UNIT_INVENTORY_CHANGED" then
         BT:RescanGearSoon()
+    elseif event == "UNIT_HEALTH" and Str(a1) == "player" or event == "UNIT_MAXHEALTH" then
+        BT:CheckLowHealth()
     elseif event == "SPELL_UPDATE_USABLE" or event == "UNIT_HEALTH" then
         BT:CheckUsable()
     elseif event == "PLAYER_TARGET_CHANGED" then
@@ -5264,7 +5369,9 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "SPELL_ACTIVATION_OVERLAY_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
         BT:OnSpellOverlay(a1, event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
     elseif event == "UNIT_POWER_UPDATE" then
-        if Str(a2) == "COMBO_POINTS" then BT:OnComboPoints() end
+        local kind = Str(a2)
+        if kind == "COMBO_POINTS" then BT:OnComboPoints()
+        elseif kind == "MANA" then BT:CheckLowMana() end
     elseif event == "PLAYER_REGEN_DISABLED" then
         BT:ScanShield()      -- last look at your buffs and gear before the fight hides them
         BT:ScanItemShields()
@@ -5299,6 +5406,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:UpdateStartButton()
         BT.lastXP = nil
         BT:OnXP()
+        BT:CheckLowHealth()
+        BT:CheckLowMana()
     elseif event == "PLAYER_XP_UPDATE" then
         BT:OnXP()
     elseif event == "CHAT_MSG_LOOT" then
