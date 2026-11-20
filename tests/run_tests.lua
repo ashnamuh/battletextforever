@@ -6676,12 +6676,55 @@ do
     mana(1100)
     assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap / +200 Mana Life Tap", "a frame or two late")
     clear()
+    -- Or well after it, the server being slow (1.27.0 waited only 0.5s: issue #26, no mana in game)
+    Advance(1)
+    tap()
+    Advance(1.1)
+    mana(1150)
+    assertEq(table.concat(lines("incoming"), " / "), "-50 Life Tap / +50 Mana Life Tap", "a second late")
+    clear()
+    -- Or a few frames before the cast's own event
+    Advance(1)
+    mana(1300)
+    Advance(0.15)
+    tap()
+    assertEq(table.concat(lines("incoming"), " / "), "-150 Life Tap / +150 Mana Life Tap", "the mana ahead of the cast")
+    clear()
+    -- With no mana event at all, the bar itself is read
+    Advance(1)
+    tap()
+    STATE.mana = 1350
+    Advance(0.3)
+    assertEq(table.concat(lines("incoming"), " / "), "-50 Life Tap / +50 Mana Life Tap", "no event: the bar says")
+    mana(1350)
+    clear()
+    -- The game's quicker mana event counts too
+    Advance(1)
+    tap()
+    STATE.mana = 1400
+    fire("UNIT_POWER_FREQUENT", "player", "MANA")
+    assertEq(table.concat(lines("incoming"), " / "), "-50 Life Tap / +50 Mana Life Tap", "UNIT_POWER_FREQUENT")
+    mana(1350)
+    clear()
+    -- /btf debug writes down what the mana did around it
+    BT.db.debug, BT.recorded = true, {}
+    Advance(1)
+    tap()
+    Advance(0.2)
+    mana(1400)
+    local said = table.concat(BT.recorded, " | ")
+    assert(said:find("LIFE TAP mana 1350/2000", 1, true), said)
+    assert(said:find("MANA 1350 -> 1400", 1, true), said)
+    assert(said:find("LIFE TAP mana event: mana 50", 1, true), said)
+    BT.db.debug, BT.recorded = false, {}
+    mana(1300)
+    clear()
     -- Regen and drinking aren't Life Tap
     Advance(1)
     mana(1150)
     Advance(1)
     tap()
-    Advance(1)
+    Advance(2)
     mana(1200)
     assertEq(table.concat(lines("incoming"), " / "), "", "mana long before or after it isn't its")
     clear()
@@ -6696,13 +6739,13 @@ do
     -- Already full: no mana, but the health still went
     Advance(1)
     tap()
-    Advance(1)
+    Advance(2)
     assertEq(table.concat(lines("incoming"), " / "), "-200 Life Tap", "full mana: only the health")
     clear()
     -- ...and with no description to read, nothing is made up
     STATE.spellDescriptions[1456] = nil
     tap()
-    Advance(1)
+    Advance(2)
     assertEq(table.concat(lines("incoming"), " / "), "", "no number to show")
     -- Hidden mana: nothing to read
     mana(1000)
@@ -6710,7 +6753,7 @@ do
     STATE.manaHidden = true
     tap()
     mana(1200)
-    Advance(1)
+    Advance(2)
     assertEq(table.concat(lines("incoming"), " / "), "", "nothing while the game hides your mana")
     STATE.manaHidden = nil
     mana(1200)

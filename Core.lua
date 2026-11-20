@@ -1766,7 +1766,9 @@ local VIGIL_TIME = 0.5    -- seconds after the Holy Shock that the party's heals
 -- Life Tap (warlock): health into mana. The game says nothing of it but the cast (issue #26: no
 -- combat log line, no UNIT_COMBAT), so the mana is read off your mana bar (LifeTapCast).
 local LIFE_TAP = { 1454, 1455, 1456, 11687, 11688, 11689, name = "Life Tap" }
-local LIFE_TAP_TIME = 0.5   -- seconds after the cast that its mana may come in
+local LIFE_TAP_TIME = 1.5     -- seconds after the cast that its mana may come in (it comes from the server)
+local LIFE_TAP_BEFORE = 0.3   -- or before it: the mana can arrive ahead of the cast's own event
+local LIFE_TAP_LOOK = 0.1     -- how often the mana bar is looked at while waiting
 
 local function SpellName(id)
     if not (C_Spell and C_Spell.GetSpellName) then return nil end
@@ -3046,18 +3048,23 @@ local function LifeTapCost(id)
     return digits and tonumber((digits:gsub("[,%.]", ""))) or nil
 end
 
--- Your mana went up or down (UNIT_POWER_UPDATE). A rise is Life Tap's when it comes with the cast,
--- in its frame (before or after the cast's event) or up to LIFE_TAP_TIME after it.
+-- Your mana went up or down (UNIT_POWER_UPDATE, UNIT_POWER_FREQUENT). A rise is Life Tap's when it
+-- comes up to LIFE_TAP_BEFORE before the cast's event or LIFE_TAP_TIME after it.
+-- (1.27.0 took only a rise in the cast's frame or 0.5s after: in game the mana never showed.)
 function BT:OnMana()
     local n, most = ManaNow()
     local was = self.manaSeen
     self.manaSeen = n
-    if not n or not was or n <= was then return end
+    if not n or not was or n == was then return end
     local at = GetTime()
-    local full = most ~= nil and n >= most
     local tap = self.lifeTap
+    if self.db.debug and tap and at - tap.at <= LIFE_TAP_TIME + 0.5 then
+        self:Record("MANA " .. was .. " -> " .. n)
+    end
+    if n < was then return end
+    local full = most ~= nil and n >= most
     if tap and not tap.done and at - tap.at <= LIFE_TAP_TIME then
-        self:ShowLifeTap(tap, n - was, full)
+        self:ShowLifeTap(tap, n - was, full, "mana event")
     else
         self.manaRise = { at = at, amount = n - was, full = full }
     end
@@ -3065,14 +3072,32 @@ end
 
 function BT:LifeTapCast(id, name)
     local at = GetTime()
-    local tap = { id = id, name = name, at = at }
+    local now, most = ManaNow()
+    local tap = { id = id, name = name, at = at, before = now }
     self.lifeTap = tap
     local rise = self.manaRise
     self.manaRise = nil
-    if rise and at - rise.at <= 0.01 then return self:ShowLifeTap(tap, rise.amount, rise.full) end
-    -- No mana came in (it was full already, or it's hidden): the health still went
-    local function late() if not tap.done then BT:ShowLifeTap(tap, nil, true) end end
-    if C_Timer and C_Timer.After then C_Timer.After(LIFE_TAP_TIME, late) end
+    if self.db.debug then
+        self:Record("LIFE TAP mana " .. (now and (now .. "/" .. tostring(most)) or "hidden")
+            .. (rise and (" (rose " .. rise.amount .. " " .. ("%.2f"):format(at - rise.at) .. "s before)") or ""))
+    end
+    if rise and at - rise.at <= LIFE_TAP_BEFORE then return self:ShowLifeTap(tap, rise.amount, rise.full, "before") end
+    if not (C_Timer and C_Timer.After) then return end
+    -- The mana events may not come (or not for this): the bar itself is looked at too
+    local waited = 0
+    local function look()
+        if tap.done then return end
+        waited = waited + LIFE_TAP_LOOK
+        local n, top = ManaNow()
+        if n and tap.before and n > tap.before then
+            BT.manaSeen = n
+            return BT:ShowLifeTap(tap, n - tap.before, top ~= nil and n >= top, "mana bar")
+        end
+        -- No mana came in (it was full already, or it's hidden): the health still went
+        if waited >= LIFE_TAP_TIME - 1e-6 then return BT:ShowLifeTap(tap, nil, true, "no mana") end
+        C_Timer.After(LIFE_TAP_LOOK, look)
+    end
+    C_Timer.After(LIFE_TAP_LOOK, look)
 end
 
 -- A line from the game for the mana (if it ever sends one) shows it instead
@@ -3084,9 +3109,13 @@ end
 -- "-200 Life Tap" on the incoming side and "+200 Mana Life Tap" as a power gain. Your health is
 -- hidden on Forever, so what it cost is taken to be the mana it gave (1:1). With your mana full,
 -- the gain is cut short (or nothing), so the description's number is used if it's more.
-function BT:ShowLifeTap(tap, gain, full)
+function BT:ShowLifeTap(tap, gain, full, how)
     tap.done = true
     if self.lifeTap == tap then self.lifeTap = nil end
+    if self.db.debug then
+        self:Record("LIFE TAP " .. tostring(how) .. ": mana " .. tostring(gain) .. (full and " (full)" or "")
+            .. (tap.logged and " (game sent its own)" or ""))
+    end
     local db, C = self.db, self.TEXT_COLORS
     local rule = self:SpellRule(tap.name)
     if rule and rule.hide then return end
@@ -5473,6 +5502,7 @@ end
 pcall(events.RegisterUnitEvent, events, "UNIT_HEALTH", "target", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_MAXHEALTH", "player")   -- (low health)
 pcall(events.RegisterUnitEvent, events, "UNIT_POWER_UPDATE", "player")
+pcall(events.RegisterUnitEvent, events, "UNIT_POWER_FREQUENT", "player")   -- (Life Tap's mana)
 pcall(events.RegisterEvent, events, "SPELL_UPDATE_COOLDOWN")        -- Cooldowns ready
 pcall(events.RegisterEvent, events, "UNIT_SPELLCAST_INTERRUPTED")   -- every unit: casts you stop
 
@@ -5565,6 +5595,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:CheckUsable(true)
     elseif event == "SPELL_ACTIVATION_OVERLAY_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
         BT:OnSpellOverlay(a1, event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+    elseif event == "UNIT_POWER_FREQUENT" then
+        if Str(a2) == "MANA" then BT:OnMana() end
     elseif event == "UNIT_POWER_UPDATE" then
         local kind = Str(a2)
         if kind == "COMBO_POINTS" then BT:OnComboPoints()

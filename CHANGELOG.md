@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.27.1
+
+- **Life Tap's mana shows now.** In 1.27.0 the health part showed but the mana never did: the mana reaches your bar a little before or after the cast, and BattleText only waited a split second for it. It now catches the mana from just before the cast up to a second and a half after, and also reads the mana bar itself while it waits, in case the game doesn't say the mana changed. With /btf debug on, it also writes down your mana around each Life Tap, so if it still goes missing a debug log will show why. (Thanks to mtfic for testing.)
+
 ## 1.27.0
 
 - **Life Tap shows what it costs and what it gives.** When a warlock casts Life Tap, you now see the health it took on the incoming side ("-200 Life Tap") and the mana it gave as a power gain ("+200 Mana Life Tap"), both with its icon. The game doesn't report Life Tap in the combat log at all, so BattleText reads the mana off your mana bar as you cast it. The game hides your health from addons, so the health shown is the same as the mana gained (Life Tap trades them one for one). If your mana was already full or close to it, the health comes from the spell's own description instead. The mana line follows the "Power gains" switch on the Incoming tab, which starts off, so turn it on to see it. (Thanks to mtfic for asking.)
