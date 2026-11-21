@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.4
+
+- **Lightning Shield no longer takes credit for your gear's hits.** With Lightning Shield up, some Nature hits that weren't from it got its name. Thorncursed Grips also deal 2 Nature damage to you with each swing, and BattleText took that as a mob hitting you, so the Grips' own hit on the mob in that moment looked like your shield answering. Now the Grips' hit on you doesn't count as a blow, and it tells BattleText the matching hit on the mob is the Grips' (so "Hide hits below" hides it again, even during Windfury). Each damage shield also answers a blow only once now: a second Nature hit after the same blow (like Sporid Cape's, which BattleText can't read on a non-English game) shows as a plain hit instead of a second Lightning Shield. (Thanks to agalakov-AI for the debug log.)
+
 ## 1.28.3
 
 - **Thorns and gear that hits back are named every time.** BattleText names your damage shields by matching their hits to a mob's blow on you. With Thorns and a ring like the Spiked Shell Band, their hits sometimes came a little too long after the blow, or the blow showed up as a miss. Then both showed as bare green numbers (a 9 and a 2) with no name or icon. BattleText now waits a bit longer after a blow. And when one Nature hit for each of your Nature shields lands on the mob at the same moment, it knows those are your shields even if no blow shows up. They come up as "Thorns 9" and "Spiked Shell Band 2" (or stay hidden if you hid the ring on the Spells tab).

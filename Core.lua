@@ -1566,9 +1566,18 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             .. " school " .. (IsSecret(school) and "(hidden)" or tostring(school)))
     end
     if not action then return end
-    if action == "WOUND" then
+    if action == "WOUND" and self:GearHurtsYou(school) then
+        -- Your own gear's hit on you (Thorncursed Grips: 2 Nature to you with each weapon blow), not
+        -- a mob's blow: your shields don't answer it. Until 1.28.4 it counted as one, so the Grips'
+        -- own hit on the mob in that moment was named Lightning Shield (GitHub #25, a shaman's log).
+        local now = GetTime()
+        local g = self.gearSelf
+        if g and g.at == now and g.school == Num(school) then g.n = g.n + 1
+        else self.gearSelf = { at = now, school = Num(school), n = 1, used = 0 } end
+    elseif action == "WOUND" then
         self:ConfirmShield(GetTime())
         self.lastBlow = GetTime()
+        self:NoteBlow(GetTime())
         self:BlowLanded(GetTime())
     end
     -- You dodged, parried or blocked (a warrior's Revenge, a rogue's Riposte), a blow you
@@ -2632,6 +2641,25 @@ function BT:ShieldsOn(h)
     end
     return list[1] and list or nil
 end
+-- Worn gear that hurts you too with each weapon blow, of this school (readable): { item }
+function BT:GearHurtsYou(school)
+    local mask = Num(school)
+    if not mask or mask == 1 then return nil end
+    for _, item in ipairs(self.itemProcs or {}) do
+        if item.every and item.melee and item.school == mask then return item end
+    end
+    return nil
+end
+-- The blows on you lately, each with the shields that have answered it: one blow is answered
+-- once by each shield. A hit after every shield has answered is not one of them.
+function BT:NoteBlow(at)
+    local list = {}
+    for _, b in ipairs(self.recentBlows or {}) do
+        if at - b.at <= SHIELD_AFTER_BLOW then list[#list + 1] = b end
+    end
+    list[#list + 1] = { at = at, names = {} }
+    self.recentBlows = list
+end
 function BT:ShieldOn(h)
     local list = self:ShieldsOn(h)
     return list and list[1] or nil
@@ -2651,20 +2679,28 @@ function BT:WaitForSwing(h)
     local shields = self:ShieldsOn(h)
     local shield = shields and shields[1]
     local every = h.key and not seal and not h.everyUnsure and self:EveryOn(h)
-    if shield and not seal and not every and self.lastBlow and h.time - self.lastBlow >= 0
-            and h.time - self.lastBlow <= SHIELD_AFTER_BLOW then
-        -- (the blow just before: each of its shields names one hit)
-        if self.blowAnswered == nil or self.blowAnswered.at ~= self.lastBlow then
-            self.blowAnswered = { at = self.lastBlow, names = {} }
+    -- (a blow just before: each of its shields names one hit, the oldest blow first)
+    local blowNear = false
+    if shield and not seal and not every then
+        for _, b in ipairs(self.recentBlows or {}) do
+            if h.time - b.at >= 0 and h.time - b.at <= SHIELD_AFTER_BLOW then
+                blowNear = true
+                local fresh = Unanswered(shields, b.names)
+                if fresh then
+                    b.names[fresh.name] = true
+                    local why = self:ShowUnitHit(h, "shield", fresh)
+                    if self.db.debug then
+                        self:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or ("shield of " .. fresh.name)), h.time)
+                    end
+                    return true
+                end
+            end
         end
-        shield = Unanswered(shields, self.blowAnswered.names) or shield
-        self.blowAnswered.names[shield.name] = true
-        local why = self:ShowUnitHit(h, "shield", shield)
-        if self.db.debug then
-            self:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or ("shield of " .. shield.name)), h.time)
-        end
-        return true
     end
+    -- Every shield you're known to wear has answered the blows just before: this hit is
+    -- something else's, shown as it is. Until 1.28.4 it was named after the first shield again
+    -- (GitHub #25: Sporid Cape, unknown on a Russian client, named Lightning Shield).
+    if blowNear then return false end
     if not seal and not shield and not every then return false end
     self.sealWait = self.sealWait or {}
     local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield, shields = shields,
@@ -4005,6 +4041,14 @@ function BT:EveryHitFor(h, seq, first, last, at)
     local item = self:EveryOn(h)
     if not item then return nil end
     local mask = Num(h.school)
+    -- Gear that hurts you too (Thorncursed Grips): its hit on you in this moment is proof, one
+    -- for each (GitHub #25, 1.28.3: Windfury's swings gave three hidden Nature hits together, and
+    -- with Nature spells of a shaman's own they were in doubt)
+    local g = self.gearSelf
+    if item.melee and g and g.at == h.time and g.school == Num(h.school) and g.used < g.n then
+        g.used = g.used + 1
+        return item
+    end
     local struck = h.key and self.struck and self.struck[h.key]
     local near = struck and h.time - struck >= 0 and h.time - struck <= PROC_TIME
     for j = first, last do

@@ -5212,6 +5212,56 @@ do
     Advance(1.3)
     assertEq(#lines("outgoing"), 2, "beside a Frost spell's hit only (and no swing after it), a Nature hit isn't the Grips'")
     clear()
+    -- GitHub #25 (1.28.3, a shaman's log): with Lightning Shield on, the Grips' own 2 on you came
+    -- as a "blow" and Windfury's three Nature hits (in doubt: a shaman has Nature spells) were named
+    -- Lightning Shield. The Grips' hit on you is no blow, and it vouches for their hit on the mob.
+    local wasClass = STATE.class
+    STATE.class = "SHAMAN"
+    BT.buffShields = { ["Lightning Shield"] = { name = "Lightning Shield", id = 324, school = 8 } }
+    BT.db.debug, BT.recorded = true, {}
+    local function gripsOnYou() fire("UNIT_COMBAT", "player", "WOUND", "", Secret(2), 8) end
+    Advance(3)
+    wound(40, 1)
+    for _ = 1, 3 do hiddenOn(2, 8) gripsOnYou() end
+    Advance(1.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "Windfury's three Grips hits: all hidden below 5")
+    for _, r in ipairs(BT.recorded) do
+        assertEq(r:find("shield of", 1, true), nil, "none named Lightning Shield: " .. r)
+    end
+    assertEq(BT.lastBlow == nil or GetTime() - BT.lastBlow > 2, true, "the Grips' hit on you is no blow")
+    clear()
+    -- GitHub #25: Sporid Cape (its tooltip unread on a Russian client) answers the same blow as
+    -- Lightning Shield. The shield names one hit; the other isn't the shield's again.
+    BT.recorded = {}
+    BT.db.minDamage = 0
+    Advance(3)
+    blow()
+    hiddenOn(13, 8)
+    hiddenOn(1, 8)
+    assertEq(#lines("outgoing"), 2, "both shown")
+    local named = 0
+    for _, r in ipairs(BT.recorded) do
+        if r:find("shield of Lightning Shield", 1, true) then named = named + 1 end
+    end
+    assertEq(named, 1, "one blow: Lightning Shield named once")
+    -- Two blows close together: each one's answer is the shield's
+    clear()
+    BT.recorded = {}
+    blow()
+    Advance(0.3)
+    blow()
+    hiddenOn(13, 8)
+    hiddenOn(13, 8)
+    assertEq(#lines("outgoing"), 2, "both shown")
+    named = 0
+    for _, r in ipairs(BT.recorded) do
+        if r:find("shield of Lightning Shield", 1, true) then named = named + 1 end
+    end
+    assertEq(named, 2, "two blows: two of Lightning Shield's")
+    BT.db.debug, BT.recorded, BT.buffShields = false, nil, nil
+    BT.db.minDamage = 5
+    STATE.class = wasClass
+    clear()
     BT.db.minDamage = 0
     STATE.equipped[10] = nil
     fire("PLAYER_EQUIPMENT_CHANGED", 10, false)
