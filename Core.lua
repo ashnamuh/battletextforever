@@ -1630,6 +1630,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             -- (Light's Vigil's heal, set off by your Holy Shock: the first heal on you is the Holy Shock's
             -- when you Holy Shocked yourself)
             local cast = BT:GraveHealFor(at) or BT:VigilOnYou(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
+                or BT:SelfAreaFor(at, Num(school))
             local after, color = "", C.heal
             if cast then
                 local rule = BT:SpellRule(cast.name)
@@ -1792,7 +1793,9 @@ local THROW_TIME = 2.5   -- the longest one can take to go off after the throw
 -- Spells that keep hitting for a while after the cast, on every mob in the area or on the one
 -- you channel at: { first rank's ID, English name, school, longest it lasts in seconds, how }.
 -- how: "channel" (on the mobs where you aim it, until you stop channeling), "single" (a channel
--- on your target only), "heal" (a channel that heals), or none (lasts its time, whatever you do).
+-- on your target only), "heal" (a channel that heals), "either" (a channel on your target that
+-- heals a friend and hurts an enemy; with neither targeted it heals you), or none (lasts its
+-- time, whatever you do).
 local AREA_SPELLS = {
     { 5143, "Arcane Missiles", 64, 5, "single" }, { 15407, "Mind Flay", 32, 3, "single" },
     { 689, "Drain Life", 32, 5, "single" }, { 1120, "Drain Soul", 32, 15, "single" },
@@ -1800,6 +1803,8 @@ local AREA_SPELLS = {
     { 16914, "Hurricane", 8, 10, "channel" }, { 1510, "Volley", 64, 6, "channel" },
     { 1949, "Hellfire", 4, 15, "channel" }, { 740, "Tranquility", 8, 10, "heal" },
     { 1316697, "Wrack", 32, 6, "single" },
+    -- Forever's Penance (issue #29: cast as 402174 and 402289 together, its first heal 0.3s later)
+    { 402174, "Penance", 2, 3, "either" },
     { 26573, "Consecration", 2, 8 }, { 2120, "Flamestrike", 4, 8 },
     { 8190, "Magma Totem", 4, 20 }, { 1535, "Fire Nova Totem", 4, 6 }, { 3599, "Searing Totem", 4, 55 },
 }
@@ -4012,10 +4017,21 @@ function BT:StartArea(name, id)
         endMs = ok and Num(endMs) or nil
         if endMs and endMs / 1000 > now then ends = math.min(ends, endMs / 1000) end
     end
+    local key, heal, single, onSelf = nil, spell.how == "heal", spell.how == "single", nil
+    if single then key = UnitKey("target") end
+    if spell.how == "either" then
+        single = true
+        if self:HealGoesToTarget() then
+            key, heal = UnitKey("target"), true
+        elseif Flag(UnitCanAttack, "player", "target") then
+            key, heal = UnitKey("target"), false
+        else
+            key, heal, onSelf = UnitKey("player") or "player", true, true
+        end
+    end
     self.areaOn = self.areaOn or {}
     self.areaOn[name] = { id = id or spell.id, name = name, school = spell.school, at = now, ends = ends + AREA_SLACK,
-        key = spell.how == "single" and UnitKey("target") or nil, heal = spell.how == "heal",
-        single = spell.how == "single", speeds = spell.speeds }
+        key = key, heal = heal, single = single, onSelf = onSelf, speeds = spell.speeds }
 end
 
 -- Whether you're channeling Wrack at this unit (its own end, not the slack after it)
@@ -4031,6 +4047,48 @@ function BT:StopArea(id)
     local name = id and SpellName(id)
     local on = name and self.areaOn and self.areaOn[name]
     if on and on.ends > GetTime() + AREA_SLACK then on.ends = GetTime() + AREA_SLACK end
+end
+
+-- A heal of yours ticking on a group member (a heal over time on its beat, a channel's heal) that
+-- came with no line: its line can come a frame or two late (issue #29: a Renew tick showed as "no
+-- line of yours with it", the next one was named). It waits LATE_LINE for one; a line that comes
+-- in that time vouches for it, else it's dropped as before.
+local LATE_LINE = 0.25
+function BT:WaitForLine(h)
+    local dot = self:TickFor(h)
+    local spell = dot or self:AreaFor(h)
+    if not spell then return false end
+    local function over()
+        local credits, found = BT.credits, nil
+        for i = 1, #(credits or {}) do
+            if credits[i] > h.time and credits[i] - h.time <= LATE_LINE then found = i break end
+        end
+        local why
+        if found then
+            table.remove(credits, found)
+            if dot then
+                dot.tick = h.n or dot.tick
+                dot.last = h.time
+            end
+            why = BT:ShowUnitHit(h, "tick", spell)
+        else
+            why = "no line of yours with it"
+        end
+        if BT.db.debug then
+            BT:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or AmountText(h.amount),
+                why or ("tick of " .. tostring(spell.name) .. ", its line late")), h.time)
+        end
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(LATE_LINE, over) else over() end
+    return true
+end
+
+-- A channel of yours healing you (Penance with no friend or enemy targeted): a heal on you while it lasts
+function BT:SelfAreaFor(at, school)
+    for _, a in pairs(self.areaOn or {}) do
+        if a.onSelf and at >= a.at and at <= a.ends and SameHealSchool(school, a.school) then return a end
+    end
+    return nil
 end
 
 -- The spell of yours still hitting that this hit is: of its school, while it lasts, on any
@@ -4425,6 +4483,17 @@ function BT:ResolveFrame(seq, first, last)
             end
         end
     end
+    -- A heal of yours ticking on a group member (a heal over time on its beat, a channel's heal)
+    -- takes its line before the other hits in the frame do. Any hit in the frame can take a line,
+    -- so a party member's hit landing with your tick took the tick's line (issue #29: a Renew tick
+    -- showed as "no line of yours with it", the next one was named).
+    for i = first, last do
+        local h = seq[i]
+        if h.hit and not h.splash and h.grouped and h.kind == "heal" and not (cast and castAt and i > castAt)
+                and (self:TickFor(h) or self:AreaFor(h)) and self:ClaimHit(h.time, h) then
+            h.lineFirst = true
+        end
+    end
     for i = first, last do
         local h = seq[i]
         if h.nothing and not blowInFrame then
@@ -4503,7 +4572,7 @@ function BT:ResolveFrame(seq, first, last)
             if h.kind == "heal" and what ~= "cast" and h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
                 healOfYours = self:TickFor(h) ~= nil or self:AreaFor(h) ~= nil
             end
-            local claimed = not h.grouped
+            local claimed = not h.grouped or h.lineFirst == true
             if not claimed and what == "cast" then
                 self:ClaimHit(h.time, h)   -- (its line, if it has one, is used up)
                 claimed = true
@@ -4592,7 +4661,9 @@ function BT:ResolveFrame(seq, first, last)
             if not claimed and h.solo and (what == "shield" or (not spell and self:ShieldOn(h))) then
                 claimed = true
             end
-            if not claimed then
+            if not claimed and healOfYours and h.kind == "heal" and self:WaitForLine(h) then
+                why = "waiting: its line may come late"
+            elseif not claimed then
                 why = healOfYours and "no line of yours with it" or "no heal of yours with it"
             elseif h.kind == "heal" and not spell and not h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
                 -- A heal on someone else that isn't your cast or your heal-over-time: anyone's (a

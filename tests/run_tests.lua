@@ -7125,5 +7125,100 @@ do
     clear()
 end
 
+---------------------------------------------------------------------------
+step("Penance and Renew on a friend in a group (issue #29)")
+do
+    clear()
+    local whoWas, unitWas, groupWas = STATE.who, STATE.unit, STATE.group
+    STATE.who = { target = "friend", softfriend = "friend", nameplate1 = "mob" }
+    STATE.unit = { friend = { guid = "Player-5555-0FRIEND1" },
+        mob = { enemy = true, guid = "Creature-0-1-2-3-4-000129", target = "me" } }
+    STATE.group = true
+    STATE.spellNames[6077], STATE.spellIcons[6077] = "Renew", 135953
+    STATE.spellNames[402174], STATE.spellIcons[402174] = "Penance", 237545
+    STATE.spellNames[402289], STATE.spellIcons[402289] = "Penance", 237545
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    BT.areaOn, BT.dots = nil, nil
+    Advance(1)
+    -- Renew on the friend; its tick lands in the same frame as a party member's hit on a mob
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rn1", 6077)
+    hidden(40)
+    Advance(3)
+    fire("UNIT_COMBAT", "nameplate1", "WOUND", "", 70, 1)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 45, 1)
+    fire("UNIT_COMBAT", "softfriend", "HEAL", "", 45, 1)
+    hidden(41)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Renew +45",
+        "the tick takes its line first: the party member's hit isn't yours, your Renew is")
+    -- The next tick's line comes a frame late: it still vouches for the tick
+    Advance(2.7)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 46, 1)
+    Advance(0.02)
+    hidden(47)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Renew +46", "a tick whose line comes a frame late")
+    -- With no line with it (only an older one, of something else), a heal on the beat isn't yours
+    Advance(2.18)
+    hidden(48)
+    Advance(0.5)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 47, 1)
+    Advance(0.3)
+    assert(not table.concat(lines("outgoing"), " / "):find("+47", 1, true),
+        "a heal on the beat with no line of yours isn't your tick")
+    clear()
+    -- Penance on the friend: two casts of the same name, its heals land a moment later and each second
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn1", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn2", 402289)
+    hidden(42)
+    Advance(0.34)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 50, 1)
+    fire("UNIT_COMBAT", "softfriend", "HEAL", "", 50, 1)
+    hidden(43)
+    Advance(1)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 51, 2)
+    hidden(44)
+    Advance(1)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 52, 1)
+    hidden(45)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Penance +50 / Penance +51 / Penance +52", "Penance's heals, named")
+    clear()
+    -- Long after the channel, someone else's heal on the friend isn't yours
+    Advance(4)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 60, 1)
+    Advance(0.3)
+    assertEq(#lines("outgoing"), 0, "nor is a heal after Penance has ended")
+    -- On an enemy it hurts
+    STATE.who = { target = "mob", nameplate1 = "mob" }
+    Advance(2)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn3", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn4", 402289)
+    Advance(0.3)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 80, 2)
+    hidden(46)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Penance 80", "Penance's damage, named")
+    clear()
+    -- On yourself (nothing targeted): its heals on you are named
+    STATE.who = {}
+    STATE.group = false
+    Advance(4)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn5", 402174)
+    Advance(0.35)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 55, 1)
+    Advance(0.3)
+    assertEq(last("incoming"), "+55 Penance", "Penance on yourself, named")
+    Advance(4)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 56, 1)
+    Advance(0.3)
+    assertEq(last("incoming"), "+56", "and not a heal on you after it ended")
+    STATE.who, STATE.unit, STATE.group = whoWas, unitWas, groupWas
+    BT.areaOn, BT.dots = nil, nil
+    clear()
+end
+
 assertClean("by the end")
 print("ALL TESTS PASSED")

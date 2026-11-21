@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.29.2
+
+- **Penance heals are named.** A priest's Penance heals your target a moment after you cast it, and keeps healing while you channel. BattleText didn't know Penance, so in a group its heals showed as "not yours" and never appeared. It now knows Penance as a channel on your target: its heals on a friend, its damage on an enemy, and its heals on you when you cast it on yourself are all named "Penance".
+- **Renew ticks on party members show every time.** In a group, BattleText needs a line from your combat log to know a heal is yours. Sometimes a Renew tick's line came a moment after the heal, or a party member's hit landing at the same moment took the line first, and the tick was left out. Your heal ticks now get their line first, and wait a moment for one that comes late. (Thanks to k45tr0spam for the detailed report.)
+
 ## 1.29.1
 
 - **Windfury's last hit shows.** When Windfury went off with Stormstrike and a swing together, its second extra hit sometimes came almost a second after your swing's hit. BattleText stopped waiting for Windfury hits a little before that, so the hit was left out. It now waits a little longer. (Thanks again to agalakov-AI for the log.)
