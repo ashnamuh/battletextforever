@@ -66,6 +66,15 @@ local SCHOOL_KEYS = {
 local MASK_COLORS = {}
 for i, school in ipairs(SCHOOL_KEYS) do MASK_COLORS[2 ^ i] = school[3] end
 
+-- A hit's school is a spell's: the same, or one of the two a mixed spell is (Frostfire Bolt is
+-- Fire and Frost, 20: the game may give its hit as either)
+local function InSchool(mask, school)
+    if mask == nil or school == nil then return false end
+    if mask == school then return true end
+    if MASK_COLORS[school] or not MASK_COLORS[mask] then return false end   -- (a mix holds single schools)
+    return math.floor(school / mask) % 2 == 1
+end
+
 local DEFAULTS = {
     enabled = true,
     locked = true,
@@ -1291,7 +1300,6 @@ function BT:UpdateManaSign(hidden)
         sign:SetFrameStrata("HIGH")
         sign.text = sign:CreateFontString(nil, "OVERLAY")
         sign.text:SetPoint("BOTTOM", sign, "BOTTOM", 0, 0)
-        sign.text:SetText("Low mana")
         self.manaSign = sign
         if self.db.debug then self:Record("LOW MANA mana hidden: the sign goes by the game's own percent") end
     end
@@ -1306,6 +1314,8 @@ function BT:UpdateManaSign(hidden)
     if not sign.text:SetFont(self:FontPath(), size, flags) and STANDARD_TEXT_FONT then
         sign.text:SetFont(STANDARD_TEXT_FONT, size, flags)
     end
+    -- (the text only after its font: a new font string has none, and SetText on it is an error)
+    sign.text:SetText("Low mana")
     local c = self.TEXT_COLORS.lowMana
     sign.text:SetTextColor(c[1], c[2], c[3])
     sign:SetAlpha(alpha)   -- (a hidden number: only the game reads it)
@@ -1757,6 +1767,9 @@ local FLIGHT_SPELLS = {
     { 403, "Lightning Bolt", 8 }, { 421, "Chain Lightning", 8 },
     { 24275, "Hammer of Wrath", 2 }, { 3044, "Arcane Shot", 64 },
     { 1326079, "Arcane Wrath", 64 },   -- Forever's own (an Arcane mage's long-cast nuke)
+    -- Forever's Frostfire Bolt (Wowhead Forever: 1237313): Frostfire (Fire and Frost, 20), and
+    -- it leaves the mob burning for 9 seconds (three ticks)
+    { 1237313, "Frostfire Bolt", 20, 3 },
 }
 local FLIGHT_TIME = 2.5   -- the longest a spell can be on its way (about 40 yards)
 -- Forever's Summon Hawk (Beast Mastery talent, 1.60.1; every rank has this name): a hawk dives at
@@ -2501,6 +2514,53 @@ function BT:OnSpellOverlay(spellId, glow)
     self:Alert(id, name)
 end
 
+-- Procs that put a buff on you, for those the game doesn't light up: { spell ID (0: not known
+-- yet), English name }. Forever's Missile Barrage (Arcane talent: a free, fast Arcane Missiles)
+-- and Revelation (a weapon enchant: the next spell's crit chance doubled), and the mage's others.
+local PROC_BUFFS = {
+    { 0, "Missile Barrage" }, { 0, "Revelation" }, { 0, "Hot Streak" }, { 0, "Fingers of Frost" },
+    { 0, "Brain Freeze" }, { 16870, "Clearcasting" },
+}
+-- Your buffs change: "<name>!" for a proc that has just come up. In a fight the game hides most
+-- of your buffs (SecretWhenUnitAuraRestricted), and C_UnitAuras.GetAuraDataBySpellName answers
+-- only for a buff it doesn't hide (RequiresNonSecretAura): so in a fight only the procs the game
+-- leaves readable can show. Not yet seen in game: which ones those are on Forever.
+function BT:CheckProcs()
+    if not self.db.nAlerts then return end
+    local byName = C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName
+    if not byName then return end
+    self.procsOn = self.procsOn or {}
+    -- (in a fight a hidden buff and no buff both come back as nothing: only a buff seen counts.
+    -- The first look after a fight only takes note: a proc from the fight isn't new by then)
+    local fighting = Flag(InCombatLockdown)
+    local quiet = not fighting and self.procsFought
+    self.procsFought = fighting or nil
+    for _, e in ipairs(PROC_BUFFS) do
+        local names = { e[2] }
+        local own = e[1] > 0 and SpellName(e[1])
+        if own and own ~= e[2] then names[2] = own end
+        local on, known = false, false
+        for _, name in ipairs(names) do
+            local ok, a = pcall(byName, "player", name, "HELPFUL")
+            if ok and not IsSecret(a) then
+                if type(a) == "table" and not IsSecret(a.name) then
+                    on, known = true, true
+                    local id = not IsSecret(a.spellId) and Num(a.spellId)
+                    if not self.procsOn[e[2]] and not quiet then
+                        local shown = Str(a.name) or name
+                        self:Alert(id or (e[1] > 0 and e[1]) or shown, shown)
+                        if self.db.debug then self:Record(("PROC %s (%s)"):format(shown, tostring(id))) end
+                    end
+                    break
+                elseif a == nil and not fighting then
+                    known = true
+                end
+            end
+        end
+        if known then self.procsOn[e[2]] = on end
+    end
+end
+
 -- Combo points: "2 CP" as they go up, "5 CP: Finish it!" at the most you can have
 local function ComboPoints()
     local kind = Enum and Enum.PowerType and Enum.PowerType.ComboPoints or 4
@@ -2939,7 +2999,7 @@ end
 local function FlightSchool(f, mask)
     if mask == nil then return false end
     if f.wand then return mask ~= 1 end
-    return mask == f.school
+    return InSchool(mask, f.school)
 end
 
 -- A spell of yours on its way to this unit, of the hit's school: the unit is in your fight even
@@ -3854,7 +3914,7 @@ function BT:TickFor(h, close)
                 if late <= STING_FLIGHT + slack then beats, off = math.floor(since / period), 0 end
             end
             if beats >= 1 and off <= slack and (h.kind == "heal") == dot.heal
-                    and (dot.heal and SameHealSchool(mask, dot.school) or not mask or mask == dot.school)
+                    and (dot.heal and SameHealSchool(mask, dot.school) or not mask or InSchool(mask, dot.school))
                     and (not best or off < bestOff) then
                 best, bestOff = dot, off
             end
@@ -6027,6 +6087,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:StopArea(Num(a3))
     elseif event == "UNIT_AURA" then
         BT:ScanShield()
+        BT:CheckProcs()
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
         if a1 == 16 or a1 == 17 then BT.dualWield = nil end   -- (a weapon changed: an off hand swing will say again)
         BT:ScanItemShields()

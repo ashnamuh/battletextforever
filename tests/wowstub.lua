@@ -81,7 +81,13 @@ local function protectedCheck(self, what)
 end
 
 function Methods:CreateTexture() return newObj("Texture", nil, self) end
-function Methods:CreateFontString() local f = newObj("FontString", nil, self); f.__text = "" return f end
+-- Like the game: a font string made without a template has no font, and SetText on it errors
+-- ("FontString:SetText(): Font not set") until SetFont or SetFontObject gives it one.
+function Methods:CreateFontString(_, _, template)
+    local f = newObj("FontString", nil, self); f.__text = ""
+    f.__noFont = not template
+    return f
+end
 function Methods:CreateAnimationGroup() local g = newObj("AnimationGroup", nil, self); g.__playing = false return g end
 function Methods:CreateAnimation() return newObj("Animation", nil, self) end
 function Methods:Play() self.__playing = true end
@@ -126,6 +132,7 @@ function Methods:RegisterForClicks(...) self.__clicks = { ... } end
 function Methods:SetAttribute(k, v) protectedCheck(self, "SetAttribute") self.__attrs[k] = v end
 function Methods:GetAttribute(k) return self.__attrs[k] end
 function Methods:SetText(t)
+    if self.__noFont and not self.__font and t ~= nil and t ~= "" then error("FontString:SetText(): Font not set", 2) end
     if issecretvalue(t) then self.__text = "<secret>" return end
     self.__text, self.__shown = t, t
 end
@@ -217,7 +224,7 @@ STATE = {
     spellNames = { [16827] = "Claw", [8921] = "Moonfire", [1082] = "Claw", [1822] = "Rake", [1079] = "Rip", [5221] = "Shred",
         [467] = "Thorns", [782] = "Thorns", [1075] = "Thorns", [324] = "Lightning Shield", [5570] = "Insect Swarm",
         [768] = "Cat Form", [6807] = "Maul", [5185] = "Healing Touch", [774] = "Rejuvenation",
-        [133] = "Fireball", [11366] = "Pyroblast", [116] = "Frostbolt", [2136] = "Fire Blast", [5176] = "Wrath",
+        [1237313] = "Frostfire Bolt", [133] = "Fireball", [11366] = "Pyroblast", [116] = "Frostbolt", [2136] = "Fire Blast", [5176] = "Wrath",
         [7384] = "Overpower", [6572] = "Revenge", [14251] = "Riposte", [19306] = "Counterattack",
         [5308] = "Execute", [24275] = "Hammer of Wrath", [16870] = "Clearcasting" },
     usable = {},                  -- what C_Spell.IsSpellUsable says, by spell name: { usable, notEnoughPower }
@@ -467,6 +474,16 @@ C_UnitAuras = {
         if STATE.buffsHidden then error("auras are hidden right now") end
         return STATE.buffs[i]
     end,
+    -- Answers only for a buff the game doesn't hide: in a fight (buffsHidden) just the ones in
+    -- STATE.openBuffs; a hidden one comes back as nothing
+    GetAuraDataBySpellName = function(unit, name, filter)
+        assert(unit == "player" and filter == "HELPFUL", "only your own buffs are read")
+        if STATE.buffsHidden and not (STATE.openBuffs and STATE.openBuffs[name]) then return nil end
+        for _, b in ipairs(STATE.buffs) do
+            if b.name == name then return b end
+        end
+        return nil
+    end,
 }
 function GetLocale() return STATE.locale or "enUS" end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
@@ -596,6 +613,7 @@ function ClickButton(b, which, releaseOnly)
 end
 
 Secret = secret   -- tests make hidden values with Secret(123)
+function Methods:SetFontObject(f) self.__font = f or self.__font end
 function Methods:SetFont(path, size, flags) self.__font = { path, size, flags } return true end
 function Methods:SetTextColor(r, g, b) self.__color = { r, g, b } end
 function Methods:SetScale(s) self.__scale = s end

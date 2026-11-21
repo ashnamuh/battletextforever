@@ -4248,6 +4248,23 @@ STATE.who.target = "mobA"
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-aw4", 1326079)
 fire("UNIT_COMBAT", "target", "WOUND", "", 950, 64)
 assertEq(last("outgoing"), "Arcane Wrath 950", "in its cast's frame")
+-- Frostfire Bolt too (CurseForge, xnmd: the opener and the overkill didn't show)
+clear()
+STATE.unit.mobC.dead = nil
+STATE.who.target = "mobC"
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-ffb1", 1237313)
+STATE.who.target = "mobA"
+Advance(1.1)
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 310, 20)
+assertEq(last("outgoing"), "Frostfire Bolt 310", "a Frostfire Bolt opening the pull")
+STATE.who.target = "mobC"
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-ffb2", 1237313)
+STATE.unit.mobC.dead = true
+STATE.who.target = nil
+Advance(1.1)
+fire("UNIT_COMBAT", "nameplate3", "WOUND", "", 320, 20)
+assertEq(last("outgoing"), "Frostfire Bolt 320", "and its overkill")
+STATE.unit.mobC.dead = nil
 STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
 STATE.unit.mobB, STATE.unit.mobC = nil, nil
 BT.flying = nil
@@ -4431,6 +4448,32 @@ assertEq(last("outgoing"), "Fireball 3", "its burn ticks two seconds after it la
 Advance(1.1)
 wound(3, 4)
 assertEq(last("outgoing"), "3", "off the beat: not a tick")
+clear()
+-- Forever's Frostfire Bolt: Frostfire (Fire and Frost, 20), and a burn ticking every 3 seconds
+-- for 9 (CurseForge, xnmd: its hit and burn had no name or icon)
+fly(1237313)
+Advance(1.2)
+wound(300, 20)
+assertEq(last("outgoing"), "Frostfire Bolt 300", "the frostfire hit that lands after it is the Frostfire Bolt")
+Advance(3)
+wound(19, 20)
+assertEq(last("outgoing"), "Frostfire Bolt 19", "its burn ticks three seconds after it landed")
+Advance(1.4)
+wound(19, 20)
+assertEq(last("outgoing"), "19", "off the beat: not a tick")
+clear()
+fly(1237313)
+Advance(1)
+wound(280, 4)
+assertEq(last("outgoing"), "Frostfire Bolt 280", "the game may call its hit Fire")
+Advance(3)
+wound(18, 16)
+assertEq(last("outgoing"), "Frostfire Bolt 18", "or a tick Frost")
+fly(1237313)
+Advance(1)
+wound(280, 8)
+assertEq(last("outgoing"), "280", "but a nature hit isn't it")
+BT.flying = nil
 clear()
 -- Only a hit of its school, on the mob it was cast at, while it can still be on its way
 fly(116)   -- Frostbolt
@@ -6002,6 +6045,61 @@ do
     fire("SPELL_ACTIVATION_OVERLAY_SHOW", 16870)
     assertEq(alerts(), "", "turned off")
     BT.db.nAlerts = true
+    -- Procs the game doesn't light up, by the buff they put on you (CurseForge, xnmd: Missile
+    -- Barrage, Revelation), when the game lets the buff be read
+    STATE.class = "MAGE"
+    Advance(2)
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "no proc yet")
+    STATE.buffs = { { name = "Missile Barrage", spellId = 400589, duration = 15 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "Missile Barrage!", "Missile Barrage comes up")
+    Advance(2)
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "once while it lasts")
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
+    Advance(2)
+    STATE.buffs = { { name = "Missile Barrage", spellId = 400589, duration = 15 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "Missile Barrage!", "again once it's been used up")
+    -- In a fight: a buff the game hides says nothing (and isn't taken as gone), one it shows does
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
+    Advance(2)
+    COMBAT, STATE.buffsHidden = true, true
+    STATE.buffs = { { name = "Revelation", spellId = 1248806, duration = 15 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "a hidden buff: nothing")
+    STATE.openBuffs = { Revelation = true }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "Revelation!", "Revelation, when the game shows it")
+    STATE.openBuffs = nil
+    Advance(2)
+    fire("UNIT_AURA", "player")
+    STATE.openBuffs = { Revelation = true }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "hidden for a moment isn't gone: the same Revelation says nothing again")
+    STATE.openBuffs = nil
+    Advance(2)
+    STATE.buffs = { { name = "Missile Barrage", spellId = 400589, duration = 15 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "Missile Barrage hidden: nothing")
+    -- The fight ends with it still on: it isn't new any more, so nothing
+    COMBAT, STATE.buffsHidden = false, false
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "not after the fight")
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
+    BT.db.nAlerts = false
+    Advance(2)
+    STATE.buffs = { { name = "Hot Streak", spellId = 48108, duration = 10 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "turned off with the other alerts")
+    BT.db.nAlerts = true
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
     -- Overpower from a dodge and from its button lighting up: once
     STATE.class, STATE.level = "WARRIOR", 30
     Advance(2)

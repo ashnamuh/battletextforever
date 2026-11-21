@@ -12,7 +12,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 - **What happens to you**, in its own area: the damage you take, and the attacks you dodge, parry, block or resist.
 - **Heals**, the ones you get and the ones you do, in their own Healing area under your character (or with the damage, if you prefer).
 - **Notifications**: combat, experience, reputation, honor, loot, money, skill ups, a paladin's seals going on and coming off, and (if you turn it on) your buffs.
-- **Ability alerts**: "Overpower!" when your target dodges you, "Revenge!" when you dodge, parry or block, "Riposte!" and "Counterattack!" when you parry (with the talent), "Execute!" and "Hammer of Wrath!" when your target is low enough, and procs the game lights up on your action bars (like Clearcasting).
+- **Ability alerts**: "Overpower!" when your target dodges you, "Revenge!" when you dodge, parry or block, "Riposte!" and "Counterattack!" when you parry (with the talent), "Execute!" and "Hammer of Wrath!" when your target is low enough, and procs: the ones the game lights up on your action bars (like Clearcasting), and Missile Barrage, Revelation, Hot Streak, Fingers of Frost and Brain Freeze when the game lets BattleText see the buff.
 - **Combo points**: "2 CP" as they build, "5 CP: Finish it!" when you have them all.
 - **Cooldowns ready**: "Kick ready" when a spell of yours comes off a cooldown of 8 seconds or more.
 - **Interrupts**: "Interrupted Frostbolt" when you or your pet stop an enemy's cast.

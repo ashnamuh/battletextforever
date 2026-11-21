@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.30.0
+
+- **Frostfire Bolt is named.** BattleText didn't know Frostfire Bolt, so its hit and the burn it leaves showed as bare numbers with no name or icon. It's now known as a spell that lands a moment after the cast, and its burn ticks are named too.
+- **Frostfire Bolt's opener and overkill show.** Because BattleText didn't know the spell, a Frostfire Bolt that opened the pull (on a mob not after you yet) or killed the mob was taken as someone else's and left out. It now counts as yours while it's on its way, like Fireball and Frostbolt. (Thanks to xnmd for the report.)
+- **Proc alerts for Missile Barrage and Revelation.** With "Ability alerts" on, "Missile Barrage!", "Revelation!", "Hot Streak!", "Fingers of Frost!", "Brain Freeze!" and "Clearcasting!" now show in Notifications when the buff comes up. One catch: in a fight the game hides most of your buffs from addons, so a proc only shows if the game lets BattleText see it (or lights it up on your action bars). If one never shows for you, a `/btf debug` log helps.
+- **No more error with the low mana sign.** When the game hides your mana and you got low, the "Low mana" sign threw a "Font not set" error, over and over. It now shows as it should.
+
 ## 1.29.2
 
 - **Penance heals are named.** A priest's Penance heals your target a moment after you cast it, and keeps healing while you channel. BattleText didn't know Penance, so in a group its heals showed as "not yours" and never appeared. It now knows Penance as a channel on your target: its heals on a friend, its damage on an enemy, and its heals on you when you cast it on yourself are all named "Penance".
