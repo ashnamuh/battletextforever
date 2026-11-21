@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.28.1
+
+- **Cursed Murloc Eye and Thorncursed Grips are hidden on non-English game clients too.** BattleText recognised these items by reading the English text on their tooltips, so on a Russian (or any other non-English) client it never knew you had them on, and their 2 damage kept showing whatever "Hide hits below" was set to. It now knows them by the item itself, in any language, and names them with your game's own item name.
+- **Stormstrike with the Eye on no longer shows two 2s.** When two hits from the Eye land together (a Stormstrike and your swing), BattleText played it safe and showed both, in case one was a real Shadow spell. Classes with no Shadow spells (shamans, warriors, rogues and more) can't be casting one, so both are now taken for the Eye and hidden. Warlocks, priests and Undead still see both, since one could be a real Shadow spell. (Thanks to agalakov-AI for the debug log.)
+
 ## 1.28.0
 
 - **The low mana warning works when the game hides your mana.** For some players the game won't let addons see their mana (we found this while fixing Life Tap), so "Low mana!" could never go off for them. BattleText still can't see the number, but the game lets it hand over your line and show the answer. So when your mana is hidden and you're under your "Low mana at" line, a steady blue "Low mana" now shows just above your notifications, and goes away once you're back above it. There's no sound in this case, since BattleText can't tell the moment you cross the line. If your mana can be read, nothing changes: "Low mana!" scrolls by with its sound as before. Turn it on with "Low mana" in the Warnings card on the Incoming tab.

@@ -3390,6 +3390,13 @@ local function PoisonIcon(slot)
     end
     return nil
 end
+-- Gear that adds a set amount to every hit, known by its item ID: the tooltip is read in English
+-- only, so on any other client (GitHub #25, 1.27.1: a Russian client) the Eye was never known
+-- and its 2 always showed. The tooltip's first line still gives the name in the game's language.
+local EVERY_ITEMS = {
+    [273840] = { name = "Cursed Murloc Eye", school = 32, amount = 2, times = 4, versus = "Murloc" },
+    [274159] = { name = "Thorncursed Grips", school = 8, amount = 2, melee = true },
+}
 function BT:ScanItemShields()
     if not (C_TooltipInfo and C_TooltipInfo.GetInventoryItem) then return end
     if InCombatLockdown() then return end
@@ -3397,8 +3404,8 @@ function BT:ScanItemShields()
     for slot = 1, 19 do
         local ok, data = pcall(C_TooltipInfo.GetInventoryItem, "player", slot)
         local rows = ok and not IsSecret(data) and type(data) == "table" and data.lines
+        local name, everyRead
         if type(rows) == "table" then
-            local name
             for _, row in ipairs(rows) do
                 local text = type(row) == "table" and Str(row.leftText) or nil
                 if not text and type(row) == "table" and type(row.args) == "table" then
@@ -3449,9 +3456,19 @@ function BT:ScanItemShields()
                         procs[#procs + 1] = { name = name, school = eachSchool, icon = icon, every = true,
                             melee = melee or nil, amount = tonumber(each), times = tonumber(times),
                             versus = versus and versus:gsub("s$", "") }
+                        everyRead = true
                     end
                 end
             end
+        end
+        -- (not read from the tooltip: known by its ID, in any language)
+        local okId, itemID = pcall(GetInventoryItemID or function() end, "player", slot)
+        local known = okId and Num(itemID) and EVERY_ITEMS[itemID]
+        if known and not everyRead then
+            local okIcon, icon = pcall(GetInventoryItemTexture, "player", slot)
+            procs[#procs + 1] = { name = name or known.name, school = known.school, every = true,
+                icon = okIcon and (Num(icon) or Str(icon)) or nil, melee = known.melee,
+                amount = known.amount, times = known.times, versus = known.versus }
         end
     end
     self.itemShields = found
@@ -3889,6 +3906,32 @@ end
 -- are on, the gear's hit comes with its line, up to a second AHEAD of the swing's own hit (as a
 -- seal's does): that one waits for the swing (WaitForSwing) instead (GitHub #25, 1.24.3: the
 -- Eye's 2 still showed with "Hide hits below" at 5).
+-- The magic schools each class's own spells hit with (unknown class: every school). Two hidden
+-- hits of the gear's school together are only in doubt if one may be a spell of yours: a shaman
+-- has no Shadow, so with the Eye on, a Stormstrike and its swing give two hidden Shadow hits that
+-- are both the Eye's (GitHub #25, 1.27.1).
+local CLASS_SCHOOLS = {
+    WARRIOR = {}, ROGUE = { [8] = true }, HUNTER = { [4] = true, [8] = true, [64] = true },
+    MAGE = { [4] = true, [16] = true, [64] = true }, PRIEST = { [2] = true, [32] = true },
+    WARLOCK = { [4] = true, [32] = true }, DRUID = { [8] = true, [64] = true },
+    SHAMAN = { [4] = true, [8] = true, [16] = true }, PALADIN = { [2] = true },
+}
+function BT:SpellsOfSchool(mask)
+    local ok, _, class = false, nil, nil
+    if UnitClass then ok, _, class = pcall(UnitClass, "player") end
+    local schools = ok and Str(class) and CLASS_SCHOOLS[class]
+    if not schools then return true end
+    for bit, yes in pairs(schools) do
+        if yes and mask % (bit * 2) >= bit then return true end
+    end
+    -- (Touch of the Grave, the Undead racial, drains with Shadow)
+    if mask % 64 >= 32 and UnitRace then
+        local okRace, _, race = pcall(UnitRace, "player")
+        if okRace and Str(race) == "Scourge" then return true end
+    end
+    return false
+end
+
 function BT:EveryHitFor(h, seq, first, last, at)
     local item = self:EveryOn(h)
     if not item then return nil end
@@ -3900,11 +3943,15 @@ function BT:EveryHitFor(h, seq, first, last, at)
         if j ~= at and o.hit and not o.splash and o.kind == "damage"
                 and ((h.key and o.key == h.key) or (not h.key and o.unit == h.unit)) then
             if Num(o.school) == mask and h.secret and o.secret then
-                h.everyUnsure = true   -- (nor does it wait for a swing: WaitForSwing)
-                return nil
+                if self:SpellsOfSchool(mask) then
+                    h.everyUnsure = true   -- (nor does it wait for a swing: WaitForSwing)
+                    return nil
+                end
+            -- (gear that adds to melee weapon attacks only goes off beside a weapon blow; another
+            -- of the gear's own hits isn't a hit for it to go with)
+            elseif not item.melee or Num(o.school) == 1 then
+                near = true
             end
-            -- (gear that adds to melee weapon attacks only goes off beside a weapon blow)
-            if not item.melee or Num(o.school) == 1 then near = true end
         end
     end
     if not near then return nil end

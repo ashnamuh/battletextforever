@@ -501,6 +501,8 @@ C_TooltipInfo = {
 -- Your weapons' speeds: main hand, and off hand only while it holds a weapon (STATE.offSpeed)
 function UnitAttackSpeed(unit) return 2.0, STATE.offSpeed end
 function GetInventoryItemTexture(unit, slot) return STATE.equipped[slot] and STATE.equipped[slot].icon end
+-- (STATE.equipped[slot].id: the item's ID)
+function GetInventoryItemID(unit, slot) return STATE.equipped[slot] and STATE.equipped[slot].id end
 -- Your shapeshift form: STATE.form = { icon =, spellId = } (none: no form)
 function GetShapeshiftForm() return STATE.form and 1 or 0 end
 function GetShapeshiftFormInfo(i)

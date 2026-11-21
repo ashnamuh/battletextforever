@@ -5039,9 +5039,70 @@ do
     -- Two hidden Shadow hits side by side (a Shadow Bolt and the Eye) can't be told apart: neither
     -- is taken for the Eye, so a big one is never hidden by mistake
     BT.db.minDamage = 5
+    local wasClass = STATE.class
+    STATE.class = "WARLOCK"
     hiddenOn(300, 32)
     hiddenOn(2, 32)
-    assertEq(#lines("outgoing"), 2, "two hidden Shadow hits together: both shown")
+    assertEq(#lines("outgoing"), 2, "two hidden Shadow hits together (a warlock): both shown")
+    clear()
+    -- GitHub #25 (1.27.1, a shaman's log): Stormstrike and its swing in one frame, each with the
+    -- Eye's hidden Shadow hit. A shaman has no Shadow spells: both are the Eye's, hidden below 5.
+    STATE.class = "SHAMAN"
+    Advance(3)
+    wound(40, 1)
+    hiddenOn(2, 32)
+    hiddenOn(2, 32)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "a shaman's two hidden Shadow hits beside a blow: both the Eye's")
+    clear()
+    -- (but not two on their own: they wait for a swing, and none comes)
+    Advance(3)
+    hiddenOn(2, 32)
+    hiddenOn(2, 32)
+    Advance(1.3)
+    assertEq(#lines("outgoing"), 2, "two hidden Shadow hits with no blow of yours: shown")
+    clear()
+    -- An Undead shaman has Touch of the Grave (Shadow): still in doubt
+    STATE.race = "Scourge"
+    Advance(3)
+    wound(40, 1)
+    hiddenOn(300, 32)
+    hiddenOn(2, 32)
+    Advance(1.3)
+    assertEq(#lines("outgoing"), 3, "an Undead's two hidden Shadow hits: both shown")
+    STATE.race = nil
+    STATE.class = wasClass
+    clear()
+    -- GitHub #25 (1.27.1): on a Russian client the tooltip isn't English, so the Eye was never
+    -- read and its 2 always showed. It's known by its item ID, named by the tooltip's first line.
+    STATE.equipped[13] = { id = 273840, name = "Проклятый глаз мурлока", icon = 133884,
+        lines = { "Если на персонаже: заклинания и атаки наносят 2 ед. урона от темной магии." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, true)
+    local ru = BT.itemProcs[1]
+    assertEq(ru and (ru.name .. " " .. ru.school .. " " .. ru.amount .. " x" .. ru.times),
+        "Проклятый глаз мурлока 32 2 x4", "a Russian Eye known by its ID")
+    assertEq(#BT.itemProcs, 1, "once")
+    Advance(3)
+    wound(40, 1)
+    hiddenOn(2, 32)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "a Russian client's Eye hidden below 5")
+    clear()
+    -- (the English tooltip read, with its ID too: still once)
+    STATE.equipped[13] = { id = 273840, name = "Cursed Murloc Eye", icon = 133884,
+        lines = { "Equip: Spells and attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 13, true)
+    assertEq(#BT.itemProcs, 1, "an English Eye with its ID: read once")
+    -- Russian Thorncursed Grips, by ID: melee only, Nature
+    STATE.equipped[13] = nil
+    STATE.equipped[10] = { id = 274159, name = "Терновые перчатки", icon = 132939,
+        lines = { "Если на персонаже: ваши атаки оружием ближнего боя наносят 2 ед. урона от сил природы." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 10, true)
+    local gr = BT.itemProcs[1]
+    assertEq(gr and (gr.name .. " " .. gr.school .. " " .. gr.amount .. " " .. tostring(gr.melee)),
+        "Терновые перчатки 8 2 true", "Russian Grips known by their ID")
+    Advance(3)
+    wound(40, 1)
+    hiddenOn(2, 8)
+    assertEq(table.concat(lines("outgoing"), " / "), "40", "the Russian Grips' 2 hidden below 5")
     clear()
     -- Thorncursed Grips (GitHub #25): "Your melee weapon attacks deal 2 Nature damage to both you
     -- and your target". Only beside a weapon blow: a Nature hit of 2 beside a spell isn't theirs.
