@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.29.1
+
+- **Windfury's last hit shows.** When Windfury went off with Stormstrike and a swing together, its second extra hit sometimes came almost a second after your swing's hit. BattleText stopped waiting for Windfury hits a little before that, so the hit was left out. It now waits a little longer. (Thanks again to agalakov-AI for the log.)
+
 ## 1.29.0
 
 - **Gear is understood in every game language.** BattleText learns what your gear does from its tooltip, and until now it could only read English tooltips. On a Russian, German, French or other client it never knew about a cloak or ring that hits back (like Sporid Cape), a weapon's "Chance on hit", or a rogue's poisons, so their hits showed as bare numbers or got the wrong name. Now it reads the "Equip:" and "Chance on hit:" lines in your game's language, takes the numbers from them, and knows the damage type from its name in your language. Poisons are matched by their spell, so their names work in any language too.

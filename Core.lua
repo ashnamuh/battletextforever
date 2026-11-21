@@ -1683,7 +1683,10 @@ end
 local CREDIT_TIME = 1.2   -- a hit can follow its combat log line by this long (a swing lands with its animation)
 local LINE_WITH_HIT = 0.15  -- a line this close before a hit is its own (spells, ticks, procs, heals: in its frame or just ahead)
 local SWING_RECENT = 6      -- PLAYER_SWING this recent: your swings are vouched for by it, not by their lines
-local EXTRA_TIME = 0.8      -- an extra attack (Windfury) lands this soon after the blow that gave it
+-- An extra attack (Windfury) lands this soon after the blow that gave it. GitHub #25 (1.29.0, a
+-- shaman's log): Stormstrike and a swing together, the swing's hit 0.4s later, Windfury's two
+-- hits 0.36s and 0.94s after that one. Until 1.29.1 it was 0.8, and the second was left out.
+local EXTRA_TIME = 1.1
 local EXTRA_HITS = 2        -- and a blow gives at most this many
 local TICK_SLACK = 0.25   -- a tick can be this far off its beat
 local TICK_CLOSE = 0.15   -- and once it has ticked, the next is about this close to its beat (against a spell landing)

@@ -2085,6 +2085,24 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 42, 1)
 assertEq(table.concat(lines("outgoing"), " / "), "40 / 41",
     "alone: Windfury's hit after your white hit shows; a hit a second later doesn't")
 clear()
+-- GitHub #25 (1.29.0, a shaman's log): Stormstrike and a swing in one frame, the swing's hit 0.4s
+-- later, then Windfury's two hits 0.36s and 0.94s after it. The second was "no line of yours with it".
+Advance(2)
+fire("PLAYER_SWING", 2.6, 0)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-ss2", 17364)
+hidden(2030)
+fire("UNIT_COMBAT", "target", "WOUND", "", 62, 1)
+hidden(2031)
+hidden(2032)
+Advance(0.4)
+fire("UNIT_COMBAT", "target", "WOUND", "", 44, 1)
+Advance(0.36)
+fire("UNIT_COMBAT", "target", "WOUND", "", 87, 1)
+Advance(0.58)
+fire("UNIT_COMBAT", "target", "WOUND", "", 88, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "Stormstrike 62 / 44 / 87 / 88",
+    "alone: Windfury's second hit, 0.94s after your swing's, shows")
+clear()
 -- In a group a party member's white hit can follow your blow: an extra attack also takes a spare
 -- line of yours from the blow's own frame (Windfury's lines come with it)
 STATE.group = true
