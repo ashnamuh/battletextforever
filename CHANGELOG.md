@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.3
+
+- **Thorns and gear that hits back are named every time.** BattleText names your damage shields by matching their hits to a mob's blow on you. With Thorns and a ring like the Spiked Shell Band, their hits sometimes came a little too long after the blow, or the blow showed up as a miss. Then both showed as bare green numbers (a 9 and a 2) with no name or icon. BattleText now waits a bit longer after a blow. And when one Nature hit for each of your Nature shields lands on the mob at the same moment, it knows those are your shields even if no blow shows up. They come up as "Thorns 9" and "Spiked Shell Band 2" (or stay hidden if you hid the ring on the Spells tab).
+
 ## 1.28.2
 
 - **Windfury hits show again.** The extra hits from Windfury Weapon came with nothing for BattleText to tell they were yours, so they were left out, and only showed now and then when one killed the mob. Extra attacks that land right after your own swing or Stormstrike now show like your other hits. This also covers other extra attacks, like Hand of Justice and Sword Specialization. In a group, BattleText still checks your own combat lines first, so a party member's swing right after yours isn't shown as yours. (Thanks to ehrinpitts for the debug log.)

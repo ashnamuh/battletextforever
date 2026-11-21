@@ -2588,6 +2588,30 @@ do
     wound(Secret(9), 8) wound(Secret(2), 8)
     Advance(1.5)
     assertEq(shieldsNamed(), "shield of Thorns / shield of Spiked Shell Band", "a blow just before names both too")
+    -- Tyler's second log (1.28.2): the blow came 0.57s before, or only as a miss
+    BT.recorded = {}
+    Advance(2)
+    blow() Advance(0.57)
+    wound(Secret(9), 8) wound(Secret(2), 8)
+    Advance(1.5)
+    assertEq(shieldsNamed(), "shield of Thorns / shield of Spiked Shell Band", "a blow 0.57s before names both")
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(9), 8) wound(Secret(2), 8)
+    Advance(0.3) fire("UNIT_COMBAT", "player", "MISS", "", 0, 1)
+    Advance(1.5)
+    assertEq(shieldsNamed(), "shield of Thorns (with the others) / shield of Spiked Shell Band (with the others)",
+        "no blow, but one Nature hit for each Nature shield at once: theirs")
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(9), 8)
+    Advance(1.5)
+    assertEq(shieldsNamed(), "nothing came for it: shown", "one Nature hit alone, no blow: just a hit")
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(9), 8) Advance(0.1) wound(Secret(2), 8)
+    Advance(1.5)
+    assertEq(shieldsNamed(), "nothing came for it: shown / nothing came for it: shown", "not at the same moment: just hits")
     -- a readable 2 is the ring's, whichever comes first
     BT.db.shieldAmounts = { Thorns = 9 }
     BT.recorded = {}

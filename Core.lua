@@ -2566,6 +2566,9 @@ end
 -- (SEAL_AFTER_SWING, unless frameOnly), and a hit with neither waits for one (WaitForSwing).
 local SEAL_SWING_TIME = 1.2   -- how long a seal's hit waits for the swing's
 local SEAL_AFTER_SWING = 0.5  -- how long after the swing's hit the seal's can come
+-- How long after a blow on you your damage shields' hits can come (Tyler's log, 1.28.2: Thorns
+-- and Spiked Shell Band 0.57s after the blow, shown unnamed with the seal's 0.5)
+local SHIELD_AFTER_BLOW = 1.0
 -- With Unsealed Wrath, a Holy hit with your swing that the seal on you doesn't explain (it
 -- adds no damage, or there's none) is the talent's stored seal going off. Until 1.19.1 it was
 -- taken for Retribution Aura's answer to the mob's blow, and hidden with "Damage shields" off.
@@ -2649,7 +2652,7 @@ function BT:WaitForSwing(h)
     local shield = shields and shields[1]
     local every = h.key and not seal and not h.everyUnsure and self:EveryOn(h)
     if shield and not seal and not every and self.lastBlow and h.time - self.lastBlow >= 0
-            and h.time - self.lastBlow <= SEAL_AFTER_SWING then
+            and h.time - self.lastBlow <= SHIELD_AFTER_BLOW then
         -- (the blow just before: each of its shields names one hit)
         if self.blowAnswered == nil or self.blowAnswered.at ~= self.lastBlow then
             self.blowAnswered = { at = self.lastBlow, names = {} }
@@ -2670,6 +2673,7 @@ function BT:WaitForSwing(h)
     local function over()
         for i, e in ipairs(BT.sealWait or {}) do
             if e == entry then
+                if BT:WholeShieldSet(entry) then return end
                 table.remove(BT.sealWait, i)
                 local why = BT:ShowUnitHit(h, "hit", nil)
                 if BT.db.debug then
@@ -2680,6 +2684,37 @@ function BT:WaitForSwing(h)
         end
     end
     if C_Timer and C_Timer.After then C_Timer.After(SEAL_SWING_TIME, over) else over() end
+    return true
+end
+
+-- No blow came for a shield's hit, but it came with one hit for each of your shields of its
+-- school, on the same mob in the same moment (two Nature hits with Thorns and a Spiked Shell Band
+-- on: Tyler's log, 1.28.2, where the blow on you came as a miss or too long before): that's
+-- the shields answering, each named in turn. Returns true if it named them.
+function BT:WholeShieldSet(entry)
+    local shields = entry.shields
+    if entry.seal or entry.every or not shields or #shields < 2 then return false end
+    local h = entry.h
+    local set = {}
+    for _, e in ipairs(self.sealWait or {}) do
+        if not e.seal and not e.every and e.shields and e.h.time == h.time and e.h.unit == h.unit
+                and Num(e.h.school) == Num(h.school) then
+            set[#set + 1] = e
+        end
+    end
+    if #set ~= #shields then return false end
+    for _, e in ipairs(set) do
+        for i, w in ipairs(self.sealWait) do
+            if w == e then table.remove(self.sealWait, i) break end
+        end
+    end
+    for n, e in ipairs(set) do
+        local why = self:ShowUnitHit(e.h, "shield", shields[n])
+        if self.db.debug then
+            self:Record(("  %s %s: %s"):format(e.h.unit, AmountText(e.h.amount),
+                why or ("shield of " .. shields[n].name .. " (with the others)")), e.h.time)
+        end
+    end
     return true
 end
 
