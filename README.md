@@ -83,6 +83,7 @@ Go to **Options → Keybindings → BattleText Forever**:
 | `/btf copy` | Show the recorded lines in a box you can copy from |
 | `/btf last` | Your last fight, spell by spell |
 | `/btf check` | Check the spells, texts and icons BattleText uses against your game, and report anything missing |
+| `/btf gear` | Show what BattleText read from the gear you're wearing (then `/btf copy`) |
 | `/btf export` · `/btf import` | Share your settings as a line of text, or take someone else's |
 
 `/battletext` works too.
@@ -123,6 +124,7 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
 - **Numbers show twice.** Turn on **Hide the game's own numbers** in the options.
 - **Something isn't shown.** Type `/btf debug`, fight for a moment, then type `/btf copy` and copy the lines into a bug report. Type `/btf debug` again to stop.
 - **A spell or icon looks wrong.** Type `/btf check`, then `/btf copy`, and add the report to a bug report.
+- **Your gear's hits have no name** (a cloak or ring that hits back, a weapon's "Chance on hit", a poison), or the wrong one. Type `/btf gear` out of combat, then `/btf copy`, and add it to a bug report. This helps most when your game isn't in English.
 - **The text is in the wrong place.** Type `/btf unlock` and drag the boxes, or `/btf reset`.
 
 ## Feedback and bug reports

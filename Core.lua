@@ -3502,14 +3502,91 @@ local EVERY_ITEMS = {
     [273840] = { name = "Cursed Murloc Eye", school = 32, amount = 2, times = 4, versus = "Murloc" },
     [274159] = { name = "Thorncursed Grips", school = 8, amount = 2, melee = true },
 }
-function BT:ScanItemShields()
+
+-- Reading gear in any language (1.29.0). The game marks an item's effect lines itself: by the
+-- line's type (Enum.TooltipDataLineType) or by its label, which the game translates
+-- (ITEM_SPELL_TRIGGER_ONEQUIP "Equip:", ITEM_SPELL_TRIGGER_ONPROC "Chance on hit:"). Numbers
+-- are the same in every language. What's left to know is the school, and for gear that hits
+-- back, that it hurts the attacker: a word for each, per language, as the tooltips write them.
+local LINE_ON_EQUIP, LINE_ON_PROC = 45, 46   -- (ItemSpellTriggerOnEquip, ItemSpellTriggerOnProc)
+local LOCAL_SCHOOLS = {
+    deDE = { { "Heilig", 2 }, { "Feuer", 4 }, { "Natur", 8 }, { "Frost", 16 }, { "Schatten", 32 }, { "Arkan", 64 } },
+    frFR = { { "Sacré", 2 }, { "Feu", 4 }, { "Nature", 8 }, { "Givre", 16 }, { "Ombre", 32 }, { "Arcane", 64 } },
+    esES = { { "Sagrado", 2 }, { "Fuego", 4 }, { "Naturaleza", 8 }, { "Escarcha", 16 }, { "Sombra", 32 }, { "Arcano", 64 } },
+    ptBR = { { "Sagrado", 2 }, { "Fogo", 4 }, { "Natureza", 8 }, { "Gélido", 16 }, { "Gelo", 16 }, { "Sombra", 32 },
+        { "Arcano", 64 } },
+    itIT = { { "Sacro", 2 }, { "Fuoco", 4 }, { "Natura", 8 }, { "Gelo", 16 }, { "Ombra", 32 }, { "Arcano", 64 } },
+    ruRU = { { "светл", 2 }, { "огн", 4 }, { "природ", 8 }, { "льд", 16 }, { "темн", 32 }, { "тайн", 64 } },
+    koKR = { { "신성", 2 }, { "화염", 4 }, { "자연", 8 }, { "냉기", 16 }, { "암흑", 32 }, { "비전", 64 } },
+    zhCN = { { "神圣", 2 }, { "火焰", 4 }, { "自然", 8 }, { "冰霜", 16 }, { "暗影", 32 }, { "奥术", 64 } },
+    zhTW = { { "神聖", 2 }, { "火焰", 4 }, { "自然", 8 }, { "冰霜", 16 }, { "暗影", 32 }, { "秘法", 64 } },
+}
+LOCAL_SCHOOLS.esMX = LOCAL_SCHOOLS.esES
+local LOCAL_ATTACKER = {
+    deDE = { "Angreifer" }, frFR = { "attaquant" }, esES = { "atacante", "agresor" }, ptBR = { "atacante", "agressor" },
+    itIT = { "attaccante", "aggressore" }, ruRU = { "атакующ", "нападающ" }, koKR = { "공격자" },
+    zhCN = { "攻击者" }, zhTW = { "攻擊者" },
+}
+LOCAL_ATTACKER.esMX = LOCAL_ATTACKER.esES
+local function Locale() return GetLocale and Str(GetLocale()) or "enUS" end
+local function Has(text, word)
+    return text:find(word, 1, true) ~= nil or text:lower():find(word:lower(), 1, true) ~= nil
+end
+-- The one school a line names in the game's language (none, or two: nil)
+local function LocalSchool(text)
+    local found
+    for _, e in ipairs(LOCAL_SCHOOLS[Locale()] or {}) do
+        if Has(text, e[1]) then
+            if found and found ~= e[2] then return nil end
+            found = e[2]
+        end
+    end
+    return found
+end
+local function Numbers(text)
+    local out = {}
+    for digits in text:gmatch("%d+") do out[#out + 1] = tonumber(digits) end
+    return out
+end
+-- What kind of effect line this is ("equip", "proc"), and its text after the label
+local function GearLine(row, text)
+    local kind = type(row) == "table" and Num(row.type)
+    local types = Enum and Enum.TooltipDataLineType
+    if kind and kind == ((types and types.ItemSpellTriggerOnEquip) or LINE_ON_EQUIP) then kind = "equip"
+    elseif kind and kind == ((types and types.ItemSpellTriggerOnProc) or LINE_ON_PROC) then kind = "proc"
+    else kind = nil end
+    for _, e in ipairs({ { Str(ITEM_SPELL_TRIGGER_ONPROC), "proc" }, { Str(ITEM_SPELL_TRIGGER_ONEQUIP), "equip" },
+            { "Chance on hit:", "proc" }, { "Equip:", "equip" } }) do
+        local label = e[1]
+        if label and text:sub(1, #label) == label then
+            return kind or e[2], (text:sub(#label + 1):gsub("^%s+", ""))
+        end
+    end
+    return kind, text
+end
+-- A poison by the name its line shows, in any language: the poison's own spell names it
+local function PoisonNamed(base)
+    if POISONS[base] then return POISONS[base], base end
+    for english, poison in pairs(POISONS) do
+        if SpellName(poison.id) == base then return poison, english end
+    end
+    return nil
+end
+
+local SCHOOL_NAMES = { [2] = "Holy", [4] = "Fire", [8] = "Nature", [16] = "Frost", [32] = "Shadow", [64] = "Arcane" }
+-- report: a list to fill with what each item's lines were taken for (/btf gear)
+function BT:ScanItemShields(report)
     if not (C_TooltipInfo and C_TooltipInfo.GetInventoryItem) then return end
     if InCombatLockdown() then return end
+    local english = IsEnglish()
     local found, procs = {}, {}
+    local function note(text) if report then report[#report + 1] = "    " .. text end end
     for slot = 1, 19 do
         local ok, data = pcall(C_TooltipInfo.GetInventoryItem, "player", slot)
         local rows = ok and not IsSecret(data) and type(data) == "table" and data.lines
         local name, everyRead
+        local okId, itemID = pcall(GetInventoryItemID or function() end, "player", slot)
+        itemID = okId and Num(itemID) or nil
         if type(rows) == "table" then
             for _, row in ipairs(rows) do
                 local text = type(row) == "table" and Str(row.leftText) or nil
@@ -3523,27 +3600,62 @@ function BT:ScanItemShields()
                 -- Poison III (30 min)|r", CurseForge 1.24.1)
                 if text then text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") end
                 if text then
-                    name = name or text   -- the first line is the item's name
+                    if not name then
+                        name = text   -- the first line is the item's name
+                        if report then
+                            report[#report + 1] = ("slot %d: %s (item %s)"):format(slot, text, tostring(itemID))
+                            local getSpell = C_Item and C_Item.GetFirstTriggeredSpellForItem
+                            local okQ, quality = pcall(C_Item and C_Item.GetItemQualityByID or function() end, itemID)
+                            if getSpell and itemID and okQ and Num(quality) then
+                                local okS, spellID = pcall(getSpell, itemID, quality)
+                                if okS and Num(spellID) then
+                                    note(("its spell: %d %s"):format(spellID, tostring(SpellName(spellID))))
+                                end
+                            end
+                        end
+                    end
+                    local kind, body = GearLine(row, text)
+                    local took
                     local amount, school = text:match("[Ii]nflicts (%d+) (%a+) damage to the attacker")
                     school = school and SCHOOL_WORDS[school:lower()]
+                    -- (in another language: an Equip line naming the attacker, a school and one number)
+                    if not school and not english and kind == "equip" then
+                        local nums = Numbers(body)
+                        local hurtsAttacker = false
+                        for _, word in ipairs(LOCAL_ATTACKER[Locale()] or {}) do
+                            if Has(body, word) then hurtsAttacker = true end
+                        end
+                        if hurtsAttacker and #nums == 1 then school, amount = LocalSchool(body), nums[1] end
+                    end
                     local okIcon, icon = pcall(GetInventoryItemTexture, "player", slot)
                     icon = okIcon and (Num(icon) or Str(icon)) or nil
                     if school then
                         found[#found + 1] = { name = name, amount = tonumber(amount), school = school, icon = icon }
+                        took = ("hits back: %s %s"):format(tostring(amount), SCHOOL_NAMES[school] or school)
                     end
                     -- What it does to the mob you hit: named after the item (or the enchant)
                     local proc = text:match("^Chance on hit: (.+)") or text:match("^Equip: Chance on hit: (.+)")
                     local procSchool, most
                     if proc then procSchool, most = ProcDamage(proc) end
+                    if not procSchool and not english and kind == "proc" then
+                        -- (in another language: the school's word, and the most it does from its numbers)
+                        local nums = Numbers(body)
+                        procSchool = nums[1] and LocalSchool(body)
+                        if procSchool then most = math.max(nums[1], nums[2] or 0) end
+                    end
+                    local poison, poisonName
+                    if (slot == 16 or slot == 17) then poison, poisonName = PoisonNamed(EnchantBase(text)) end
                     if procSchool then
                         procs[#procs + 1] = { name = name, school = procSchool, most = most, icon = icon }
+                        took = ("chance on hit: %s, up to %s"):format(SCHOOL_NAMES[procSchool] or procSchool, tostring(most))
                     elseif ENCHANT_PROCS[text] then
                         procs[#procs + 1] = { name = text, school = ENCHANT_PROCS[text], icon = icon }
-                    elseif (slot == 16 or slot == 17) and POISONS[EnchantBase(text)] then
+                        took = "weapon enchant"
+                    elseif poison then
                         local base = EnchantBase(text)
-                        local poison = POISONS[base]
                         procs[#procs + 1] = { name = base, id = poison.id, school = poison.school,
                             poison = true, dot = poison.dot, slot = slot, icon = PoisonIcon(slot) }
+                        took = "poison: " .. poisonName
                     end
                     -- Gear that adds a set amount to every hit (Cursed Murloc Eye: "Equip: Spells and
                     -- attacks deal 2 Shadow damage. Deals 4 times as much damage to Murlocs.")
@@ -3562,22 +3674,37 @@ function BT:ScanItemShields()
                             melee = melee or nil, amount = tonumber(each), times = tonumber(times),
                             versus = versus and versus:gsub("s$", "") }
                         everyRead = true
+                        took = "every hit"
+                    end
+                    if report and (kind or took) and text ~= name then
+                        note(("%s%s -> %s"):format(kind and (kind .. ": ") or "", text, took or "not understood"))
                     end
                 end
             end
         end
         -- (not read from the tooltip: known by its ID, in any language)
-        local okId, itemID = pcall(GetInventoryItemID or function() end, "player", slot)
-        local known = okId and Num(itemID) and EVERY_ITEMS[itemID]
+        local known = itemID and EVERY_ITEMS[itemID]
         if known and not everyRead then
             local okIcon, icon = pcall(GetInventoryItemTexture, "player", slot)
             procs[#procs + 1] = { name = name or known.name, school = known.school, every = true,
                 icon = okIcon and (Num(icon) or Str(icon)) or nil, melee = known.melee,
                 amount = known.amount, times = known.times, versus = known.versus }
+            note("every hit (known by its item ID)")
         end
     end
     self.itemShields = found
     self.itemProcs = procs
+end
+
+-- /btf gear: what BattleText read from each item you wear, for a player to paste in a bug report
+function BT:ReportGear()
+    if InCombatLockdown() then Print("gear can't be read in a fight. Try again after it.") return end
+    local report = { "game language " .. Locale() }
+    self:ScanItemShields(report)
+    self.recorded = {}
+    for _, text in ipairs(report) do self:Record(text) end
+    Print("gear read. Type /btf copy to copy what was found.")
+    return report
 end
 
 -- Whose answer to a blow this hit is, if it's a damage shield's. An item's is
@@ -5668,6 +5795,7 @@ local function Help()
     print("  |cffffd100/btf debug|r  record the combat lines the game sends; |cffffd100/btf copy|r shows them (for bug reports)")
     print("  |cffffd100/btf last|r  your last fight, spell by spell")
     print("  |cffffd100/btf check|r  check the spells, texts and icons BattleText uses against this game")
+    print("  |cffffd100/btf gear|r  show what BattleText read from your gear (then /btf copy)")
     print("  |cffffd100/btf export|r, |cffffd100/btf import|r  share your settings as text, or take someone else's")
 end
 
@@ -5704,6 +5832,8 @@ SlashCmdList.BATTLETEXTFOREVER = function(msg)
         BT:OpenCopyWindow()
     elseif cmd == "check" then
         BT:CheckGameData()
+    elseif cmd == "gear" then
+        BT:ReportGear()
     elseif cmd == "last" then
         BT:OpenLastFight()
     elseif cmd == "export" or cmd == "import" then

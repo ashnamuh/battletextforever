@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.29.0
+
+- **Gear is understood in every game language.** BattleText learns what your gear does from its tooltip, and until now it could only read English tooltips. On a Russian, German, French or other client it never knew about a cloak or ring that hits back (like Sporid Cape), a weapon's "Chance on hit", or a rogue's poisons, so their hits showed as bare numbers or got the wrong name. Now it reads the "Equip:" and "Chance on hit:" lines in your game's language, takes the numbers from them, and knows the damage type from its name in your language. Poisons are matched by their spell, so their names work in any language too.
+- **New `/btf gear` command.** It lists every item you're wearing and what BattleText made of each of its lines. If one of your items isn't named right, type `/btf gear` out of combat, then `/btf copy`, and paste it into a bug report. That shows exactly what your game says, so the item can be fixed.
+
 ## 1.28.4
 
 - **Lightning Shield no longer takes credit for your gear's hits.** With Lightning Shield up, some Nature hits that weren't from it got its name. Thorncursed Grips also deal 2 Nature damage to you with each swing, and BattleText took that as a mob hitting you, so the Grips' own hit on the mob in that moment looked like your shield answering. Now the Grips' hit on you doesn't count as a blow, and it tells BattleText the matching hit on the mob is the Grips' (so "Hide hits below" hides it again, even during Windfury). Each damage shield also answers a blow only once now: a second Nature hit after the same blow (like Sporid Cape's, which BattleText can't read on a non-English game) shows as a plain hit instead of a second Lightning Shield. (Thanks to agalakov-AI for the debug log.)

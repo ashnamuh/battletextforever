@@ -489,7 +489,11 @@ C_TooltipInfo = {
         if not item then return nil end
         if item.hidden then return Secret({}) end
         local lines = { { leftText = item.name } }
-        for _, text in ipairs(item.lines or {}) do lines[#lines + 1] = { leftText = text } end
+        for _, text in ipairs(item.lines or {}) do
+            -- (a line can be { text = , type = }: the game's line type, Enum.TooltipDataLineType)
+            if type(text) == "table" then lines[#lines + 1] = { leftText = text.text, type = text.type }
+            else lines[#lines + 1] = { leftText = text } end
+        end
         if item.oldShape then   -- the text kept in each line's "args" instead
             for i, line in ipairs(lines) do
                 lines[i] = { args = { { field = "leftColor" }, { field = "leftText", stringVal = line.leftText } } }

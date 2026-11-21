@@ -5269,6 +5269,83 @@ do
     clear()
 end
 
+step("gear read in any language (1.29.0): hits back, chance on hit, poisons, /btf gear")
+-- GitHub #25 and others: gear was read from English tooltip text only, so on a Russian client
+-- Sporid Cape, procs and poisons were unknown. The game marks the effect lines (their type, or
+-- its translated label), numbers are the same everywhere, and a word per language says the school.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge, BT.db.minDamage = false, 0
+    STATE.locale = "ruRU"
+    ITEM_SPELL_TRIGGER_ONEQUIP = "Если на персонаже:"
+    ITEM_SPELL_TRIGGER_ONPROC = "Вероятность при попадании:"
+    -- Gear that hits back: an Equip line naming the attacker, one number and the school
+    STATE.equipped[15] = { name = "Спороносный плащ", icon = 133762,
+        lines = { "Если на персонаже: При получении удара в бою наносит атакующему 1 ед. урона от сил природы." } }
+    -- Not one: a spell power line (a school and one number, but no attacker)
+    STATE.equipped[11] = { name = "Кольцо", lines = { "Если на персонаже: Увеличивает урон от заклинаний сил природы на 12." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 15, true)
+    local cape = BT.itemShields[1]
+    assertEq(cape and (cape.name .. " " .. cape.amount .. " " .. cape.school), "Спороносный плащ 1 8", "a Russian cape hits back for 1 Nature")
+    assertEq(#BT.itemShields, 1, "the spell power ring isn't one")
+    Advance(3)
+    fire("UNIT_COMBAT", "player", "WOUND", "", 20, 1)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 1, 8)
+    assertEq(last("outgoing"), "Спороносный плащ 1", "its hit is named after it")
+    clear()
+    -- Chance on hit, by the game's line type alone (no label to go by), with the Russian school word
+    STATE.equipped[15], STATE.equipped[11] = nil, nil
+    STATE.equipped[16] = { name = "Огненный меч", icon = 135271,
+        lines = { { text = "Наносит цели от 95 до 105 ед. урона от огня.", type = 46 } } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    local proc = BT.itemProcs[1]
+    assertEq(proc and (proc.name .. " " .. proc.school .. " " .. proc.most), "Огненный меч 4 105", "a Russian Fire proc, up to 105")
+    -- Two schools on one line: not taken
+    STATE.equipped[16].lines = { "Вероятность при попадании: 20 ед. урона от огня и 20 ед. урона от магии льда." }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    assertEq(#BT.itemProcs, 0, "a line with two schools is left alone")
+    -- A poison, by its spell's name in the game's language
+    STATE.spellNames[8680] = "Мгновенный яд"
+    STATE.equipped[16] = { name = "Кинжал", icon = 135641, lines = { "|cff00ff00Мгновенный яд III (30 мин)|r" } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    local poison = BT.itemProcs[1]
+    assertEq(poison and (poison.name .. " " .. poison.id .. " " .. tostring(poison.poison)), "Мгновенный яд 8680 true",
+        "a Russian Instant Poison")
+    -- German: the school is part of the word ("Naturschaden")
+    STATE.locale = "deDE"
+    ITEM_SPELL_TRIGGER_ONEQUIP = "Anlegen:"
+    STATE.equipped[16] = nil
+    STATE.equipped[11] = { name = "Stachelring", lines = { "Anlegen: Fügt dem Angreifer 2 Naturschaden zu, wenn Ihr im Nahkampf getroffen werdet." } }
+    fire("PLAYER_EQUIPMENT_CHANGED", 11, true)
+    local ring = BT.itemShields[1]
+    assertEq(ring and (ring.amount .. " " .. ring.school), "2 8", "a German ring hits back for 2 Nature")
+    -- English isn't changed: the English text is still what's read there
+    STATE.locale = "enUS"
+    fire("PLAYER_EQUIPMENT_CHANGED", 11, true)
+    assertEq(#BT.itemShields, 0, "on an English client a German line means nothing")
+    -- /btf gear: what each item's lines were taken for, ready to copy
+    STATE.locale = "ruRU"
+    ITEM_SPELL_TRIGGER_ONEQUIP = "Если на персонаже:"
+    STATE.equipped[11] = nil
+    STATE.equipped[15] = { id = 6629, name = "Спороносный плащ", icon = 133762,
+        lines = { "Если на персонаже: При получении удара в бою наносит атакующему 1 ед. урона от сил природы." } }
+    STATE.equipped[13] = { id = 273840, name = "Глаз", lines = { "Если на персонаже: непонятная строка 2." } }
+    local report = table.concat(BT:ReportGear(), "\n")
+    assertEq(report:find("game language ruRU", 1, true) ~= nil, true, "the language")
+    assertEq(report:find("slot 15: Спороносный плащ (item 6629)", 1, true) ~= nil, true, "each item with its ID")
+    assertEq(report:find("-> hits back: 1 Nature", 1, true) ~= nil, true, "what its line was taken for")
+    assertEq(report:find("непонятная строка 2. -> not understood", 1, true) ~= nil, true, "a line it couldn't read says so")
+    assertEq(report:find("every hit (known by its item ID)", 1, true) ~= nil, true, "gear known by its ID")
+    assertEq(#BT.recorded > 0, true, "ready for /btf copy")
+    STATE.locale, ITEM_SPELL_TRIGGER_ONEQUIP, ITEM_SPELL_TRIGGER_ONPROC = nil, nil, nil
+    STATE.spellNames[8680] = nil
+    STATE.equipped = {}
+    fire("PLAYER_EQUIPMENT_CHANGED", 15, false)
+    BT.recorded = nil
+    clear()
+end
+
 step("a hunter's pet and other hits while you shoot don't show your melee weapon (CurseForge)")
 -- Tinter: "any damage not from my ranged weapon on hunter outputs with a symbol of my melee weapon.
 -- Including pet/hawk damage." A physical hit nothing named got the main hand's icon. While you're
