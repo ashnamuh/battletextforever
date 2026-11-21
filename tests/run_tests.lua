@@ -2049,6 +2049,71 @@ assertEq(last("outgoing"), "22", "no lines yet: alone, your target's hits are yo
 STATE.who, STATE.unit.soloMob, STATE.unit.soloPlayer = {}, nil, nil
 clear()
 
+-- GitHub #27 (a shaman's log): Windfury Weapon's extra attacks after a Stormstrike. They come with
+-- no PLAYER_SWING and no line in their own frame, and showed nowhere ("no line of yours with it").
+STATE.spellNames[17364] = "Stormstrike"
+STATE.unit.wfMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000E1", target = "me" }
+STATE.who.target = "wfMob"
+BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.swings, BT.extra = true, nil, nil, nil, nil
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.5)
+fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
+Advance(1.5)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-ss", 17364)
+hidden(2020)
+fire("UNIT_COMBAT", "target", "WOUND", "", 60, 1)
+hidden(2021)
+hidden(2022)
+Advance(0.22)
+fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 81, 1)
+Advance(0.28)
+fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 82, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "Dodge / Stormstrike 60 / 81 / 82",
+    "alone: Windfury's two hits after your Stormstrike show")
+Advance(0.1)
+fire("UNIT_COMBAT", "target", "WOUND", "", 83, 1)
+assertEq(#lines("outgoing"), 4, "but no third")
+clear()
+-- (after a white hit of yours too; but not long after it)
+fire("PLAYER_SWING", 2.6, 0)
+Advance(0.5)
+fire("UNIT_COMBAT", "target", "WOUND", "", 40, 1)
+Advance(0.3)
+fire("UNIT_COMBAT", "target", "WOUND", "", 41, 1)
+Advance(0.9)
+fire("UNIT_COMBAT", "target", "WOUND", "", 42, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "40 / 41",
+    "alone: Windfury's hit after your white hit shows; a hit a second later doesn't")
+clear()
+-- In a group a party member's white hit can follow your blow: an extra attack also takes a spare
+-- line of yours from the blow's own frame (Windfury's lines come with it)
+STATE.group = true
+Advance(2)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-ss", 17364)
+hidden(2025)
+fire("UNIT_COMBAT", "target", "WOUND", "", 61, 1)
+hidden(2026)
+hidden(2027)
+Advance(0.22)
+fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 84, 1)
+Advance(0.28)
+fire("UNIT_COMBAT", "target", "WOUND", "", 85, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "Stormstrike 61 / 84 / 85",
+    "in a group: Windfury's hits take the Stormstrike frame's spare lines")
+clear()
+Advance(2)
+fire("PLAYER_SWING", 2.6, 0)
+hidden(5441)
+Advance(0.5)
+fire("UNIT_COMBAT", "target", "WOUND", "", 43, 1)
+Advance(0.2)
+fire("UNIT_COMBAT", "target", "WOUND", "", 86, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "43",
+    "in a group: a hit after your white hit with no spare line of yours with it isn't yours")
+STATE.group = false
+STATE.who, STATE.unit.wfMob, BT.extra = {}, nil, nil
+clear()
+
 ---------------------------------------------------------------------------
 step("ticks, and your damage shield")
 STATE.unit.mobA = { enemy = true, guid = "Creature-0-1-2-3-100-00000A", target = "me" }

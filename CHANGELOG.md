@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.2
+
+- **Windfury hits show again.** The extra hits from Windfury Weapon came with nothing for BattleText to tell they were yours, so they were left out, and only showed now and then when one killed the mob. Extra attacks that land right after your own swing or Stormstrike now show like your other hits. This also covers other extra attacks, like Hand of Justice and Sword Specialization. In a group, BattleText still checks your own combat lines first, so a party member's swing right after yours isn't shown as yours. (Thanks to ehrinpitts for the debug log.)
+
 ## 1.28.1
 
 - **Cursed Murloc Eye and Thorncursed Grips are hidden on non-English game clients too.** BattleText recognised these items by reading the English text on their tooltips, so on a Russian (or any other non-English) client it never knew you had them on, and their 2 damage kept showing whatever "Hide hits below" was set to. It now knows them by the item itself, in any language, and names them with your game's own item name.

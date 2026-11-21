@@ -1674,6 +1674,8 @@ end
 local CREDIT_TIME = 1.2   -- a hit can follow its combat log line by this long (a swing lands with its animation)
 local LINE_WITH_HIT = 0.15  -- a line this close before a hit is its own (spells, ticks, procs, heals: in its frame or just ahead)
 local SWING_RECENT = 6      -- PLAYER_SWING this recent: your swings are vouched for by it, not by their lines
+local EXTRA_TIME = 0.8      -- an extra attack (Windfury) lands this soon after the blow that gave it
+local EXTRA_HITS = 2        -- and a blow gives at most this many
 local TICK_SLACK = 0.25   -- a tick can be this far off its beat
 local TICK_CLOSE = 0.15   -- and once it has ticked, the next is about this close to its beat (against a spell landing)
 local DOT_TIME = 45       -- a damage-over-time spell is forgotten this long after its cast
@@ -3021,6 +3023,38 @@ function BT:OnSwing(duration, swingType)
     end
 end
 
+-- Extra attacks (Windfury Weapon, GitHub #27): a blow of yours that lands can give you more swings
+-- right away. They don't fire PLAYER_SWING and their hits come without a line in their own frame,
+-- so with the lines on they went unshown ("no line of yours with it"), even alone. A physical hit or
+-- miss on the unit you just struck, within EXTRA_TIME, is one (EXTRA_HITS a blow). Alone, nobody
+-- else is on your mob. In a group it also takes a spare line of yours from the blow's own frame
+-- (the proc's lines come with it), so a party member's white hit after your blow isn't yours.
+function BT:OpenExtra(h)
+    if not h.key or h.extra then return end
+    self.extra = { key = h.key, at = h.time, left = EXTRA_HITS }
+end
+
+function BT:ClaimExtra(h)
+    local e = self.extra
+    if not (e and e.left > 0 and h.key == e.key) then return false end
+    if h.kind ~= "damage" and h.kind ~= "miss" then return false end
+    local mask = Num(h.school)
+    if mask ~= nil and mask ~= 1 then return false end
+    local since = h.time - e.at
+    if since <= 0 or since > EXTRA_TIME then return false end
+    if not h.solo then
+        local credits, found = self.credits, nil
+        for i = 1, #(credits or {}) do
+            if credits[i] == e.at then found = i break end
+        end
+        if not found then return false end
+        table.remove(credits, found)
+    end
+    e.left = e.left - 1
+    h.extra = true
+    return true
+end
+
 function BT:ClaimSwing(h)
     local swings = self.swings
     if not swings or not swings[1] then return false end
@@ -4267,6 +4301,7 @@ function BT:ResolveFrame(seq, first, last)
             end
             if not claimed and healOfYours then
                 claimed = self:ClaimSwing(h) or self:ClaimHit(h.time, h) or self:ClaimFlight(h)
+                    or self:ClaimExtra(h)
             end
             -- A spell of yours that was on its way to the unit. A tick of yours on its beat
             -- comes first, unless its amount isn't what that spell's ticks have been.
@@ -4372,6 +4407,7 @@ function BT:ResolveFrame(seq, first, last)
                     self.struck = self.struck or {}
                     self.struck[h.key] = h.time
                     self:SwingLanded(h.key, h.time)
+                    if what == "hit" or (what == "cast" and spell) then self:OpenExtra(h) end
                 end
             end
             -- Your target dodged you (a warrior's Overpower)
