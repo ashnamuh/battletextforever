@@ -99,7 +99,7 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
   - hits that land the instant you cast (instant attacks and spells with no travel time);
   - spells that fly to their target and land a moment later: Fireball, Frostbolt, Pyroblast, Shadow Bolt, Soul Fire, Wrath, Starfire, Lightning Bolt, Chain Lightning, Hammer of Wrath and Arcane Shot (and the burn Fireball and Pyroblast leave);
   - the ticks of your damage-over-time spells (Rake, Rip, Rend, Moonfire, Corruption, Shadow Word: Pain and the like). Bleeds need the combat lines;
-  - channeled spells (Arcane Missiles, Mind Flay, Drain Life, Drain Soul, Wrack, Blizzard, Rain of Fire, Hurricane, Volley, Hellfire, Tranquility) and spells that keep burning an area (Consecration, Flamestrike, Magma, Fire Nova and Searing Totems), on every mob they hit;
+  - channeled spells (Arcane Missiles, Mind Flay, Drain Life, Drain Soul, Wrack, Blizzard, Rain of Fire, Hurricane, Volley, Hellfire, Tranquility, Penance) and spells that keep burning an area (Consecration, Flamestrike, Magma, Fire Nova and Searing Totems), on every mob they hit;
   - explosives you throw (Engineering's dynamite, bombs and grenades, Goblin Sapper Charge), on every mob they hit;
   - your ranged attacks: Auto Shot, Shoot (bow, gun, crossbow or wand) and Throw, as they land. Your swings get your main hand weapon's icon (or the Attack icon with nothing in your hands);
   - your gear's **"Chance on hit"** damage (Shadowfang, Thunderfury and the like) and weapon enchants that hurt (Fiery Weapon, Icy Chill, Lifestealing, Unholy Weapon), named after the item or enchant; and a rogue's poisons (Instant, Wound and Deadly Poison), with the poison's name and icon;
