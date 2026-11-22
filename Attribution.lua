@@ -1322,7 +1322,7 @@ end
 -- the hit's school. It ticks once a beat: a hit just after its tick isn't another one
 -- (issue #20: a Shadow Bolt landing 0.1s after Bane of Agony ticked). close: against a
 -- spell of yours landing, a dot that has ticked must be closer to its beat (TICK_CLOSE).
-function BT:TickFor(h, close)
+function BT:TickFor(h, close, noLineOnly)
     local dots = h.key and self.dots and self.dots[h.key]
     if not dots or (h.kind ~= "damage" and h.kind ~= "heal") then return nil end
     local mask = Num(h.school)
@@ -1331,6 +1331,8 @@ function BT:TickFor(h, close)
     for name, dot in pairs(dots) do
         if h.time - dot.at > DOT_TIME then
             dots[name] = nil
+        elseif noLineOnly and not dot.noLine then
+            -- (only the ones the game sends no line for: SilentTick)
         else
             -- (under Wrack, twice as fast)
             local period = (dot.wrack and wracking) and dot.period / 2 or dot.period
@@ -1351,6 +1353,21 @@ function BT:TickFor(h, close)
         end
     end
     return best
+end
+
+-- A tick of a damage over time the game sends no line for (NO_LINE_DOTS: Rip), on its beat: a
+-- physical hit, plain or critical (a glance or a block is a swing), while the spell lasts, no more
+-- ticks than it has. Its beat goes first, before a swing of yours can take the hit (GitHub #30,
+-- after 1.32.2: a Rip tick landing between a swing and the swing's own hit was taken for the swing),
+-- and whatever other damage over time is on its beat too (a Rake tick in the same frame).
+function BT:SilentTick(h)
+    if h.kind ~= "damage" or not (h.flag == nil or h.flag == "" or h.flag == "CRITICAL") then return nil end
+    local mask = Num(h.school)
+    if mask ~= nil and mask ~= 1 then return nil end
+    local dot = self:TickFor(h, true, true)
+    if not dot or h.time - dot.at > dot.noLine + TICK_SLACK then return nil end
+    if (dot.silent or 0) >= math.floor(dot.noLine / dot.period + 0.5) then return nil end
+    return dot
 end
 
 -- Ways a spell can fail to hurt that a swing can't (so a miss of that kind is a spell's)
@@ -2074,6 +2091,21 @@ function BT:ResolveFrame(seq, first, last)
                 self:ClaimHit(h.time, h)   -- (its line, if it has one, is used up)
                 claimed = true
             end
+            -- A tick of yours the game sends no line for (Rip), right on its beat, before a swing can
+            -- take it. Not when a line comes right behind the hit: that's a tick with its line.
+            if not spell and linesFlow and h.kind == "damage" then
+                local lineBehind = false
+                for j = i + 1, last do
+                    if seq[j].line and not seq[j].used then lineBehind = true break end
+                end
+                local silent = not lineBehind and self:SilentTick(h)
+                if silent then
+                    what, spell, claimed = "tick", silent, true
+                    silent.silent = (silent.silent or 0) + 1
+                    silent.tick = h.n or silent.tick
+                    silent.last = h.time
+                end
+            end
             local swung = false   -- (vouched for by a swing of yours: a white hit)
             if not claimed and healOfYours then
                 swung = self:ClaimSwing(h)
@@ -2118,15 +2150,7 @@ function BT:ResolveFrame(seq, first, last)
                                 break
                             end
                         end
-                        -- (a tick the game sends no line for: its beat vouches for it, while it lasts, a
-                        -- tick at a time; not a hit a swing or a line already vouched for, nor a glance or a block)
-                        if not vouched and not swung and dot.noLine and h.kind == "damage"
-                                and (h.flag == nil or h.flag == "" or h.flag == "CRITICAL")
-                                and h.time - dot.at <= dot.noLine + TICK_SLACK
-                                and (dot.silent or 0) < math.floor(dot.noLine / dot.period + 0.5) then
-                            vouched, claimed = true, true
-                            dot.silent = (dot.silent or 0) + 1
-                        end
+                        -- (a tick the game sends no line for is named above, before the claims: SilentTick)
                     else
                         -- without the lines, a bleed's tick looks just like a swing; a heal can't be a swing
                         vouched = (mask ~= nil and mask ~= 1) or h.kind == "heal"

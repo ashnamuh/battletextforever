@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.33.1
+
+- **The last Rip ticks are named too.** Two cases still slipped through 1.32.2. A Rip tick that landed between one of your swings and that swing's own hit was taken for the swing, and a Rip tick in the same moment as a Rake tick was dropped along with it. Rip's beat now gets its tick first, so both show as Rip, and the swing still gets its own hit. (Thanks again to Pansiere for the debug logs, issue #30.)
+
 ## 1.33.0
 
 - **Behind the scenes: the addon's code is now in eight files instead of one.** Nothing changes in game. The main file had grown so big it was close to a limit Lua puts on one file, so it's now split by job (the text on screen, hits on you, which hits are yours, alerts, settings and so on). This makes future fixes safer. If anything acts differently after this update, please report it.

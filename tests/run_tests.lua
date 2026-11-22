@@ -2231,17 +2231,23 @@ for k = 1, 5 do
     wound(20 + k, 1, k == 1 and "CRITICAL" or nil)
     assertEq(last("outgoing"), "Rip " .. (20 + k), "Rip's tick " .. k .. " with no line: named by its beat")
 end
-Advance(2)
+-- (GitHub #30, after 1.32.2) Rip's 6th tick lands between your swing and the swing's own hit:
+-- the tick on the beat is Rip's, and the swing keeps its credit for its own (glancing) hit
+Advance(1.73)
 BT.hiddenAt = GetTime()
 fire("PLAYER_SWING", 2.6, 0)
-wound(26)
-assertEq(last("outgoing"), "26", "a white hit on the beat that your swing vouches for isn't Rip")
+Advance(0.27)
+wound(26, 1, "CRITICAL")
+assertEq(last("outgoing"), "Rip 26", "a tick right on Rip's beat, with a swing of yours pending, is Rip's")
+Advance(0.17)
+wound(30, 1, "GLANCING")
+assertEq(last("outgoing"):match("^30"), "30", "and the swing's own hit after it is the swing's")
 BT.swings, BT.swungAt = nil, nil
 cast(1079) hidden(62)
 Advance(2)
 BT.hiddenAt = GetTime()
 wound(27, 1, "GLANCING")
-assertEq(last("outgoing"), "26", "a glancing blow on the beat is a swing, not Rip (nothing vouches for it)")
+assert(not table.concat(lines("outgoing"), " / "):find("Rip 27", 1, true), "a glancing blow on the beat is a swing, not Rip")
 Advance(2)
 BT.hiddenAt = GetTime()
 wound(28)
@@ -2250,6 +2256,22 @@ Advance(10)
 BT.hiddenAt = GetTime()
 wound(29)
 assert(last("outgoing") ~= "Rip 29", "past its 12 seconds: not Rip")
+BT.dots = nil
+clear()
+-- A Rip tick and a Rake tick in the same frame, neither with a line: one is Rip's
+BT.dots, BT.swings, BT.swungAt = nil, nil, nil
+cast(1822) hidden(63) wound(35)
+Advance(1)
+cast(1079) hidden(64)
+Advance(2)
+BT.hiddenAt = GetTime()
+wound(15)
+wound(9, 1, "CRITICAL")
+do
+    local both = table.concat(lines("outgoing"), " / ")
+    assert(both:find("Rip 15", 1, true), "the first of the two hits on both beats is Rip's (got " .. both .. ")")
+    assert(not both:find("Rip 9", 1, true), "and only one: Rip ticks once a beat")
+end
 BT.dots = nil
 clear()
 -- Without the lines, a bleed's tick can't be told from a swing; another school's can
