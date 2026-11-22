@@ -308,7 +308,7 @@ Only testable in game:
 ## Releasing
 
 1. Make the change, run the tests, and add a new section at the top of `CHANGELOG.md` (e.g. `## 1.0.1`).
-   If the change shows on the CurseForge project page (features, options, commands), update `CURSEFORGE.md` too (the README, adjusted: no logo, a short install note, full links) and give the whole file to paste into the project's description. The packager only uploads `CHANGELOG.md` with each file; the description never changes on its own.
+   If the change shows on the CurseForge project page (features, options, commands), update `CURSEFORGE.md` too (a short version of the README since 2026-11-22: main features, getting started, a few commands, the big limits; no logo, full links; keep it about 5 KB) and give the whole file to paste into the project's description. The packager only uploads `CHANGELOG.md` with each file; the description never changes on its own.
 2. Commit and push to `main`. The **Tests** workflow must be green.
 3. Create the tag in GitHub Desktop (History tab → right-click the commit → Create Tag → e.g. `v1.0.1` → Push origin). Tags containing `beta` or `alpha` upload as Beta/Alpha files.
 4. The **Package and release** workflow runs the tests again, then uploads to CurseForge. Check the Actions tab for a green check and the CurseForge Files page (new files go through CurseForge review).
