@@ -446,6 +446,7 @@ function BT:Test()
             self:Emit(self:Area("InDamage"), "-58" .. (school or ""), color or C.inDamage, { crit = true })
         end,
         function() self:Notify(L["+%s XP"]:format("103"), C.xp) end,
+        function() self:Notify("+1" .. L["g"] .. " 25" .. L["s"] .. " 30" .. L["c"], C.loot) end,
         function() self:ShowCombat({ kind = "damage", fromMe = true, melee = true, amount = 26, unit = "Physical", blocked = 3 }) end,
         function() self:Emit(self:Area("InMisses"), MissText("PARRY"), C.inAvoid) end,
         function() self:Notify(L["Killing blow!"], C.combat, { crit = true }) end,
