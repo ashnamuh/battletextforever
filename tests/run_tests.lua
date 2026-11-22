@@ -2214,6 +2214,38 @@ Advance(2)
 wound(9) hidden(33)
 assertEq(last("outgoing"), "9", "and there's no tick to name")
 clear()
+-- Rip's ticks come with no line at all (GitHub, a ptBR druid's /btf debug), while Rake's and
+-- Thorns' lines keep arriving: its beat vouches for it, six ticks over its 12 seconds
+BT.dots, BT.credits, BT.swings, BT.swungAt = nil, nil, nil, nil
+hidden(60)
+cast(1079) hidden(61)
+for k = 1, 5 do
+    Advance(2)
+    BT.hiddenAt = GetTime()   -- (other lines of yours still arriving)
+    wound(20 + k, 1, k == 1 and "CRITICAL" or nil)
+    assertEq(last("outgoing"), "Rip " .. (20 + k), "Rip's tick " .. k .. " with no line: named by its beat")
+end
+Advance(2)
+BT.hiddenAt = GetTime()
+fire("PLAYER_SWING", 2.6, 0)
+wound(26)
+assertEq(last("outgoing"), "26", "a white hit on the beat that your swing vouches for isn't Rip")
+BT.swings, BT.swungAt = nil, nil
+cast(1079) hidden(62)
+Advance(2)
+BT.hiddenAt = GetTime()
+wound(27, 1, "GLANCING")
+assertEq(last("outgoing"), "26", "a glancing blow on the beat is a swing, not Rip (nothing vouches for it)")
+Advance(2)
+BT.hiddenAt = GetTime()
+wound(28)
+assertEq(last("outgoing"), "Rip 28", "the next tick is still named")
+Advance(10)
+BT.hiddenAt = GetTime()
+wound(29)
+assert(last("outgoing") ~= "Rip 29", "past its 12 seconds: not Rip")
+BT.dots = nil
+clear()
 -- Without the lines, a bleed's tick can't be told from a swing; another school's can
 BT.hiddenSeen, BT.hiddenAt = nil, nil
 cast(1822)

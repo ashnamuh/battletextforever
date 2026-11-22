@@ -1829,6 +1829,11 @@ local PERIODIC_SPELLS = {
 -- timed from when it lands, up to STING_FLIGHT after the cast (CurseForge, 1.24.1: Serpent
 -- Sting's ticks were off the beat counted from the cast, and showed with no name or icon)
 local FLYING_DOTS = { [1978] = true }
+-- Damage over time whose ticks the game sends no "My actions" line for, by the first rank's ID:
+-- how long it lasts. Rip (GitHub, a ptBR druid's /btf debug: each Rake tick has its hidden line
+-- right behind it, Rip's six ticks have none) went unnamed as "no line of yours with it". Its beat
+-- vouches for it instead, as many ticks as it has (lasts / period), only within that time.
+local NO_LINE_DOTS = { [1079] = 12 }
 local STING_FLIGHT = 1.5
 -- Attacks on your next swing, which replace it: { first rank's ID, English name }
 local NEXT_SWING_SPELLS = {
@@ -2008,7 +2013,7 @@ function BT:SpellLists()
     for _, e in ipairs(PERIODIC_SPELLS) do
         for _, name in ipairs(names(e)) do
             self.periodic[name] = { period = e[3], school = e[4], direct = e[5] or false, heal = e[6] or false,
-                wrack = WRACK_SPEEDS[e[1]] or nil, flies = FLYING_DOTS[e[1]] or nil }
+                wrack = WRACK_SPEEDS[e[1]] or nil, flies = FLYING_DOTS[e[1]] or nil, noLine = NO_LINE_DOTS[e[1]] }
         end
     end
     for _, e in ipairs(SHIELD_SPELLS) do
@@ -3628,7 +3633,7 @@ function BT:OnSpellcast(spellId)
         self.dots = self.dots or {}
         self.dots[key] = self.dots[key] or {}
         self.dots[key][name] = { id = id, name = name, at = GetTime(), period = dot.period, school = dot.school,
-            heal = dot.heal, wrack = dot.wrack, flies = dot.flies }
+            heal = dot.heal, wrack = dot.wrack, flies = dot.flies, noLine = dot.noLine }
     end
     if shields[name] then
         self.buffShields = self.buffShields or {}
@@ -4838,8 +4843,10 @@ function BT:ResolveFrame(seq, first, last)
                 self:ClaimHit(h.time, h)   -- (its line, if it has one, is used up)
                 claimed = true
             end
+            local swung = false   -- (vouched for by a swing of yours: a white hit)
             if not claimed and healOfYours then
-                claimed = self:ClaimSwing(h) or self:ClaimHit(h.time, h) or self:ClaimFlight(h)
+                swung = self:ClaimSwing(h)
+                claimed = swung or self:ClaimHit(h.time, h) or self:ClaimFlight(h)
                     or self:ClaimExtra(h)
             end
             -- A spell of yours that was on its way to the unit. A tick of yours on its beat
@@ -4879,6 +4886,15 @@ function BT:ResolveFrame(seq, first, last)
                                 seq[j].used, vouched = true, true
                                 break
                             end
+                        end
+                        -- (a tick the game sends no line for: its beat vouches for it, while it lasts, a
+                        -- tick at a time; not a hit a swing or a line already vouched for, nor a glance or a block)
+                        if not vouched and not swung and dot.noLine and h.kind == "damage"
+                                and (h.flag == nil or h.flag == "" or h.flag == "CRITICAL")
+                                and h.time - dot.at <= dot.noLine + TICK_SLACK
+                                and (dot.silent or 0) < math.floor(dot.noLine / dot.period + 0.5) then
+                            vouched, claimed = true, true
+                            dot.silent = (dot.silent or 0) + 1
                         end
                     else
                         -- without the lines, a bleed's tick looks just like a swing; a heal can't be a swing

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.32.1
+
+- **Rip's ticks are named again.** The game sends BattleText no combat line for Rip's bleed ticks (it does for Rake's), so while other lines of yours were arriving, most of Rip's ticks were dropped or shown without a name. Now a physical hit that lands right on Rip's 2-second beat, while Rip is on the mob, counts as its tick, up to the six ticks it has. A white hit your swing accounts for, or a glancing blow, is still a swing. (Thanks to Pansiere on GitHub for the debug log and the fix idea, issue #30.)
+
 ## 1.32.0
 
 - **Heals cast with mouseover macros now show.** BattleText assumed a heal went to your target (or to you, with no friend targeted). Healers who heal with mouseover macros or by clicking party frames, while targeting the boss or nothing, lost a lot of their heals: Renew's ticks, Penance and other heals on party members never showed, and Renew could even be taken as one on yourself. BattleText now asks the game who each cast is going to as you press the key, so a heal on the party member under your mouse counts as yours, whatever you have targeted.
