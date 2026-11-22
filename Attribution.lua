@@ -1900,6 +1900,56 @@ function BT:ForgetOldThrows()
 end
 
 -- One frame's events, in the order they came: seq[first..last]
+-- An attack on your next swing (Heroic Strike) comes as two physical hits on the mob: a part for
+-- nothing first, then the attack. Mostly both are in the cast's frame (see emptyPart in
+-- ResolveFrame), but the attack can come a frame later (Tyler's /btf debug: cast and the first
+-- part at 832.59, the attack 0.15s later with its lines; it showed as a swing and the empty part as
+-- "Heroic Strike 0"). So the cast's only hit on a mob waits PART_WAIT: a physical hit on the same
+-- mob in that time is the attack, and the held one was the empty part. Nothing comes: it was the attack.
+local PART_WAIT = 0.3
+function BT:HoldFirstPart(h, spell, seq, first, last, i)
+    if not (spell and self:NextSwing(spell.name)) or h.kind ~= "damage" or not h.key then return false end
+    if Num(h.school) ~= 1 then return false end
+    for j = first, last do
+        local o = seq[j]
+        if j ~= i and o.hit and o.key == h.key and o.kind == "damage" then return false end
+    end
+    local held = { h = h, spell = spell, key = h.key, at = h.time }
+    self.partHeld = held
+    local function over()
+        if held.taken then return end
+        if BT.partHeld == held then BT.partHeld = nil end
+        local why = BT:ShowUnitHit(h, "cast", spell)
+        if not why then
+            h.mine = { what = "cast", spell = spell }
+            BT:NoteFought(h.key, h.time)
+            BT.struck = BT.struck or {}
+            BT.struck[h.key] = h.time
+            BT:SwingLanded(h.key, h.time)
+            BT:OpenExtra(h)
+        end
+        if BT.db.debug then
+            BT:Record(("  %s %s: %s"):format(h.unit, h.secret and "(hidden amount)" or AmountText(h.amount),
+                why or ("cast of " .. tostring(spell.name) .. ", no second part")), h.time)
+        end
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(PART_WAIT, over) else over() end
+    return true
+end
+
+-- The attack that follows a held first part (above): its spell, and the held part is dropped
+function BT:SecondPart(h)
+    local held = self.partHeld
+    if not held or held.taken or not h.hit or h.splash or h.kind ~= "damage" or h.key ~= held.key then return nil end
+    if Num(h.school) ~= 1 or h.time - held.at > PART_WAIT or h.time < held.at then return nil end
+    held.taken, self.partHeld = true, nil
+    if self.db.debug then
+        self:Record(("  %s for nothing: the first part of %s, which lands now"):format(held.h.unit,
+            tostring(held.spell.name)), h.time)
+    end
+    return held.spell
+end
+
 function BT:ResolveFrame(seq, first, last)
     local periodic = self:SpellLists()
     local cast, castAt, casts = nil, nil, 0
@@ -2031,8 +2081,11 @@ function BT:ResolveFrame(seq, first, last)
             local what, spell = "hit", nil
             -- Light's Vigil's heals on the party, set off by your Holy Shock in this frame or just before
             local vigil = self:VigilFor(h)
+            local second = not vigil and self:SecondPart(h)
             if vigil then
                 what, spell = "cast", vigil
+            elseif second then
+                what, spell = "cast", second
             -- Without a line to go by, the cast's hit comes after the cast (a hit ahead of it in
             -- the frame is something else)
             elseif cast and ((byLine and byLine[i]) or (not byLine and i > castAt)) then
@@ -2210,6 +2263,8 @@ function BT:ResolveFrame(seq, first, last)
             elseif not spell and self:WaitForGrave(h) then
                 why = "waiting: Touch of the Grave?"
                 h.mine = { what = "hit" }   -- (a splash of its school beside it is still yours)
+            elseif what == "cast" and not second and self:HoldFirstPart(h, spell, seq, first, last, i) then
+                why = "waiting: the part for nothing, with the attack still to come?"
             else
                 why = self:ShowUnitHit(h, what, spell)
                 if not why and h.kind == "damage" then

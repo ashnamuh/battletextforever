@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.2
+
+- **Heroic Strike is named every time.** The game sends Heroic Strike as two hits: an empty one, then the real attack. Usually they arrive together, but sometimes the real attack comes a split second later. When it did, BattleText showed it as a plain white swing and put the Heroic Strike name on the empty part. Now it waits that split second, names the real attack, and leaves the empty part out. Maul, Cleave and Raptor Strike work the same way.
+
 ## 1.34.1
 
 - **No more "Heroic Strike 0".** When an attack of yours did no damage, BattleText could show it as a hit for 0 instead of a miss. The game hides the number in many places, so BattleText couldn't tell it was a 0 and showed it anyway. Now a hidden 0 is simply left out, and a 0 the game does let BattleText read shows as Miss, Absorb, Block or Resist, whichever it was. Your real hits look the same as before.
