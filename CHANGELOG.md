@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.32.2
+
+- **Lighter in groups and raids.** In a group, the game reports every heal on every group member, and every hit on every mob around you, often several times over under different names. BattleText now drops other people's heals straight away when no heal of yours could be going (no healing spell cast in the last 45 seconds), and drops repeated copies of the same hit before checking anything else about it. Your numbers don't change, it just does less work in big fights.
+- **Your hits no longer go missing if the game's combat lines stop.** If something turned the combat lines off after BattleText had started them (another addon, or a Combat Log filter change), your bleeds, DoT ticks, spells that land later and procs could disappear in a group without any warning. BattleText now notices when you've been fighting for a while with no lines at all. It turns them back on, and if that doesn't work, the Start BattleText button comes back after the fight.
+- **Hits on you aren't swallowed by an old combat line.** If the Combat Log ever delivered a readable line about you (say you tried a different filter), the next few hits on you could go unshown, even minutes later. That now only applies for a few seconds after such a line.
+- **Smaller fixes:** mage proc alerts are only looked for on mages, Pop text that has to find a free spot no longer creates hundreds of throwaway objects each time, the scrolling text only updates what actually changed on each frame, and the "Low mana" sign doesn't reset its font on every mana tick. In other languages, spell names the game hadn't loaded yet at login are picked up when your first fight starts.
+
 ## 1.32.1
 
 - **Rip's ticks are named again.** The game sends BattleText no combat line for Rip's bleed ticks (it does for Rake's), so while other lines of yours were arriving, most of Rip's ticks were dropped or shown without a name. Now a physical hit that lands right on Rip's 2-second beat, while Rip is on the mob, counts as its tick, up to the six ticks it has. A white hit your swing accounts for, or a glancing blow, is still a swing. (Thanks to Pansiere on GitHub for the debug log and the fix idea, issue #30.)

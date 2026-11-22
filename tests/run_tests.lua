@@ -1139,6 +1139,9 @@ assertEq(last("incoming"), "-232", "off: a readable line leaves its blocked amou
 BT.db.inBlocked = true
 log(blockedLine)
 assertEq(last("incoming"), "-232 |cffb0b0b0(150 blocked)|r", "on: a readable line has the amount")
+Advance(4)
+fire("UNIT_COMBAT", "player", "WOUND", "", 241, 1)
+assertEq(last("incoming"), "-241", "the log's last line 4 seconds ago: a hit on you shows from UNIT_COMBAT")
 BT.fromLog = nil   -- (the log stops delivering)
 end
 clear()
@@ -1900,6 +1903,8 @@ assertEq(last("outgoing"), "31", "a heal on a party member with no heal of yours
 assertEq(#BT.credits, 1, "and it leaves your line for your own hit")
 Advance(0.1)
 hidden(14)
+STATE.helpful = STATE.helpful or {}
+STATE.helpful[5185] = true   -- (the game says Healing Touch is helpful)
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-9-1", 5185)
 fire("UNIT_COMBAT", "party1", "HEAL", "", 120, 2)
 assertEq(last("outgoing"), "Healing Touch +120", "your heal on a party member you aren't targeting")
@@ -6242,6 +6247,17 @@ do
     BT.db.nAlerts = true
     STATE.buffs = {}
     fire("UNIT_AURA", "player")
+    -- A mage's procs aren't looked for on another class (Revelation, a weapon enchant, is)
+    STATE.class = "WARRIOR"
+    Advance(2)
+    STATE.buffs = { { name = "Hot Streak", spellId = 48108, duration = 10 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "", "a warrior: no Hot Streak")
+    STATE.buffs = { { name = "Revelation", spellId = 1248806, duration = 15 } }
+    fire("UNIT_AURA", "player")
+    assertEq(alerts(), "Revelation!", "but Revelation, on any class")
+    STATE.buffs = {}
+    fire("UNIT_AURA", "player")
     -- Overpower from a dodge and from its button lighting up: once
     STATE.class, STATE.level = "WARRIOR", 30
     Advance(2)
@@ -7724,6 +7740,84 @@ step("translations: the addon's own text in the player's language")
     rawset(L, "%s damage (%s DPS)", nil)
     rawset(L, "%s in %ss", nil)
     assertEq(BT:FightLine({ damage = 4820, heal = 0, secs = 38 }), "4,820 damage (127 DPS) in 38s", "and English again")
+    clear()
+end)()
+
+step("spell lists made again once in another language, if a name was missing at login (review L6)")
+;(function()
+    local names = STATE.spellNames
+    STATE.locale = "deDE"
+    STATE.spellNames = setmetatable({}, { __index = names })
+    STATE.spellNames[1079] = false
+    BT.periodic, BT.seals, BT.listsMissing, BT.listsRemade = nil, nil, nil, nil
+    BT:SpellLists()
+    assertEq(BT.periodic["Zerfetzen"], nil, "no German name for Rip at login")
+    STATE.spellNames[1079] = "Zerfetzen"
+    fire("PLAYER_REGEN_DISABLED")
+    assert(BT.periodic["Zerfetzen"], "made again as the fight starts: Rip by its German name")
+    assert(BT.periodic["Rip"], "and its English one")
+    fire("PLAYER_REGEN_ENABLED")
+    STATE.spellNames, STATE.locale = names, nil
+    BT.periodic, BT.seals, BT.listsMissing = nil, nil, nil
+    clear()
+end)()
+
+step("the lines stop after they've started (review L1), and heals on the group with none of yours going (P1)")
+;(function()
+    clear()
+    BT.startHidden, BT.startNeeded, BT.startButton.wanted = nil, nil, nil
+    BT.db.debug = false
+    BT:NoteHiddenLine(GetTime())
+    BT.started = true
+    COMBAT = true
+    for i = 1, 7 do
+        fire("PLAYER_SWING", 2.6, 0)
+        Advance(3)
+    end
+    assert(BT.hiddenSeen, "7 swings over 21 seconds with no line: not enough to say")
+    fire("PLAYER_SWING", 2.6, 0)
+    assertEq(BT.hiddenSeen, nil, "8 casts and swings over 20 seconds in a fight with no line: the lines have stopped")
+    assertEq(BT.started, nil, "and BattleText isn't started any more")
+    COMBAT = false
+    fire("PLAYER_REGEN_ENABLED")
+    assertEq(BT.startButton:IsShown(), true, "the Start button shows after the fight")
+    BT:NoteHiddenLine(GetTime())
+    fire("COMBAT_LOG_MESSAGE", Secret("a line"), nil, nil, nil, 0)
+    assert(BT.hiddenSeen and BT.started, "the next line puts it back")
+    assertEq(BT.startButton:IsShown(), false, "and the button goes")
+    COMBAT = true
+    for i = 1, 12 do
+        fire("PLAYER_SWING", 2.6, 0)
+        if i % 4 == 0 then BT:NoteHiddenLine(GetTime()) end
+        Advance(3)
+    end
+    assert(BT.started, "a line now and then: the lines are still flowing")
+    COMBAT = false
+    -- Out of a fight, nothing is counted
+    for i = 1, 10 do fire("PLAYER_SWING", 2.6, 0) Advance(3) end
+    assert(BT.hiddenSeen, "out of a fight: not counted")
+
+    -- A heal on a party member with no helpful cast of yours in the last 45 seconds: turned away at once
+    STATE.group = true
+    STATE.unit.healMate = { friend = true, guid = "Player-1-0000000F" }
+    STATE.who.party1 = "healMate"
+    BT.healsLiveAt = nil
+    BT.db.debug = true
+    BT.recorded = {}
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 300, 2)
+    assert(table.concat(BT.recorded, "\n"):find("no heal of yours going", 1, true), "a heal on the group, none of yours going")
+    BT.healsLiveAt = GetTime() - 46
+    BT.recorded = {}
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 300, 2)
+    assert(table.concat(BT.recorded, "\n"):find("no heal of yours going", 1, true), "your last helpful cast 46 seconds ago")
+    BT.healsLiveAt = GetTime() - 40
+    BT.recorded = {}
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 300, 2)
+    assert(not table.concat(BT.recorded, "\n"):find("no heal of yours going", 1, true), "40 seconds ago: it may be your heal over time")
+    BT.db.debug = false
+    STATE.group = false
+    STATE.who.party1 = nil
+    BT:FlushHits(true)
     clear()
 end)()
 

@@ -765,6 +765,9 @@ function BT:Emit(areaKey, text, color, opts)
         a.lastStart, a.lastSize = start, size
         o.start, o.duration = start, duration
     end
+    -- (Animate moves it by its one point from now on: SetPoint on the same point replaces it)
+    o:ClearAllPoints()
+    o.curScale, o.curAlpha = nil, 0
     o:SetAlpha(0)
     o:Show()
     a.active[#a.active + 1] = o
@@ -829,20 +832,36 @@ function BT:FreeSpot(a, o, now)
     -- The places nearest the random one first, and the first free one wins. Checked at most
     -- FREE_SPOT_CHECKS times: in a busy fight every place was checked against every line (thousands
     -- of checks for one line); past that it stays where it landed.
+    -- The grid of places is made once for the area (and its height), and reused: it used to be
+    -- about 900 new tables and a new sort function for each line that needed a place
     local wide = a.def.dir == 0 and 60 or 25
-    local spots = {}
-    for y = -h * 0.05, -h * 0.95, -6 do
-        for x = -(wide + 60), wide + 60, 10 do
-            local cost = (x - o.px) ^ 2 + (y - o.py) ^ 2
-            if y > -h * 0.25 or y < -h * 0.70 or math.abs(x) > wide then cost = cost + 1e6 end
-            spots[#spots + 1] = { x, y, cost }
+    local grid = a.spotGrid
+    if not grid or grid.h ~= h then
+        grid = { h = h, xs = {}, ys = {}, out = {}, cost = {}, order = {} }
+        for y = -h * 0.05, -h * 0.95, -6 do
+            for x = -(wide + 60), wide + 60, 10 do
+                local n = #grid.xs + 1
+                grid.xs[n], grid.ys[n] = x, y
+                grid.out[n] = (y > -h * 0.25 or y < -h * 0.70 or math.abs(x) > wide) and 1e6 or 0
+            end
         end
+        local cost = grid.cost
+        grid.less = function(i, j)
+            if cost[i] ~= cost[j] then return cost[i] < cost[j] end
+            return i < j
+        end
+        a.spotGrid = grid
     end
-    table.sort(spots, function(p, q) return p[3] < q[3] end)
-    for i = 1, math.min(#spots, FREE_SPOT_CHECKS) do
+    local xs, ys, cost, order = grid.xs, grid.ys, grid.cost, grid.order
+    for i = 1, #xs do
+        cost[i] = (xs[i] - o.px) ^ 2 + (ys[i] - o.py) ^ 2 + grid.out[i]
+        order[i] = i
+    end
+    table.sort(order, grid.less)
+    for k = 1, math.min(#order, FREE_SPOT_CHECKS) do
         self.freeSpotChecks = self.freeSpotChecks + 1
-        local spot = spots[i]
-        if free(spot[1], spot[2]) then return spot[1], spot[2] end
+        local i = order[k]
+        if free(xs[i], ys[i]) then return xs[i], ys[i] end
     end
     return o.px, o.py
 end
@@ -852,8 +871,12 @@ function BT:Animate(now)
     if not self.areas then return end
     local moving = false
     for _, a in pairs(self.areas) do
-        local h = self:AreaHeight(a)
         local n = #a.active
+        -- (an area's settings, read once a frame rather than for each line)
+        local h = n > 0 and self:AreaHeight(a) or 0
+        local fade = n > 0 and (self:AreaSetting(a, "Alpha") or 100) / 100 or 1
+        local scrollUp = n > 0 and self:AreaSetting(a, "ScrollUp")
+        local curved = n > 0 and a.def.dir ~= 0 and self:AreaSetting(a, "Curved")
         if n > 0 then moving = true end
         for i = n, 1, -1 do
             local o = a.active[i]
@@ -889,16 +912,24 @@ function BT:Animate(now)
                     y = -h * 0.15 - o.lane * (o.size + 4)
                     if p < 0.08 then alpha = p / 0.08 elseif p > 0.75 then alpha = (1 - p) / 0.25 end
                 else
-                    y = self:AreaSetting(a, "ScrollUp") and -(1 - p) * h or -p * h
-                    if a.def.dir ~= 0 and self:AreaSetting(a, "Curved") then
+                    y = scrollUp and -(1 - p) * h or -p * h
+                    if curved then
                         x = a.def.dir * AREA_WIDTH * (1 - (2 * p - 1) ^ 2)
                     end
                     if p < 0.08 then alpha = p / 0.08 elseif p > 0.75 then alpha = (1 - p) / 0.25 end
                 end
-                o:SetScale(scale)
-                o:ClearAllPoints()
+                -- Only what changed goes to the game: the scale only grows in a crit's first moment,
+                -- and the alpha only changes as a line fades in and out
+                if o.curScale ~= scale then
+                    o.curScale = scale
+                    o:SetScale(scale)
+                end
                 o:SetPoint(o.anchor, a, "TOP", x / scale, y / scale)
-                o:SetAlpha(alpha * (self:AreaSetting(a, "Alpha") or 100) / 100)
+                alpha = alpha * fade
+                if o.curAlpha ~= alpha then
+                    o.curAlpha = alpha
+                    o:SetAlpha(alpha)
+                end
             end
         end
     end
@@ -1022,15 +1053,20 @@ end
 -- delivering it (the player picked a filter that includes it). fromLog[what]
 -- counts the UNIT_COMBAT events since the log last delivered one: after three
 -- with nothing from the log, the filter has changed and UNIT_COMBAT takes over.
+-- It also stops LOG_STALE seconds after the log's last one: a lone line once (a filter tried
+-- and changed back) took the next three hits on you, whenever they came.
+local LOG_STALE = 3
 function BT:NoteLogIncoming(what)
     self.fromLog = self.fromLog or {}
-    self.fromLog[what] = 0
+    self.fromLogAt = self.fromLogAt or {}
+    self.fromLog[what], self.fromLogAt[what] = 0, GetTime()
 end
 
 function BT:LogCovers(what)
     local n = self.fromLog and self.fromLog[what]
     if not n then return false end
-    if n >= 3 then
+    local at = self.fromLogAt and self.fromLogAt[what]
+    if n >= 3 or (at and GetTime() - at > LOG_STALE) then
         self.fromLog[what] = nil
         return false
     end
@@ -1039,7 +1075,9 @@ function BT:LogCovers(what)
 end
 
 function BT:LogDelivers(what)
-    return self.fromLog ~= nil and self.fromLog[what] ~= nil
+    if not (self.fromLog and self.fromLog[what] ~= nil) then return false end
+    local at = self.fromLogAt and self.fromLogAt[what]
+    return not (at and GetTime() - at > LOG_STALE)
 end
 
 -- The fight's totals, for the summary when it ends (only numbers the game lets be read)
@@ -1322,13 +1360,21 @@ function BT:UpdateManaSign(hidden)
     local size = math.floor(self.db.fontSize * self.db.critScale / 100 + 0.5)
     local flags = self:OutlineFlags(true)
     if flags == "SHADOW" then flags = "" end
-    if not sign.text:SetFont(self:FontPath(true), size, flags) and STANDARD_TEXT_FONT then
-        sign.text:SetFont(STANDARD_TEXT_FONT, size, flags)
+    -- (this runs on every change to your mana: the font and text are set only when they change)
+    local path = self:FontPath(true)
+    if sign.fontPath ~= path or sign.fontSize ~= size or sign.fontFlags ~= flags then
+        local fontSet = sign.text:SetFont(path, size, flags)
+        if not fontSet and STANDARD_TEXT_FONT then fontSet = sign.text:SetFont(STANDARD_TEXT_FONT, size, flags) end
+        if not fontSet then return end   -- (no font at all: SetText would be an error)
+        sign.fontPath, sign.fontSize, sign.fontFlags = path, size, flags
+        -- (the text only after its font: a new font string has none, and SetText on it is an error)
+        sign.text:SetText(L["Low mana"])
     end
-    -- (the text only after its font: a new font string has none, and SetText on it is an error)
-    sign.text:SetText(L["Low mana"])
     local c = self.TEXT_COLORS.lowMana
-    sign.text:SetTextColor(c[1], c[2], c[3])
+    if sign.color ~= c then
+        sign.color = c
+        sign.text:SetTextColor(c[1], c[2], c[3])
+    end
     sign:SetAlpha(alpha)   -- (a hidden number: only the game reads it)
     sign:Show()
 end
@@ -1551,6 +1597,7 @@ function BT:OnSpellSent(target, spellId)
         local ok, n = pcall(C_Spell.GetSpellName, id)
         name = ok and Str(n) or nil
     end
+    self:NoteHelpfulCast(id, name)   -- (as the key is pressed: before the heal can land)
     local unit
     local who = Str(target)
     if who then
@@ -2006,6 +2053,7 @@ function BT:SpellLists()
     local function names(entry)
         local out = { entry[2] }
         local name = SpellName(entry[1])
+        if not name and not english then self.listsMissing = true end
         if name and name ~= entry[2] and not english then out[2] = name end
         return out
     end
@@ -2035,6 +2083,17 @@ function BT:SpellLists()
         end
     end
     return self.periodic, self.shields
+end
+
+-- The lists are made once, by name. In another language, a spell the game had no name for yet
+-- when they were made (at login) would go by its English name only, for the whole session: so
+-- they're made again, once, as the first fight starts.
+function BT:RemakeSpellLists()
+    if not self.listsMissing or self.listsRemade then return end
+    self.listsRemade, self.listsMissing = true, nil
+    self.periodic, self.seals = nil, nil
+    self:SpellLists()
+    self:SealLists()
 end
 
 -- Names of a list of spell IDs: the English name, and each ID's name in the game's language
@@ -2224,6 +2283,7 @@ function BT:SealLists()
     local function names(id, name)
         local out = { name }
         local own = SpellName(id)
+        if not own and not english then self.listsMissing = true end
         if own and own ~= name and not english then out[2] = own end
         return out
     end
@@ -2653,10 +2713,13 @@ end
 function BT:CheckUsable(newTarget)
     local usable = (C_Spell and C_Spell.IsSpellUsable) or IsUsableSpell
     if not self.db.nAlerts or not usable then return end
-    -- Nothing to look at without an ability of this kind (most classes and levels)
+    -- Nothing to look at without an ability of this kind (most classes and levels). Asked on
+    -- every change to your target's health: the class is asked once, not for each spell.
+    local okClass, _, class = pcall(UnitClass, "player")
+    class = okClass and Str(class) or nil
     local any = false
     for _, e in ipairs(REACTIVE_SPELLS) do
-        if e[4] == "usable" and self:HasReactive(e) then any = true break end
+        if e[4] == "usable" and e[3] == class and self:HasReactive(e) then any = true break end
     end
     if not any then return end
     -- The game sends SPELL_UPDATE_USABLE in bursts (crafting, bags changing): look once, at the
@@ -2711,16 +2774,35 @@ end
 -- Procs that put a buff on you, for those the game doesn't light up: { spell ID (0: not known
 -- yet), English name }. Forever's Missile Barrage (Arcane talent: a free, fast Arcane Missiles)
 -- and Revelation (a weapon enchant: the next spell's crit chance doubled), and the mage's others.
+-- Third: the one class it comes to (none: any class; Revelation is a weapon enchant).
 local PROC_BUFFS = {
-    { 0, "Missile Barrage" }, { 0, "Revelation" }, { 0, "Hot Streak" }, { 0, "Fingers of Frost" },
-    { 0, "Brain Freeze" }, { 16870, "Clearcasting" },
+    { 0, "Missile Barrage", "MAGE" }, { 0, "Revelation" }, { 0, "Hot Streak", "MAGE" }, { 0, "Fingers of Frost", "MAGE" },
+    { 0, "Brain Freeze", "MAGE" }, { 16870, "Clearcasting" },
 }
+-- Your class's procs, each with the names to ask for (English, and the game's own), made once
+-- (UNIT_AURA comes often: it used to make a table for each proc of every class each time)
+function BT:ProcList()
+    local ok, _, class = pcall(UnitClass, "player")
+    class = ok and Str(class) or nil
+    if self.procList and self.procListClass == class then return self.procList end
+    local list = {}
+    for _, e in ipairs(PROC_BUFFS) do
+        if not e[3] or not class or e[3] == class then
+            local names = { e[2] }
+            local own = e[1] > 0 and SpellName(e[1])
+            if own and own ~= e[2] then names[2] = own end
+            list[#list + 1] = { id = e[1], key = e[2], names = names }
+        end
+    end
+    self.procList, self.procListClass = list, class
+    return list
+end
 -- Your buffs change: "<name>!" for a proc that has just come up. In a fight the game hides most
 -- of your buffs (SecretWhenUnitAuraRestricted), and C_UnitAuras.GetAuraDataBySpellName answers
 -- only for a buff it doesn't hide (RequiresNonSecretAura): so in a fight only the procs the game
 -- leaves readable can show. Not yet seen in game: which ones those are on Forever.
 function BT:CheckProcs()
-    if not self.db.nAlerts then return end
+    if not (self.db.nAlerts and self.db.enabled) then return end
     local byName = C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName
     if not byName then return end
     self.procsOn = self.procsOn or {}
@@ -2729,20 +2811,17 @@ function BT:CheckProcs()
     local fighting = Flag(InCombatLockdown)
     local quiet = not fighting and self.procsFought
     self.procsFought = fighting or nil
-    for _, e in ipairs(PROC_BUFFS) do
-        local names = { e[2] }
-        local own = e[1] > 0 and SpellName(e[1])
-        if own and own ~= e[2] then names[2] = own end
+    for _, p in ipairs(self:ProcList()) do
         local on, known = false, false
-        for _, name in ipairs(names) do
+        for _, name in ipairs(p.names) do
             local ok, a = pcall(byName, "player", name, "HELPFUL")
             if ok and not IsSecret(a) then
                 if type(a) == "table" and not IsSecret(a.name) then
                     on, known = true, true
                     local id = not IsSecret(a.spellId) and Num(a.spellId)
-                    if not self.procsOn[e[2]] and not quiet then
+                    if not self.procsOn[p.key] and not quiet then
                         local shown = Str(a.name) or name
-                        self:Alert(id or (e[1] > 0 and e[1]) or shown, shown)
+                        self:Alert(id or (p.id > 0 and p.id) or shown, shown)
                         if self.db.debug then self:Record(("PROC %s (%s)"):format(shown, tostring(id))) end
                     end
                     break
@@ -2751,7 +2830,7 @@ function BT:CheckProcs()
                 end
             end
         end
-        if known then self.procsOn[e[2]] = on end
+        if known then self.procsOn[p.key] = on end
     end
 end
 
@@ -3068,6 +3147,30 @@ function BT:InGroup()
     return self.grouped
 end
 
+-- A helpful spell of yours, just sent or cast: for HEALS_LIVE after it, a heal on a group member
+-- may be yours (a heal over time, Prayer of Mending, Light's Vigil, a channel all come from one).
+-- Without one, the heals landing on your group are other people's, and OnUnitHit turns them away
+-- before they cost anything more.
+local HEALS_LIVE = 45   -- (DOT_TIME: the longest a heal of yours is kept going)
+function BT:NoteHelpfulCast(id, name)
+    local helpful = false
+    if id and C_Spell and C_Spell.IsSpellHelpful then
+        local ok, h = pcall(C_Spell.IsSpellHelpful, id)
+        helpful = ok and not IsSecret(h) and h == true
+    end
+    if not helpful and name then
+        local periodic = self:SpellLists()
+        local dot = periodic[name]
+        helpful = (dot and dot.heal) or (self.areaSpells and self.areaSpells[name] ~= nil)
+            or self:HealsOrHarms(name) or self:IsVigil(name) or self:IsMending(name)
+    end
+    if helpful then self.healsLiveAt = GetTime() end
+end
+
+function BT:HealsLive(now)
+    return self.healsLiveAt ~= nil and now - self.healsLiveAt <= HEALS_LIVE and now >= self.healsLiveAt
+end
+
 -- A unit you're fighting: your target, or one that's after you or your pet
 local function Fighting(unit)
     return Flag(UnitIsUnit, unit, "target") or TargetsYou(unit)
@@ -3326,11 +3429,32 @@ end
 -- and each line vouches for one hit. (credits: when those lines arrived.)
 function BT:NoteHiddenLine(now)
     self.hiddenSeen, self.hiddenAt = true, now
+    self.dryActs, self.dryFrom = 0, nil
     local credits = self.credits or {}
     self.credits = credits
     while credits[1] and (now - credits[1] > CREDIT_TIME or #credits >= 20) do table.remove(credits, 1) end
     credits[#credits + 1] = now
     self:Queue({ line = true })
+end
+
+-- The lines can stop after they've started (another addon turns them off, the Combat Log's filter
+-- changed). Then in a group nothing but your casts' own hits and your swings is vouched for: ticks,
+-- spells landing later, procs went missing without a word. In a fight, LINES_DRY_ACTS casts and
+-- swings of yours over LINES_DRY_TIME seconds with no line at all means they've stopped: BattleText
+-- goes back to how it works before the first line, turns them on again, and the Start button shows
+-- after the fight. The next line puts everything back.
+local LINES_DRY_ACTS = 8
+local LINES_DRY_TIME = 20
+function BT:NoteAction(now)
+    if not self.hiddenSeen or not Flag(InCombatLockdown) then return end
+    self.dryFrom = self.dryFrom or now
+    self.dryActs = (self.dryActs or 0) + 1
+    if self.dryActs < LINES_DRY_ACTS or now - self.dryFrom < LINES_DRY_TIME then return end
+    if self.db.debug then self:Record("LINES STOPPED: no line for " .. self.dryActs .. " casts and swings") end
+    self.hiddenSeen, self.dryActs, self.dryFrom = nil, 0, nil
+    self.started = nil
+    self.actedInFight = true   -- (the button shows when this fight ends: CheckAutoStart)
+    self:KeepLogFlowing()
 end
 
 -- Your auto attacks. PLAYER_SWING (Forever's swing timer: { swingDuration, swingType }, plain
@@ -3347,6 +3471,7 @@ function BT:OnSwing(duration, swingType)
     swings[#swings + 1] = now
     self.swungAt = now
     self.actedInFight = true
+    self:NoteAction(now)
     -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept.
     local hand = Num(swingType)
     if hand == 0 or hand == 1 then
@@ -3594,8 +3719,10 @@ function BT:OnSpellcast(spellId)
     local name = id and SpellName(id) or nil
     if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
     self:CastTo(id, name)
+    self:NoteHelpfulCast(id, name)
     self:Queue({ cast = true, id = id, name = name })
     self.actedInFight = true
+    self:NoteAction(GetTime())
     if self:IsLifeTap(id, name) then self:LifeTapCast(id, name) end
     if not name then return end
     local periodic, shields = self:SpellLists()
@@ -5188,15 +5315,27 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
         why = "someone else's mob"
     elseif healing and not grouped and not myPet and not Flag(UnitIsUnit, unit, "target") then
         why = "not your target"
-    elseif not healing and not Fighting(unit) and kind ~= "damage" and not self:FlightOn(unit, now, school) then
-        why = "not your fight"
+    elseif healing and grouped and not myPet and not self:HealsLive(now) then
+        -- In a group everyone's heals land on everyone: one is yours only if a heal of yours can be
+        -- going (ResolveFrame's healOfYours), and none can without a helpful cast of yours lately
+        why = "no heal of yours going"
     elseif not self:FirstSight(unit, now) then
+        -- (before the questions below: the copies under other names cost nothing more)
         why = "same hit, under another name"
-    elseif not healing and not Fighting(unit) and not self:Finishing(unit, now)
-            and not self:FlightOn(unit, now, school) then
-        -- Damage on a mob that isn't after you or your pet: yours only if it lands with a
-        -- hit of yours on one that is, of the same school (an area spell hits them all at once)
-        splash = true
+    elseif not healing then
+        -- (Fighting asks the game up to six questions: asked once)
+        local fighting = Fighting(unit)
+        if fighting then
+            -- yours to work out
+        elseif self:FlightOn(unit, now, school) then
+            -- a spell of yours on its way there
+        elseif kind ~= "damage" then
+            why = "not your fight"
+        elseif not self:Finishing(unit, now) then
+            -- Damage on a mob that isn't after you or your pet: yours only if it lands with a
+            -- hit of yours on one that is, of the same school (an area spell hits them all at once)
+            splash = true
+        end
     end
     if self.db.debug then
         self:RecordUnitHit(unit, action, flag, amount, secret, school,
@@ -6333,7 +6472,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
         local id = Num(a3)
         local name = id and SpellName(id)
-        if name then BT:SpellLists() BT:CastTo(id, name) BT:StartArea(name, id) end
+        if name then BT:SpellLists() BT:CastTo(id, name) BT:NoteHelpfulCast(id, name) BT:StartArea(name, id) end
     elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
         BT:StopArea(Num(a3))
     elseif event == "UNIT_AURA" then
@@ -6363,6 +6502,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
             BT:CheckLowMana()
         end
     elseif event == "PLAYER_REGEN_DISABLED" then
+        BT:RemakeSpellLists()
         BT:ScanShield()      -- last look at your buffs and gear before the fight hides them
         BT:ScanItemShields()
         BT:SetStartMacro()   -- last chance before the fight to note which chat tab you're on
