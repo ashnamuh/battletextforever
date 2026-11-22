@@ -44,9 +44,13 @@ L["Horizontal"] = ""
 L["Incoming"] = ""
 L["Outgoing"] = ""
 L["Healing"] = ""
+
+-- Display.lua
 L["Heals you do"] = ""
 L["Heals you get"] = ""
 L["%s hits"] = ""
+
+-- Incoming.lua
 L["%s blocked"] = ""
 L["%s absorbed"] = ""
 L["%s resisted"] = ""
@@ -84,6 +88,8 @@ L["%s over"] = ""
 L["Unnamed heal"] = ""
 L["Killing blow!"] = ""
 L["blocked"] = ""
+
+-- Alerts.lua
 L["%s ready"] = ""
 L["Interrupted %s"] = ""
 L["Interrupted!"] = ""
@@ -95,9 +101,13 @@ L["%d CP"] = ""
 L["type a spell's name first"] = ""
 L["that name is too long"] = ""
 L["%s is already on the list"] = ""
+
+-- Attribution.lua
 L["(Hawk)"] = ""
 L["gear can't be read in a fight. Try again after it."] = ""
 L["gear read. Type /btf copy to copy what was found."] = ""
+
+-- Notices.lua
 L["+%s XP"] = ""
 L["all %d checks passed."] = ""
 L["%d of %d checks found a problem:"] = ""
@@ -109,6 +119,8 @@ L["Right-click to hide it until you log in again."] = ""
 L["the click couldn't open the game's Combat Log tab. A chat addon (like Chattynator) may be hiding it, and there's no real way around that. Alone, your hits still show without it; in a group, other people's hits may show as yours. Right-click the button to hide it."] = ""
 L["click %s at the top of your screen (or press %s). It names your bleed ticks and, in a group, leaves other people's hits out."] = ""
 L["click %s at the top of your screen. It names your bleed ticks and, in a group, leaves other people's hits out."] = ""
+
+-- Settings.lua
 L["Crit"] = ""
 L["Normal"] = ""
 L["that isn't BattleText settings text"] = ""

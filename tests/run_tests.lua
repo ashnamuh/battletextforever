@@ -32,7 +32,8 @@ for line in toc:gmatch("[^\r\n]+") do
     if not line:find("^#") and line:find("%S") then tocFiles[#tocFiles + 1] = line:match("^%s*(.-)%s*$"):gsub("\\", "/") end
 end
 assertEq(table.concat(tocFiles, " "), "Theme.lua Locales/Locales.lua Locales/deDE.lua Locales/esES.lua Locales/esMX.lua Locales/frFR.lua "
-    .. "Locales/itIT.lua Locales/koKR.lua Locales/ptBR.lua Locales/ruRU.lua Locales/zhCN.lua Locales/zhTW.lua Parse.lua Core.lua Options.lua",
+    .. "Locales/itIT.lua Locales/koKR.lua Locales/ptBR.lua Locales/ruRU.lua Locales/zhCN.lua Locales/zhTW.lua Parse.lua "
+    .. "Core.lua Display.lua Incoming.lua Spells.lua Alerts.lua Attribution.lua Notices.lua Settings.lua Options.lua",
     "the files the game loads, in order")
 for _, file in ipairs(tocFiles) do assert(io.open(ADDON_DIR .. "/" .. file), "listed file is missing: " .. file) end
 assertEq(toc:match("## Interface: (%d+)"), "16001", "made for WoW: Forever")
@@ -58,7 +59,7 @@ do
     local pkgmeta = read_file(ADDON_DIR .. "/.pkgmeta")
     local ignored = {}
     for name in pkgmeta:match("ignore:(.*)$"):gmatch("%-%s*(%S+)") do ignored[name] = true end
-    local SHIPPED = { ["BattleTextForever.toc"] = true, ["Theme.lua"] = true, ["Parse.lua"] = true, ["Core.lua"] = true,
+    local SHIPPED = { ["BattleTextForever.toc"] = true, ["Theme.lua"] = true, ["Parse.lua"] = true, ["Core.lua"] = true, ["Display.lua"] = true, ["Incoming.lua"] = true, ["Spells.lua"] = true, ["Alerts.lua"] = true, ["Attribution.lua"] = true, ["Notices.lua"] = true, ["Settings.lua"] = true,
         ["Options.lua"] = true, ["Bindings.xml"] = true, ["CHANGELOG.md"] = true, ["README.md"] = true, ["LICENSE"] = true,
         Fonts = true, Media = true, Locales = true }
     local listing = io.popen('ls -A "' .. ADDON_DIR .. '"')

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.33.0
+
+- **Behind the scenes: the addon's code is now in eight files instead of one.** Nothing changes in game. The main file had grown so big it was close to a limit Lua puts on one file, so it's now split by job (the text on screen, hits on you, which hits are yours, alerts, settings and so on). This makes future fixes safer. If anything acts differently after this update, please report it.
+
 ## 1.32.2
 
 - **Lighter in groups and raids.** In a group, the game reports every heal on every group member, and every hit on every mob around you, often several times over under different names. BattleText now drops other people's heals straight away when no heal of yours could be going (no healing spell cast in the last 45 seconds), and drops repeated copies of the same hit before checking anything else about it. Your numbers don't change, it just does less work in big fights.

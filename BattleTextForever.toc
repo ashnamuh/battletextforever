@@ -24,4 +24,11 @@ Locales\zhCN.lua
 Locales\zhTW.lua
 Parse.lua
 Core.lua
+Display.lua
+Incoming.lua
+Spells.lua
+Alerts.lua
+Attribution.lua
+Notices.lua
+Settings.lua
 Options.lua
