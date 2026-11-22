@@ -6,6 +6,8 @@
 
 BattleText Forever puts the fight on your screen: your hits scroll on one side, the damage you take on the other, heals under your character, and loot and experience in the middle. It's built for Forever's addon rules, in the spirit of the classic scrolling combat text addons.
 
+> **Bugs or ideas?** Please post them on [GitHub](https://github.com/severd8/battletextforever/issues/new/choose), where I can keep track of them.
+
 ---
 
 ## Features
