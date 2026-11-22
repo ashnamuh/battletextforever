@@ -111,6 +111,7 @@ L["gear read. Type /btf copy to copy what was found."] = "장비를 읽었습니
 L["g"] = "골드"
 L["s"] = "실버"
 L["c"] = "코퍼"
+L["+%s %s %s"] = "+%s %s %s"
 L["+%s XP"] = "+%s 경험치"
 L["all %d checks passed."] = "%d개 검사 모두 통과했습니다."
 L["%d of %d checks found a problem:"] = "%d개 중 %d개 검사에서 문제가 발견되었습니다:"
