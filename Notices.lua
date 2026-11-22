@@ -106,7 +106,7 @@ function BT:OnMoney(message)
     if silver > 0 then parts[#parts + 1] = "|cFFC0C0C0" .. silver .. L["s"] .. "|r" end
     if copper > 0 then parts[#parts + 1] = "|cFFCD7F32" .. copper .. L["c"] .. "|r" end
 
-    self:Notify("+" .. table.concat(parts, " "), self.TEXT_COLORS.loot)
+    self:Notify(L["+%s %s %s"]:format(parts[1] or "", parts[2] or "", parts[3] or ""):gsub("%s+$", ""), self.TEXT_COLORS.loot)
 end
 
 -- Professions whose spell has another name than the skill (the rest are found by name)
