@@ -1846,13 +1846,16 @@ local AREA_SLACK = 1   -- what's still on its way when a channel stops (Arcane M
 -- "usable" the game says it can be cast (Execute, Hammer of Wrath: the target is low on health).
 local REACTIVE_SPELLS = {
     { 7384, "Overpower", "WARRIOR", "dodged", 12 },
-    { 6572, "Revenge", "WARRIOR", "avoided", 14 },
+    { 6572, "Revenge", "WARRIOR", "avoided", 14, { 71 } },   -- (only in Defensive Stance)
     { 14251, "Riposte", "ROGUE", "parried" },
     { 19306, "Counterattack", "HUNTER", "parried" },
     { 5308, "Execute", "WARRIOR", "usable", 24 },
     { 24275, "Hammer of Wrath", "PALADIN", "usable", 44 },
 }
 local REACT_GAP = 1   -- seconds before the same alert shows again
+-- REACTIVE_SPELLS' sixth: the stances (by their spell) it can be used in; the alert only shows in
+-- one of them. Revenge only: an Arms warrior in Battle Stance got "Revenge!" on every parry
+-- (CurseForge, Quarnok). Overpower has none, as warriors often switch to Battle Stance for it.
 
 -- Spells that take something off (first rank's ID, English name). Only for when
 -- the Combat Log's dispel lines aren't arriving: then the cast itself shows.
@@ -2232,18 +2235,57 @@ end
 function BT:React(what)
     if self.testing or not self.db.nAlerts then return end   -- (a sample dodge isn't a real one)
     for _, e in ipairs(REACTIVE_SPELLS) do
-        if e[4] == what and self:HasReactive(e) then self:Alert(e[1], SpellName(e[1]) or e[2]) end
+        if e[4] == what and self:HasReactive(e) and self:InStance(e[6]) and not self:CoolingDown(e) then
+            self:Alert(e[1], SpellName(e[1]) or e[2])
+        end
     end
+end
+
+-- The spell of the stance or form you're in (nil: none, or the game won't say)
+function BT:StanceSpell()
+    if not (GetShapeshiftForm and GetShapeshiftFormInfo) then return nil end
+    local ok, index = pcall(GetShapeshiftForm)
+    index = ok and Num(index) or nil
+    if not index or index == 0 then return nil end
+    local ok2, _, _, _, spellId = pcall(GetShapeshiftFormInfo, index)
+    return ok2 and Num(spellId) or nil
+end
+
+-- Whether you're in one of these stances (none listed, or yours unknown: yes)
+function BT:InStance(stances)
+    if not stances then return true end
+    local now = self:StanceSpell()
+    if not now then return true end
+    for _, id in ipairs(stances) do
+        if id == now then return true end
+    end
+    local name = SpellName(now)   -- (another rank's ID: by its name)
+    for _, id in ipairs(stances) do
+        if name and name == SpellName(id) then return true end
+    end
+    return false
+end
+
+local CooldownOf   -- (below, with the cooldowns ready)
+-- A reactive spell still on its own cooldown (Overpower's 5 seconds): it can't be used, so no
+-- alert (CurseForge, Quarnok: "sometimes I'm getting procs when the button is not available").
+-- The global cooldown doesn't count. Asked by name, so it's the rank you know.
+function BT:CoolingDown(e)
+    local cd = CooldownOf(SpellName(e[1]) or e[2])
+    return cd ~= nil and cd.active == true and cd.gcd ~= true
 end
 
 -- "<name>!" in Notifications, once per REACT_GAP for each name
 function BT:Alert(id, name)
+    -- (one hidden on the Spells tab isn't announced; one with its own color has it)
+    local rule = self:SpellRule(name)
+    if rule and rule.hide then return end
     local now = GetTime()
     self.reactAt = self.reactAt or {}
     if self.reactAt[name] and now - self.reactAt[name] < REACT_GAP then return end
     self.reactAt[name] = now
     local icon = self.db.nIcons and self:IconText(id) or ""
-    self:Notify(icon .. name .. "!", self.TEXT_COLORS.alert, { crit = true })
+    self:Notify(icon .. name .. "!", (rule and rule.color) or self.TEXT_COLORS.alert, { crit = true })
 end
 
 ---------------------------------------------------------------------------
@@ -2261,7 +2303,7 @@ local COOLDOWN_SLACK = 0.5     -- a hidden length is timed from your cast: this 
 local function Bool(v) if IsSecret(v) or type(v) ~= "boolean" then return nil end return v end
 
 -- A spell's cooldown, as { active, enabled, gcd, length } (each nil when the game hides it)
-local function CooldownOf(id)
+function CooldownOf(id)   -- (the local declared above)
     if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
     local ok, info = pcall(C_Spell.GetSpellCooldown, id)
     if not ok or IsSecret(info) or type(info) ~= "table" then return nil end

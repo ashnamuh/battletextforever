@@ -514,7 +514,9 @@ local function BuildNotifications(p, refs)
         L["A line when an ability you can use only just then opens up: \"Overpower!\" when your target dodges you, "
         .. "\"Revenge!\" when you dodge, parry or block (warriors), \"Riposte!\" or \"Counterattack!\" when you "
         .. "parry (rogues and hunters with the talent), \"Execute!\" and \"Hammer of Wrath!\" when your target is "
-        .. "low enough, and procs and spells the game lights up on your action bars (like Clearcasting)."])
+        .. "low enough, and procs and spells the game lights up on your action bars (like Clearcasting). "
+        .. "Revenge only in Defensive Stance, and none while the ability is on cooldown. To turn one off, "
+        .. "add it on the Spells tab and hide it."])
     Setting(card, L["Combo points"], COL2, -160, "nCombo",
         L["Rogues and cat druids: \"2 CP\" as your combo points go up, and \"5 CP: Finish it!\" when you have "
         .. "them all."])

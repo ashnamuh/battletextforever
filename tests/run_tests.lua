@@ -5903,6 +5903,46 @@ fire("UNIT_COMBAT", "player", "WOUND", "", 20, 1)
 fire("UNIT_COMBAT", "player", "MISS", "", 0, 1)
 assertEq(alerts(), "Revenge! / Revenge!", "a blow that lands, or misses you, doesn't")
 clear()
+-- CurseForge (Quarnok, an Arms warrior): "I'm also getting Revenge procs... any thoughts on a
+-- way to suppress those?" and "sometimes I'm getting procs when the button is not available"
+STATE.spellNames[71], STATE.spellNames[2457] = "Defensive Stance", "Battle Stance"
+STATE.spellNames[6572], STATE.spellNames[7384] = "Revenge", "Overpower"
+STATE.form = { spellId = 2457 }   -- Battle Stance
+Advance(1.1)
+fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
+assertEq(alerts(), "", "in Battle Stance a parry doesn't say Revenge (it needs Defensive Stance)")
+STATE.form = { spellId = 71 }
+Advance(1.1)
+fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
+assertEq(alerts(), "Revenge!", "in Defensive Stance it does")
+Advance(1.1)
+on("target", 0, 1, "DODGE")
+assertEq(alerts(), "Revenge! / Overpower!", "Overpower in any stance (warriors switch to Battle Stance for it)")
+clear()
+-- Overpower on its cooldown: no alert (the global cooldown doesn't count)
+STATE.cooldowns = { Overpower = { startTime = 1, duration = 5, isEnabled = true, isActive = true, modRate = 1 } }
+Advance(1.1)
+on("target", 0, 1, "DODGE")
+assertEq(alerts(), "", "Overpower on its cooldown: no alert")
+STATE.cooldowns = { Overpower = { startTime = 1, duration = 1.5, isEnabled = true, isActive = true, isOnGCD = true,
+    modRate = 1 } }
+Advance(1.1)
+on("target", 0, 1, "DODGE")
+assertEq(alerts(), "Overpower!", "only the global cooldown: it shows")
+STATE.cooldowns = nil
+clear()
+-- Hidden on the Spells tab: no alert for it, the others still come
+BT:AddSpellRule("Revenge")
+BT:SetSpellRule(BT:SpellRule("Revenge"), "hide", true)
+Advance(1.1)
+fire("UNIT_COMBAT", "player", "PARRY", "", 0, 1)
+on("target", 0, 1, "DODGE")
+assertEq(alerts(), "Overpower!", "Revenge hidden on the Spells tab: not announced")
+BT:RemoveSpellRule(#BT.db.spellRules)
+STATE.form = nil
+BT.reactAt = nil
+Advance(2)
+clear()
 -- With the combat lines readable, your dodged swing comes from its line
 assert(flowing(), "(the combat lines are arriving)")
 BT.reactAt = nil
