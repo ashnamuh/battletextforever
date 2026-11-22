@@ -31,7 +31,8 @@ local tocFiles = {}
 for line in toc:gmatch("[^\r\n]+") do
     if not line:find("^#") and line:find("%S") then tocFiles[#tocFiles + 1] = line:match("^%s*(.-)%s*$"):gsub("\\", "/") end
 end
-assertEq(table.concat(tocFiles, " "), "Theme.lua Locales/Locales.lua Locales/koKR.lua Parse.lua Core.lua Options.lua",
+assertEq(table.concat(tocFiles, " "), "Theme.lua Locales/Locales.lua Locales/deDE.lua Locales/esES.lua Locales/esMX.lua Locales/frFR.lua "
+    .. "Locales/itIT.lua Locales/koKR.lua Locales/ptBR.lua Locales/ruRU.lua Locales/zhCN.lua Locales/zhTW.lua Parse.lua Core.lua Options.lua",
     "the files the game loads, in order")
 for _, file in ipairs(tocFiles) do assert(io.open(ADDON_DIR .. "/" .. file), "listed file is missing: " .. file) end
 assertEq(toc:match("## Interface: (%d+)"), "16001", "made for WoW: Forever")
@@ -7375,7 +7376,8 @@ step("translations: the addon's own text in the player's language")
     local keys = M.Keys()
     assert(#keys > 300, "the options, chat and on-screen text are all translatable (" .. #keys .. " lines)")
     local codes = M.Locales()
-    assertEq(table.concat(codes, " "), "koKR", "the language files the game loads")
+    assertEq(table.concat(codes, " "), "deDE esES esMX frFR itIT koKR ptBR ruRU zhCN zhTW",
+        "a file for each language the game comes in (but English)")
     for _, code in ipairs(codes) do
         local found, order, src = M.Read(code)
         assertEq(src, M.Make(code), "Locales/" .. code .. ".lua is up to date: run lua5.1 tests/tools/make_locales.lua")
