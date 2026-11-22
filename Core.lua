@@ -87,6 +87,7 @@ local DEFAULTS = {
     height = 240,             -- how far a line travels
     outline = "OUTLINE",      -- the outline round normal lines (one of BT.OUTLINES)
     critOutline = "OUTLINE",  -- and round crits
+    critFont = "",            -- crits' own font (one of BT.FONTS' names); "": the same as other lines
     sticky = true,            -- crits pop and hold in place
     popApart = false,         -- Pop lines that would land on one another move to the nearest free spot
     iconZoom = false,         -- crop icons' edges so their art fills the square
@@ -348,8 +349,9 @@ function BT:AddSharedFonts()
             if okPath and type(path) == "string" and path ~= "" then
                 self.FONTS[#self.FONTS + 1] = { name = name, path = path, shared = true }
                 have[name] = true
-                local d = self.config and self.config.fontDropdown
-                if d and d.keys then d.keys[#d.keys + 1] = name end
+                for _, d in ipairs({ self.config and self.config.fontDropdown, self.config and self.config.critFontDropdown }) do
+                    if d and d.keys then d.keys[#d.keys + 1] = name end
+                end
             end
         end
     end
@@ -376,16 +378,23 @@ function BT:AddSharedSounds(lib)
     end
 end
 
-function BT:FontPath()
-    -- (kept until the font or the list changes: every new line asks)
+-- The file for a line's font. crit: a crit's, which can have a font of its own (db.critFont)
+function BT:FontPath(crit)
+    local name = self.db.font
+    if crit and type(self.db.critFont) == "string" and self.db.critFont ~= "" then name = self.db.critFont end
+    -- (kept by name until the list changes: every new line asks)
     local cache = self.fontPathCache
-    if cache and cache.font == self.db.font and cache.count == #self.FONTS then return cache.path end
-    local path
+    if not cache or cache.count ~= #self.FONTS then
+        cache = { count = #self.FONTS, paths = {} }
+        self.fontPathCache = cache
+    end
+    local path = cache.paths[name]
+    if path then return path end
     for _, f in ipairs(self.FONTS) do
-        if f.name == self.db.font and f.path then path = f.path break end
+        if f.name == name and f.path then path = f.path break end
     end
     path = path or Str(STANDARD_TEXT_FONT) or "Fonts\\FRIZQT__.TTF"
-    self.fontPathCache = { font = self.db.font, count = #self.FONTS, path = path }
+    cache.paths[name] = path
     return path
 end
 
@@ -657,7 +666,7 @@ function BT:Emit(areaKey, text, color, opts)
     local shadow = flags == "SHADOW"
     if shadow then flags = "" end
     -- A line from the pool often has this font already: setting it again is wasted work
-    local path = self:FontPath()
+    local path = self:FontPath(opts.crit)
     if o.fontPath ~= path or o.fontSize ~= size or o.fontFlags ~= flags then
         if not o.text:SetFont(path, size, flags) and STANDARD_TEXT_FONT then
             o.text:SetFont(STANDARD_TEXT_FONT, size, flags)
@@ -1313,7 +1322,7 @@ function BT:UpdateManaSign(hidden)
     local size = math.floor(self.db.fontSize * self.db.critScale / 100 + 0.5)
     local flags = self:OutlineFlags(true)
     if flags == "SHADOW" then flags = "" end
-    if not sign.text:SetFont(self:FontPath(), size, flags) and STANDARD_TEXT_FONT then
+    if not sign.text:SetFont(self:FontPath(true), size, flags) and STANDARD_TEXT_FONT then
         sign.text:SetFont(STANDARD_TEXT_FONT, size, flags)
     end
     -- (the text only after its font: a new font string has none, and SetText on it is an error)
@@ -5521,6 +5530,14 @@ function BT:SetFont(name)
     self.testing = false
 end
 
+-- Picking a font for crits shows a crit in it
+function BT:SetCritFont(name)
+    self.db.critFont = name
+    self.testing = true
+    self:Emit("notify", L["Crit"], self.TEXT_COLORS.notify, { crit = true })
+    self.testing = false
+end
+
 -- Picking an outline shows a line with it straight away (a crit for the crits' one)
 function BT:SetOutline(key, flags)
     self.db[key] = flags
@@ -5656,6 +5673,10 @@ end
 function BT:Choices(key)
     local list, field
     if key == "font" then list, field = self.FONTS, "name"
+    elseif key == "critFont" then
+        local keys = { [""] = true }
+        for _, f in ipairs(self.FONTS) do keys[f.name] = true end
+        return keys
     elseif key == "outline" or key == "critOutline" then list, field = self.OUTLINES, "flags"
     elseif key:match("Sound$") then list, field = self.SOUNDS, "key"
     elseif key:match("Style$") then list, field = self.STYLES, "key"

@@ -315,7 +315,7 @@ local function BuildGeneral(p, refs)
 end
 
 local function BuildText(p, refs)
-    local card = Card(p, L["Font and outline"], 0, 0, PAGE_W, 124)
+    local card = Card(p, L["Font and outline"], 0, 0, PAGE_W, 154)
     local fontKeys, outlineKeys, outlineNames = {}, {}, {}
     for _, f in ipairs(BT.FONTS) do fontKeys[#fontKeys + 1] = f.name end
     for _, o in ipairs(BT.OUTLINES) do
@@ -334,11 +334,20 @@ local function BuildText(p, refs)
     T.RowLabel(card, L["Outline"], 12, -60)
     refs.outlineDropdown = Dropdown(card, DROP_X, -60, 220, outlineKeys, outlineName, "outline",
         function(flags) BT:SetOutline("outline", flags) end, L["Normal lines: %s"]:format(outlineTip))
-    T.RowLabel(card, L["Crit outline"], 12, -90)
-    refs.critOutlineDropdown = Dropdown(card, DROP_X, -90, 220, outlineKeys, outlineName, "critOutline",
+    T.RowLabel(card, L["Crit font"], 12, -90)
+    local critFontKeys = { "" }
+    for _, k in ipairs(fontKeys) do critFontKeys[#critFontKeys + 1] = k end
+    refs.critFontDropdown = Dropdown(card, DROP_X, -90, 220, critFontKeys, function(k)
+            if k == "" then return L["Same as other lines"] end
+            return k == "Default" and L["Default"] or k
+        end, "critFont", function(name) BT:SetCritFont(name) end,
+        L["A font of their own for crits, so they stand out from the rest. Picking one shows a crit in it."])
+    refs.critFontDropdown.menuScroll = 20 * 12
+    T.RowLabel(card, L["Crit outline"], 12, -120)
+    refs.critOutlineDropdown = Dropdown(card, DROP_X, -120, 220, outlineKeys, outlineName, "critOutline",
         function(flags) BT:SetOutline("critOutline", flags) end, L["Crits: %s"]:format(outlineTip))
 
-    local size = Card(p, L["Size"], 0, -134, PAGE_W, 190)
+    local size = Card(p, L["Size"], 0, -164, PAGE_W, 190)
     Slider(size, L["Text size"], 12, -30, "fontSize",
         { tip = L["The size of normal lines. Each area can make its own bigger or smaller (Appearance, on its tab)."] })
     Slider(size, L["Crit size"], COL2, -30, "critScale", { suffix = "%", step = 10,

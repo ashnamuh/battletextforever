@@ -6785,7 +6785,11 @@ lib.List = function() return { "Avant Garde", "Later Font" } end
 callback(nil, "font", "Later Font")
 assertEq(BT.FONTS[#BT.FONTS].name, "Later Font", "a font shared later is added when it's shared")
 BT.db.font = "Default"
-while #BT.FONTS > before do table.remove(BT.FONTS) table.remove(keys) end
+assertEq(BT.config.critFontDropdown.keys[#BT.config.critFontDropdown.keys], "Later Font",
+    "the Crit font list has shared fonts too")
+while #BT.FONTS > before do
+    table.remove(BT.FONTS) table.remove(keys) table.remove(BT.config.critFontDropdown.keys)
+end
 rawset(_G, "LibStub", nil)
 BT.sharedFontsHooked = nil
 
@@ -7387,6 +7391,48 @@ do
     BT.areaOn, BT.dots = nil, nil
     clear()
 end
+
+step("a font of their own for crits")
+-- CurseForge (beefsupreme3954, a healer): "it would be great to select a separate font for crits"
+;(function()
+    local function newestIn(area) local act = BT.areas[area].active return act[#act] end
+    local was = { BT.db.font, BT.db.critFont }
+    BT.db.font = "Default"
+    assertEq(BT.db.critFont, "", "crits use the same font as other lines at first")
+    local d = BT.config.critFontDropdown
+    assert(d, "the Text tab has a Crit font list")
+    assertEq(d.keys[1], "", "its first choice is the same font as other lines")
+    assertEq(d:GetText(), "Same as other lines", "and it says so")
+    local inList = {}
+    for _, k in ipairs(d.keys) do inList[k] = true end
+    for _, f in ipairs(BT.FONTS) do assert(inList[f.name], "every font is a crit font choice: " .. f.name) end
+    assertEq(#d.keys, #BT.FONTS + 1, "and nothing else")
+    clear()
+    BT:SetCritFont("Bangers")
+    assertEq(BT.db.critFont, "Bangers", "picked")
+    local crit = newestIn("notify")
+    assertEq(crit.text:GetText(), "Crit", "picking one shows a crit")
+    assert(crit.fontPath:find("Bangers%-Regular%.ttf$"), "in that font")
+    BT:RefreshConfig()
+    assertEq(d:GetText(), "Bangers", "and the list shows it")
+    clear()
+    BT:Emit("outgoing", "120", BT.TEXT_COLORS.spell, { crit = true })
+    assert(newestIn("outgoing").fontPath:find("Bangers%-Regular%.ttf$"), "crits use the crit font")
+    BT:Emit("outgoing", "40", BT.TEXT_COLORS.spell)
+    assertEq(newestIn("outgoing").fontPath, BT:FontPath(), "other lines keep the font")
+    assert(not BT:FontPath():find("Bangers", 1, true), "(which isn't the crit font)")
+    BT.db.font = "Lato"
+    assert(BT:FontPath():find("Lato%-Bold%.ttf$"), "changing the font changes other lines")
+    assert(BT:FontPath(true):find("Bangers%-Regular%.ttf$"), "but not crits")
+    BT.db.critFont = ""
+    assertEq(BT:FontPath(true), BT:FontPath(), "back to the same as other lines")
+    -- It goes through settings sharing like any other choice
+    assertEq(BT:Choices("critFont")["Bangers"], true, "a font name is a crit font choice")
+    assertEq(BT:Choices("critFont")[""], true, "and so is the same as other lines")
+    assertEq(BT:Choices("critFont")["Comic Sans"], nil, "a font BattleText doesn't have isn't")
+    BT.db.font, BT.db.critFont = was[1], was[2]
+    clear()
+end)()
 
 step("translations: the addon's own text in the player's language")
 ;(function()   -- (a function: the file is near Lua's limit of locals)
