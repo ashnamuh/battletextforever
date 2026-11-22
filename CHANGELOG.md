@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.32.0
+
+- **Heals cast with mouseover macros now show.** BattleText assumed a heal went to your target (or to you, with no friend targeted). Healers who heal with mouseover macros or by clicking party frames, while targeting the boss or nothing, lost a lot of their heals: Renew's ticks, Penance and other heals on party members never showed, and Renew could even be taken as one on yourself. BattleText now asks the game who each cast is going to as you press the key, so a heal on the party member under your mouse counts as yours, whatever you have targeted.
+- **Prayer of Mending is named.** Its heals come later, as the prayer jumps from one party member to the next, with no cast to go by, so BattleText dropped them. They now show as Prayer of Mending, on the friend you put it on and then on whoever it jumps to.
+- (Thanks to the priest on CurseForge who reported it.)
+
 ## 1.31.0
 
 - **Smarter warrior alerts.** "Revenge!" now only shows in Defensive Stance, so Arms and Fury warriors don't get it on every parry. "Overpower!" still shows in any stance (many warriors switch to Battle Stance for it), but not while Overpower is on its cooldown, when the button can't be used anyway. And any ability alert can now be turned off on its own: add the ability on the Spells tab and hide it (a color you give it there is used for its alert too). (Thanks to Quarnok for the ideas.)

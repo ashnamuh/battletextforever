@@ -7432,6 +7432,169 @@ do
     clear()
 end
 
+step("heals cast with a mouseover macro (CurseForge: Renew, Penance, Prayer of Mending)")
+;(function()   -- (a function: the file is near Lua's limit of locals)
+    clear()
+    local whoWas, unitWas, groupWas = STATE.who, STATE.unit, STATE.group
+    -- A boss targeted; the healer heals the party with the mouse over their frames
+    STATE.who = { target = "mob", nameplate1 = "mob", party1 = "friend", party2 = "buddy" }
+    STATE.unit = { friend = { guid = "Player-5555-0FRIEND1", name = "Friendo" },
+        buddy = { guid = "Player-5555-0BUDDY01", name = "Buddy" },
+        mob = { enemy = true, guid = "Creature-0-1-2-3-4-000129", target = "friend", name = "Boss" } }
+    STATE.group = true
+    STATE.spellNames[6077], STATE.spellIcons[6077] = "Renew", 135953
+    STATE.spellNames[402174], STATE.spellIcons[402174] = "Penance", 237545
+    STATE.spellNames[402289], STATE.spellIcons[402289] = "Penance", 237545
+    STATE.spellNames[33076], STATE.spellIcons[33076] = "Prayer of Mending", 135944
+    STATE.spellNames[2061], STATE.spellIcons[2061] = "Flash Heal", 135907
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    local function mouse(id) STATE.who.mouseover = id end
+    local function sent(name, id) fire("UNIT_SPELLCAST_SENT", "player", name, "Cast-s" .. id, id) end
+    Advance(1)
+    -- Renew on the friend under the mouse: the mouse has moved on when it finishes (an instant here)
+    mouse("friend")
+    sent("Friendo", 6077)
+    mouse(nil)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rn1", 6077)
+    hidden(40)
+    assertEq(BT.selfHots and BT.selfHots.Renew, nil, "it isn't taken as a Renew on yourself")
+    Advance(3)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 45, 2)
+    hidden(41)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Renew +45", "its tick on the friend is yours, named")
+    Advance(2.7)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 30, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+30", "and a heal on you on its beat isn't your Renew")
+    clear()
+    -- Penance on the friend under the mouse, with the boss targeted: heals, not damage
+    Advance(2)
+    mouse("friend")
+    sent("Friendo", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn1", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn2", 402289)
+    mouse(nil)
+    hidden(42)
+    Advance(0.34)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 50, 2)
+    hidden(43)
+    Advance(1)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 51, 2)
+    hidden(44)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Penance +50 / Penance +51", "Penance's heals on the friend, named")
+    Advance(0.3)
+    fire("UNIT_COMBAT", "player", "HEAL", "", 20, 2)
+    Advance(0.3)
+    assertEq(last("incoming"), "+20", "and it isn't healing you")
+    clear()
+    -- A friend targeted, the mouse over another: the cast goes where the game says, to the mouse's
+    STATE.who.target = "buddy"
+    Advance(2)
+    mouse("friend")
+    sent("Friendo", 6077)
+    mouse(nil)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rn2", 6077)
+    hidden(45)
+    Advance(3)
+    fire("UNIT_COMBAT", "target", "HEAL", "", 60, 2)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 60, 2)
+    Advance(0.3)
+    assert(not table.concat(lines("outgoing"), " / "):find("Renew", 1, true), "a heal on your target isn't that Renew")
+    clear()
+    -- The game hides names: a friend under the mouse while a boss is targeted is who it went to
+    STATE.who.target = "mob"
+    BT.dots = nil
+    Advance(2)
+    mouse("buddy")
+    sent(Secret("Buddy"), 6077)
+    mouse(nil)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rn3", 6077)
+    hidden(46)
+    Advance(3)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 47, 2)
+    hidden(47)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Renew +47", "with the name hidden, the friend under the mouse")
+    clear()
+    -- A spell sent to no one (an empty name) and no friend targeted: on you, as before
+    BT.dots, BT.selfHots = nil, nil
+    Advance(2)
+    mouse("friend")
+    sent("", 6077)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-rn4", 6077)
+    mouse(nil)
+    assert(BT.selfHots and BT.selfHots.Renew, "an empty name changes nothing: Renew on yourself")
+    BT.selfHots = nil
+    clear()
+    -- Flash Heal under the mouse with no target: its heal a frame later on the friend is yours
+    STATE.who.target = nil
+    STATE.helpful = STATE.helpful or {}
+    STATE.helpful[2061] = true
+    Advance(2)
+    mouse("friend")
+    sent("Friendo", 2061)
+    mouse(nil)
+    Advance(1.5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-fh1", 2061)
+    hidden(48)
+    Advance(0.05)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 300, 2)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Flash Heal +300", "a heal landing a frame after its cast on the mouse's friend")
+    clear()
+    -- Prayer of Mending on the friend: it heals them when they're hurt, then jumps
+    STATE.who.target = "mob"
+    Advance(2)
+    mouse("friend")
+    sent("Friendo", 33076)
+    mouse(nil)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pm1", 33076)
+    hidden(49)
+    Advance(0.3)
+    assertEq(#lines("outgoing"), 0, "casting it heals nothing")
+    Advance(3)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 70, 2)
+    hidden(50)
+    Advance(0.3)
+    assertEq(#lines("outgoing"), 0, "its first heal is on the friend it was put on, not anyone")
+    Advance(4)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 80, 2)
+    hidden(51)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Prayer of Mending +80", "its heal on the friend, named")
+    Advance(5)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 81, 2)
+    hidden(52)
+    Advance(0.3)
+    assert(not table.concat(lines("outgoing"), " / "):find("+81", 1, true), "it has jumped: not the same friend again")
+    Advance(5)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 82, 2)
+    Advance(0.6)
+    assert(not table.concat(lines("outgoing"), " / "):find("+82", 1, true), "a heal with no line of yours isn't it")
+    Advance(1)
+    fire("UNIT_COMBAT", "party2", "HEAL", "", 83, 2)
+    hidden(53)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Prayer of Mending +83", "its jump to another group member, named")
+    Advance(1)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 84, 8)
+    hidden(54)
+    Advance(0.3)
+    assert(not table.concat(lines("outgoing"), " / "):find("+84", 1, true), "a Nature heal isn't it")
+    Advance(31)
+    fire("UNIT_COMBAT", "party1", "HEAL", "", 85, 2)
+    hidden(55)
+    Advance(0.3)
+    assert(not table.concat(lines("outgoing"), " / "):find("+85", 1, true), "nor a heal after it has faded")
+    STATE.who, STATE.unit, STATE.group = whoWas, unitWas, groupWas
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    clear()
+end)()
+
 step("a font of their own for crits")
 -- CurseForge (beefsupreme3954, a healer): "it would be great to select a separate font for crits"
 ;(function()

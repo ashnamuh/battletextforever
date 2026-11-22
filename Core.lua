@@ -1508,8 +1508,8 @@ function BT:NoteHealCast(id, name)
     if not (id and name and C_Spell and C_Spell.IsSpellHelpful) then return end
     local ok, helpful = pcall(C_Spell.IsSpellHelpful, id)
     local either = self:HealsOrHarms(name)   -- (Holy Shock: on an enemy it hurts, else it heals you)
-    if either and Flag(UnitCanAttack, "player", "target") then return end
-    if self:IsVigil(name) then return end   -- (Light's Vigil heals nothing as it's cast)
+    if either and not self:HealGoesToTarget() and Flag(UnitCanAttack, "player", "target") then return end
+    if self:IsVigil(name) or self:IsMending(name) then return end   -- (Light's Vigil and Prayer of Mending heal nothing as cast)
     if not either and (not ok or IsSecret(helpful) or helpful ~= true) then return end
     local seals = self:SealLists()
     local hot = (self:SpellLists())[name]
@@ -1519,12 +1519,105 @@ function BT:NoteHealCast(id, name)
     self.healCast = { id = id, name = name, at = GetTime() }
 end
 
--- A helpful spell goes to your target when it's a friend that isn't you; else it's on you
+-- Whether you can heal a unit: a vendor, a quest giver or a critter can't be healed (the game casts it on you instead)
+local function CanHelp(unit)
+    if UnitCanAssist then return Flag(UnitCanAssist, "player", unit) end
+    return Flag(UnitExists, unit) and not Flag(UnitCanAttack, "player", unit)
+end
+
+-- Who your cast is going to. UNIT_SPELLCAST_SENT names them (by name, as you press the key), so a
+-- heal cast with a mouseover macro or a click on a party frame is known to be on that friend, not
+-- your target (CurseForge: a priest's Renew, Penance and Prayer of Mending on party members cast
+-- that way never showed). The unit is worked out there and then: the mouse has moved on by the
+-- time a cast finishes. Your target is looked at first, then the mouse, your focus, you, the group.
+local SENT_TIME = 6   -- seconds a cast's destination is kept (the longest cast, with pushback)
+local SENT_UNITS = { "target", "mouseover", "focus", "player" }
+for i = 1, 4 do SENT_UNITS[#SENT_UNITS + 1] = "party" .. i end
+for i = 1, 40 do SENT_UNITS[#SENT_UNITS + 1] = "raid" .. i end
+-- A token that still means the same unit when the cast finishes: you, or a party or raid member
+local function LastingUnit(unit)
+    if unit ~= "mouseover" and unit ~= "focus" then return unit end
+    if Flag(UnitIsUnit, unit, "player") then return "player" end
+    for i = 5, #SENT_UNITS do
+        local u = SENT_UNITS[i]
+        if Flag(UnitIsUnit, unit, u) then return u end
+    end
+    return unit
+end
+function BT:OnSpellSent(target, spellId)
+    local id, name = Num(spellId), nil
+    self.sent = nil
+    if id and C_Spell and C_Spell.GetSpellName then   -- (SpellName comes further down)
+        local ok, n = pcall(C_Spell.GetSpellName, id)
+        name = ok and Str(n) or nil
+    end
+    local unit
+    local who = Str(target)
+    if who then
+        if who == "" then return end   -- (a spell with no one to go to: as before)
+        local short = who:match("^([^%-]+)%-") or who
+        for _, u in ipairs(SENT_UNITS) do
+            if Flag(UnitExists, u) then
+                local ok, n = pcall(UnitName, u)
+                n = ok and Str(n) or nil
+                if n and (n == who or n == short) then unit = u break end
+            end
+        end
+    elseif IsSecret(target) then
+        -- The game hides the name (and then names in general): a friend under the mouse while your
+        -- target isn't one is who a mouseover cast is on. With a friend targeted, it can't be told.
+        if CanHelp("mouseover") and not Flag(UnitIsUnit, "mouseover", "player")
+                and not (Flag(UnitExists, "target") and CanHelp("target")) then
+            unit = "mouseover"
+        end
+    end
+    if self.db.debug then self:Record("SENT " .. tostring(id) .. " to " .. tostring(unit or "?")) end
+    if not unit then return end
+    local ok, guid = pcall(UnitGUID, unit)
+    self.sent = { at = GetTime(), id = id, name = name, unit = LastingUnit(unit), guid = ok and Str(guid) or nil,
+        me = Flag(UnitIsUnit, unit, "player"), help = CanHelp(unit) }
+end
+
+-- Your cast of this spell, just now: where UNIT_SPELLCAST_SENT said it went (nil: not known).
+-- Kept for the frame (CastTo), so everything asked while the cast is worked out gets the same answer.
+function BT:CastTo(id, name)
+    local s = self.sent
+    local now = GetTime()
+    if s and now - s.at <= SENT_TIME and ((id and s.id == id) or (name and s.name == name)) then
+        self.dest = { at = now, sent = s }
+    else
+        self.dest = nil
+    end
+end
+
+-- Who a helpful spell you cast just now went to: "player", or a friend's unit (and what SENT said)
+function BT:HelpedUnit()
+    local d = self.dest
+    if d and d.at == GetTime() then
+        local s = d.sent
+        if s.me then return "player", s end
+        if s.help then return s.unit, s end
+        -- (sent to an enemy: as below)
+    end
+    if not Flag(UnitExists, "target") or Flag(UnitIsUnit, "target", "player") then return "player" end
+    if CanHelp("target") then return "target" end
+    return "player"
+end
+
+-- A helpful spell goes to a friend that isn't you (your target, or the one under the mouse); else it's on you
 function BT:HealGoesToTarget()
-    if not Flag(UnitExists, "target") or Flag(UnitIsUnit, "target", "player") then return false end
-    -- A vendor, a quest giver or a critter can't be healed: the game casts it on you instead
-    if UnitCanAssist then return Flag(UnitCanAssist, "player", "target") end
-    return not Flag(UnitCanAttack, "player", "target")
+    return self:HelpedUnit() ~= "player"
+end
+
+-- What to know the friend your helpful cast went to by (as UnitKey has it)
+function BT:HelpedKey()
+    local unit, s = self:HelpedUnit()
+    if s and s.guid then return s.guid end
+    local ok, guid = pcall(UnitGUID, unit)
+    guid = ok and Str(guid) or nil
+    if guid then return guid end
+    if unit == "target" or Flag(UnitIsUnit, unit, "target") then return "target" end
+    return nil
 end
 
 -- A tick of a heal over time you put on yourself (Rejuvenation, Renew): a heal on you on its
@@ -1878,6 +1971,12 @@ local FRIEND_HEAL_TIME = 0.5   -- seconds after your cast on a friend that its h
 -- Light's Vigil (Forever's 31-point Holy talent): put on a friend, your next Holy Shock on them also
 -- heals them and their party. Its heal has no cast of its own: it comes with that Holy Shock.
 local LIGHTS_VIGIL = { 1310911, 1311590, 1311595, name = "Light's Vigil" }
+-- Prayer of Mending (33076 as in TBC, 401859 as Season of Discovery's rune; the name is what counts):
+-- put on a friend, it heals them when they're hurt, then jumps to another group member, up to
+-- MENDING_JUMPS times, waiting up to MENDING_LASTS on each. Its heals come with no cast.
+local PRAYER_OF_MENDING = { 33076, 401859, name = "Prayer of Mending" }
+local MENDING_LASTS = 30
+local MENDING_JUMPS = 5
 local VIGIL_LASTS = 30    -- seconds the Vigil waits on its friend for your Holy Shock
 local VIGIL_TIME = 0.5    -- seconds after the Holy Shock that the party's heals land
 -- Life Tap (warlock): health into mana. The game says nothing of it but the cast (issue #26: no
@@ -1963,9 +2062,10 @@ function BT:IsVigil(name)
     return self.vigilNames[name] == true
 end
 
--- Who a helpful spell you cast just now went to: your target when it's a friend, else you
+-- Who a helpful spell you cast just now went to (HelpedUnit), by GUID
 local function HelpedGUID()
-    local unit = BT:HealGoesToTarget() and "target" or "player"
+    local unit, s = BT:HelpedUnit()
+    if s and s.guid then return s.guid, unit end
     local ok, guid = pcall(UnitGUID, unit)
     return ok and Str(guid) or nil, unit
 end
@@ -1975,19 +2075,50 @@ end
 -- the first on the one you Holy Shocked (that's Holy Shock's own heal).
 function BT:NoteVigilCast(id, name)
     if self:IsVigil(name) then
-        if Flag(UnitCanAttack, "player", "target") then return end   -- (on an enemy it adds damage, not heals)
+        if not self:HealGoesToTarget() and Flag(UnitCanAttack, "player", "target") then return end   -- (on an enemy it adds damage, not heals)
         local guid = HelpedGUID()
         self.vigil = { id = id, name = name, at = GetTime(), guid = guid }
         return
     end
     local v = self.vigil
-    if not v or not self:HealsOrHarms(name) or Flag(UnitCanAttack, "player", "target") then return end
+    if not v or not self:HealsOrHarms(name) then return end
+    if not self:HealGoesToTarget() and Flag(UnitCanAttack, "player", "target") then return end
     if GetTime() - v.at > VIGIL_LASTS then self.vigil = nil return end
     local guid, unit = HelpedGUID()
     if v.guid and guid and v.guid ~= guid then return end   -- (a Holy Shock on someone else)
     self.vigil = nil
     self.vigilHeal = { id = v.id, name = v.name, at = GetTime(), key = guid or (unit == "target" and "target" or nil),
         onYou = unit == "player", done = {} }
+end
+
+function BT:IsMending(name)
+    if not name then return false end
+    self.mendingNames = self.mendingNames or NameSet(PRAYER_OF_MENDING, PRAYER_OF_MENDING.name)
+    return self.mendingNames[name] == true
+end
+
+-- Your Prayer of Mending cast: on the friend it went to (or you)
+function BT:NoteMendingCast(id, name)
+    if not self:IsMending(name) then return end
+    self.mending = { id = id, name = name, at = GetTime(), key = self:HealGoesToTarget() and self:HelpedKey() or nil,
+        left = MENDING_JUMPS }
+end
+
+-- A heal on a group member (a hit from ResolveFrame) that may be your Prayer of Mending's: while it's
+-- out, of its school, on the one it's on (the first heal: the friend you cast it on), or after a jump
+-- on anyone but the one it last healed. It still needs a line of yours with it (ClaimHit), as
+-- anyone's heals land on the group all the time. peek: don't use a jump up.
+function BT:MendingFor(h, peek)
+    local m = self.mending
+    if not m or h.kind ~= "heal" or not h.key then return nil end
+    if h.time < m.at or h.time - m.at > MENDING_LASTS then return nil end
+    if not SameHealSchool(Num(h.school), 2) then return nil end
+    if m.healed == nil and m.key and h.key ~= m.key then return nil end
+    if m.healed and h.key == m.healed then return nil end
+    if peek then return m end
+    m.left, m.at, m.healed = m.left - 1, h.time, h.key
+    if m.left <= 0 then self.mending = nil end
+    return m
 end
 
 -- A heal on someone else (a hit from ResolveFrame) that's Light's Vigil's
@@ -2029,8 +2160,9 @@ function BT:NoteFriendCast(id, name)
         helpful = ok and not IsSecret(h) and h == true
     end
     if not helpful and not self:HealsOrHarms(name) then return end
-    if self:IsVigil(name) or (self:SealLists())[name] then return end
-    self.friendHeal = { id = id, name = name, at = now, key = HelpedGUID() or "target" }   -- (as UnitKey has it)
+    if self:IsVigil(name) or self:IsMending(name) or (self:SealLists())[name] then return end   -- (they heal nothing as cast)
+    self.friendHeal = { id = id, name = name, at = now, key = self:HelpedKey() }   -- (as UnitKey has it)
+    if not self.friendHeal.key then self.friendHeal = nil end
 end
 
 function BT:FriendHealFor(h)
@@ -3456,6 +3588,7 @@ function BT:OnSpellcast(spellId)
     local id = Num(spellId)
     local name = id and SpellName(id) or nil
     if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
+    self:CastTo(id, name)
     self:Queue({ cast = true, id = id, name = name })
     self.actedInFight = true
     if self:IsLifeTap(id, name) then self:LifeTapCast(id, name) end
@@ -3490,7 +3623,7 @@ function BT:OnSpellcast(spellId)
         self.selfHots[name] = { id = id, name = name, at = GetTime(), period = dot.period, school = dot.school }
         dot = nil
     end
-    local key = dot and UnitKey("target")
+    local key = dot and (dot.heal and self:HelpedKey() or UnitKey("target"))   -- (a heal: on the friend it went to)
     if key then
         self.dots = self.dots or {}
         self.dots[key] = self.dots[key] or {}
@@ -3504,6 +3637,7 @@ function BT:OnSpellcast(spellId)
     self.lastCast = { name = name, at = GetTime(), onFriend = self:HealGoesToTarget() }
     self:NoteVigilCast(id, name)
     self:NoteFriendCast(id, name)
+    self:NoteMendingCast(id, name)
     self:NoteHealCast(id, name)
     if self:IsDispelSpell(id, name) then self:DispelCast(id, name) end
     local seals = self:SealLists()
@@ -4142,7 +4276,7 @@ function BT:StartArea(name, id)
     if spell.how == "either" then
         single = true
         if self:HealGoesToTarget() then
-            key, heal = UnitKey("target"), true
+            key, heal = self:HelpedKey(), true
         elseif Flag(UnitCanAttack, "player", "target") then
             key, heal = UnitKey("target"), false
         else
@@ -4697,7 +4831,7 @@ function BT:ResolveFrame(seq, first, last)
             -- hits with none.
             local healOfYours = true
             if h.kind == "heal" and what ~= "cast" and h.grouped and not Flag(UnitIsUnit, h.unit, "pet") then
-                healOfYours = self:TickFor(h) ~= nil or self:AreaFor(h) ~= nil
+                healOfYours = self:TickFor(h) ~= nil or self:AreaFor(h) ~= nil or self:MendingFor(h, true) ~= nil
             end
             local claimed = not h.grouped or h.lineFirst == true
             if not claimed and what == "cast" then
@@ -4768,6 +4902,10 @@ function BT:ResolveFrame(seq, first, last)
             if not spell and claimed then
                 local area = self:AreaFor(h)
                 if area then what, spell = "tick", area end
+            end
+            if not spell and claimed and h.kind == "heal" then
+                local mending = self:MendingFor(h)
+                if mending then what, spell = "proc", mending end
             end
             if not spell and claimed then
                 local proc = self:ProcFor(h, seq, first, last, i)
@@ -5245,6 +5383,7 @@ function BT:CheckGameData()
     for _, id in ipairs(TOUCH_OF_THE_GRAVE) do spell(id, TOUCH_OF_THE_GRAVE.name, "racial") end
     for _, e in ipairs(HEAL_OR_HARM) do spell(e[1], e[2], "heal or harm") end
     for _, id in ipairs(LIGHTS_VIGIL) do spell(id, LIGHTS_VIGIL.name, "party heal") end
+    for _, id in ipairs(PRAYER_OF_MENDING) do spell(id, PRAYER_OF_MENDING.name, "heals as it jumps") end
     for _, id in ipairs(LIFE_TAP) do spell(id, LIFE_TAP.name, "health into mana") end
     local skillNames = { [2366] = "Herbalism", [2575] = "Mining", [7620] = "Fishing" }
     for skill, id in pairs(SKILL_SPELLS) do spell(id, skillNames[id] or skill, "skill " .. skill) end
@@ -6085,6 +6224,7 @@ for _, e in ipairs({ "COMBAT_LOG_MESSAGE", "PLAYER_ENTERING_WORLD", "PLAYER_REGE
     pcall(events.RegisterEvent, events, e)
 end
 pcall(events.RegisterEvent, events, "UNIT_COMBAT")   -- every unit: you, your target, the mobs around you
+pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_SENT", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_SUCCEEDED", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_START", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_CHANNEL_STOP", "player")
@@ -6106,7 +6246,7 @@ pcall(events.RegisterEvent, events, "SPELL_UPDATE_COOLDOWN")        -- Cooldowns
 pcall(events.RegisterEvent, events, "UNIT_SPELLCAST_INTERRUPTED")   -- every unit: casts you stop
 
 -- Events only worth handling while BattleText is turned on
-local WHILE_ON = { UNIT_COMBAT = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_CHANNEL_START = true,
+local WHILE_ON = { UNIT_COMBAT = true, UNIT_SPELLCAST_SENT = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_CHANNEL_START = true,
     UNIT_SPELLCAST_CHANNEL_STOP = true, PLAYER_SWING = true, SPELL_UPDATE_USABLE = true, UNIT_HEALTH = true,
     SPELL_ACTIVATION_OVERLAY_SHOW = true, SPELL_ACTIVATION_OVERLAY_GLOW_SHOW = true, CHAT_MSG_LOOT = true,
     CHAT_MSG_MONEY = true, CHAT_MSG_SKILL = true, CHAT_MSG_COMBAT_FACTION_CHANGE = true, CHAT_MSG_COMBAT_HONOR_GAIN = true,
@@ -6160,6 +6300,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:OnCombatLogMessage(a1, a2, a3, a4, a5)
     elseif event == "UNIT_COMBAT" then
         BT:OnUnitCombat(a1, a2, a3, a4, a5)
+    elseif event == "UNIT_SPELLCAST_SENT" then
+        BT:OnSpellSent(a2, a4)
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         BT:OnSpellcast(a3)
         BT:NoteInterruptCast(a3)
@@ -6175,7 +6317,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
         local id = Num(a3)
         local name = id and SpellName(id)
-        if name then BT:SpellLists() BT:StartArea(name, id) end
+        if name then BT:SpellLists() BT:CastTo(id, name) BT:StartArea(name, id) end
     elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
         BT:StopArea(Num(a3))
     elseif event == "UNIT_AURA" then
