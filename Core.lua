@@ -2827,7 +2827,9 @@ end
 
 -- Something came for the hits waiting: your swing on a unit (key, for a seal), or a blow on you
 -- (no key, for a shield)
-function BT:Resolved(key, at)
+-- spellHit: it was a spell's or ability's hit, not a weapon blow (only gear that adds to every
+-- hit answers to that, not a seal or gear that adds to weapon blows only)
+function BT:Resolved(key, at, spellHit)
     local list = self.sealWait
     if not list then return end
     -- One blow is answered once by each damage shield on you (Thorns and Retribution Aura both
@@ -2839,9 +2841,10 @@ function BT:Resolved(key, at)
         local e = list[i]
         local what, spell
         if at - e.h.time <= SEAL_SWING_TIME then
-            if key and e.seal and e.h.key == key then
+            if key and e.seal and e.h.key == key and not spellHit then
                 what, spell = "seal", e.seal
-            elseif key and e.every and e.h.key == key then
+            elseif key and e.every and e.h.key == key
+                    and not (spellHit and (e.every.melee or self:SpellsOfSchool(e.every.school))) then
                 what, spell = "proc", e.every   -- (gear that adds to every hit: its amount is known)
             elseif not key and e.shield and Unanswered(e.shields, answered) then
                 what, spell = "shield", Unanswered(e.shields, answered)
@@ -4302,6 +4305,13 @@ function BT:EveryHitFor(h, seq, first, last, at)
     end
     local struck = h.key and self.struck and self.struck[h.key]
     local near = struck and h.time - struck >= 0 and h.time - struck <= PROC_TIME
+    -- (or just after a spell's or ability's hit: gear that adds to every hit, not weapon blows only)
+    local cast = not item.melee and h.key and self.spellStruck and self.spellStruck[h.key]
+    -- (unless your own spells hit with its school: a warlock's unnamed Shadow hit after an Immolate
+    -- may be a Shadow spell of theirs, and a big one must never be hidden as the gear's)
+    if cast and h.time - cast >= 0 and h.time - cast <= PROC_TIME and not self:SpellsOfSchool(mask) then
+        near = true
+    end
     for j = first, last do
         local o = seq[j]
         if j ~= at and o.hit and not o.splash and o.kind == "damage"
@@ -4751,6 +4761,12 @@ function BT:ResolveFrame(seq, first, last)
                     self.struck[h.key] = h.time
                     self:SwingLanded(h.key, h.time)
                     if what == "hit" or (what == "cast" and spell) then self:OpenExtra(h) end
+                elseif h.kind == "damage" and h.key and what ~= "proc" and what ~= "shield" and not self:EveryOn(h) then
+                    -- A spell or ability of yours that isn't a weapon blow: the gear that adds to
+                    -- every hit (Cursed Murloc Eye) goes off with it too, a moment before or after
+                    self.spellStruck = self.spellStruck or {}
+                    self.spellStruck[h.key] = h.time
+                    self:Resolved(h.key, h.time, true)
                 end
             end
             -- Your target dodged you (a warrior's Overpower)

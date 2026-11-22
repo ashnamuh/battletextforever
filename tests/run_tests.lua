@@ -5135,6 +5135,52 @@ do
     fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
     hiddenOn(2, 32)
     assertEq(last("outgoing"), "120", "beside a spell's hit it's hidden too")
+    -- CurseForge (OdysseaLUL, on 1.30.0): "it still shows some random damages from the cursed
+    -- murloc eye... might be from the skills". The Eye's hit can come a moment before or after a
+    -- spell's or ability's hit, not in the same frame: it waited for a swing that never came.
+    Advance(2)
+    hiddenOn(2, 32)
+    Advance(0.4)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
+    Advance(1.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "120", "the Eye's hit just before a spell's: hidden below 5")
+    clear()
+    Advance(2)
+    fire("UNIT_COMBAT", "target", "WOUND", "", 120, 16)
+    Advance(0.2)
+    hiddenOn(2, 32)
+    Advance(1.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "120", "the Eye's hit just after a spell's: hidden below 5")
+    clear()
+    -- (a Frost hit of the Eye's own school isn't the point: an ability's physical hit works too, a
+    -- hidden one as well)
+    Advance(2)
+    hiddenOn(2, 32)
+    Advance(0.3)
+    fire("UNIT_COMBAT", "target", "WOUND", "", Secret(55), 1)
+    Advance(1.3)
+    assertEq(#lines("outgoing"), 1, "the Eye's hit before a hidden ability hit: only the ability shows")
+    clear()
+    -- (a warlock's hidden Shadow hit next to an Immolate may be a Shadow spell of theirs: shown)
+    do
+        local wasClass = STATE.class
+        STATE.class = "WARLOCK"
+        Advance(2)
+        fire("UNIT_COMBAT", "target", "WOUND", "", 120, 4)
+        Advance(0.2)
+        hiddenOn(300, 32)
+        Advance(1.3)
+        assertEq(#lines("outgoing"), 2, "a warlock's hidden Shadow hit after a Fire hit isn't taken for the Eye")
+        clear()
+        Advance(2)
+        hiddenOn(300, 32)
+        Advance(0.3)
+        fire("UNIT_COMBAT", "target", "WOUND", "", 120, 4)
+        Advance(1.3)
+        assertEq(#lines("outgoing"), 2, "nor one before it")
+        STATE.class = wasClass
+        clear()
+    end
     -- A Shadow hit of 2 on its own, with nothing of yours beside it: it waits a moment for your
     -- swing, and when none comes it isn't the Eye's: shown
     Advance(3)
