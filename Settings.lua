@@ -441,7 +441,10 @@ function BT:Test()
         function() self:Emit(self:HealArea("incoming"), "+120 Rejuvenation", C.heal) end,
         function() self:ShowCombat({ kind = "heal", fromMe = true, spell = "Healing Touch", amount = 214 }) end,
         function() self:ShowCombat({ kind = "miss", fromMe = true, melee = true, missType = "DODGE" }) end,
-        function() self:Emit(self:Area("InDamage"), "-58", C.inDamage, { crit = true }) end,
+        function()
+            local color, school = self:IncomingSchool(nil, 32)
+            self:Emit(self:Area("InDamage"), "-58" .. (school or ""), color or C.inDamage, { crit = true })
+        end,
         function() self:Notify(L["+%s XP"]:format("103"), C.xp) end,
         function() self:ShowCombat({ kind = "damage", fromMe = true, melee = true, amount = 26, unit = "Physical", blocked = 3 }) end,
         function() self:Emit(self:Area("InMisses"), MissText("PARRY"), C.inAvoid) end,

@@ -1143,6 +1143,56 @@ assertEq(last("incoming"), "-232 |cffb0b0b0(150 blocked)|r", "on: a readable lin
 Advance(4)
 fire("UNIT_COMBAT", "player", "WOUND", "", 241, 1)
 assertEq(last("incoming"), "-241", "the log's last line 4 seconds ago: a hit on you shows from UNIT_COMBAT")
+-- GitHub #33: a magic hit on you is in its school's color, with the school's name; physical stays red
+do
+    local function colorIs(c)
+        local a = BT.areas.incoming.active
+        local got = a[#a].text.__color
+        return got[1] == c[1] and got[2] == c[2] and got[3] == c[3]
+    end
+    local SHADOW, FIRE, FROST = ns.S.MASK_COLORS[32], ns.S.MASK_COLORS[4], ns.S.MASK_COLORS[16]
+    assertEq(BT.DEFAULTS.inSchools, true, "schools on to start with")
+    fire("UNIT_COMBAT", "player", "WOUND", "", 120, 32)
+    assertEq(last("incoming"), "-120 Shadow", "a shadow hit names its school")
+    assert(colorIs(SHADOW), "in shadow's color")
+    fire("UNIT_COMBAT", "player", "WOUND", "", 121, 1)
+    assertEq(last("incoming"), "-121", "a physical hit: just the number")
+    assert(colorIs(BT.TEXT_COLORS.inDamage), "in the damage color")
+    fire("UNIT_COMBAT", "player", "WOUND", "", 122, 48)
+    assertEq(last("incoming"), "-122 Frost", "a mix of schools (Frost and Shadow) goes by its first")
+    assert(colorIs(FROST), "in its color")
+    fire("UNIT_COMBAT", "player", "WOUND", "BLOCK_REDUCED", 123, 4)
+    assertEq(last("incoming"), "-123 Fire |cffb0b0b0(blocked)|r", "the school goes before the blocked note")
+    local realEmit = BT.Emit
+    local gotAfter, gotColor
+    BT.Emit = function(self, area, text, color, opts)
+        gotAfter, gotColor = opts and opts.after, color
+        return realEmit(self, area, text, color, opts)
+    end
+    fire("UNIT_COMBAT", "player", "WOUND", "", Secret(124), 4)
+    assertEq(gotAfter, " Fire", "a hidden amount still has its school (the school isn't hidden)")
+    assertEq(gotColor, FIRE, "and its color")
+    fire("UNIT_COMBAT", "player", "WOUND", "", Secret(125), Secret(4))
+    assertEq(gotAfter, nil, "a hidden school: no word")
+    assertEq(gotColor, BT.TEXT_COLORS.inDamage, "and the damage color")
+    BT.Emit = realEmit
+    BT.db.inSchools = false
+    fire("UNIT_COMBAT", "player", "WOUND", "", 126, 32)
+    assertEq(last("incoming"), "-126", "\"Damage schools\" off: just the number")
+    assert(colorIs(BT.TEXT_COLORS.inDamage), "off: the damage color")
+    BT.db.inSchools = true
+    -- From a readable log line: its school word, left out when the spell's name says it
+    log(hitMe("Shadow Bolt", 686, 84, "Shadow"))
+    assertEq(last("incoming"), "-84 Shadow Bolt", "the name says the school: not twice")
+    assert(colorIs(SHADOW), "in shadow's color")
+    log(hitMe("Curse of Agony", 980, 15, "Shadow"))
+    assertEq(last("incoming"), "-15 Shadow Curse of Agony", "a name that doesn't: the school before it")
+    log(hitMe("Rend", 772, 9, "Physical"))
+    assertEq(last("incoming"), "-9 Rend", "physical: no word")
+    assert(colorIs(BT.TEXT_COLORS.inDamage), "in the damage color")
+    clear()
+    Advance(4)
+end
 BT.fromLog = nil   -- (the log stops delivering)
 end
 clear()
@@ -1525,7 +1575,7 @@ assertEq(last("incoming"), "+380 |T136041:0|t Healing Touch", "a heal you get, w
 SetNames(false)
 fire("UNIT_COMBAT", "player", "WOUND", "", 84, 4)
 log(hitMe("Fireball", 133, 84, "Fire"))
-assertEq(last("incoming"), "-84 |T135812:0|t", "names off: the icon alone")
+assertEq(last("incoming"), "-84 Fire |T135812:0|t", "names off: the icon alone, and the school (it was in the name)")
 SetNames(true); SetIcons(false)
 fire("UNIT_COMBAT", "player", "WOUND", "", 84, 4)
 log(hitMe("Fireball", 133, 84, "Fire"))
@@ -3849,7 +3899,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 61, "the switches are there")
+assertEq(switches, 62, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then
@@ -7012,6 +7062,21 @@ do
     Advance(0.3)
     assertEq(notifyText(), "Kidney Shot ready", "and ready when the game says it's over")
     clear()
+    -- GitHub #34: in a fight the game hid both isOnGCD and the length of Concussion Blow (12809),
+    -- so its cooldown was never watched
+    STATE.spellNames[12809] = "Concussion Blow"
+    cast(12809, { duration = Secret(45), startTime = Secret(1), isEnabled = true, isActive = true })
+    Advance(44.6)
+    assertEq(notifyText(), "", "isOnGCD and length hidden: still cooling")
+    STATE.cooldowns[12809] = nil
+    Advance(0.3)
+    assertEq(notifyText(), "Concussion Blow ready", "and ready when it's over (GitHub #34)")
+    clear()
+    cast(1752, { duration = Secret(1.5), startTime = Secret(1), isEnabled = true, isActive = true })
+    Advance(1.1)
+    STATE.cooldowns[1752] = nil
+    Advance(1)
+    assertEq(notifyText(), "", "the global cooldown alone with isOnGCD hidden isn't announced")
     -- CurseForge (1.21.5): "Shoot ready" after every wand shot. Shoot, Auto Shot and Throw repeat
     -- on their own (their cooldown is the weapon's speed, its length hidden in a fight)
     STATE.spellNames[5019], STATE.spellNames[75] = "Shoot", "Auto Shot"

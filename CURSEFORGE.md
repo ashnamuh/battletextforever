@@ -9,7 +9,7 @@ Your hits scroll on one side, the damage you take on the other, heals under your
 ## Features
 
 - **Your hits**, tinted by school, with the spell's name and icon. Crits are bigger, and rapid hits of one spell add up ("Swipe 135 (x3)").
-- **Damage you take** and the attacks you dodge, parry, block or resist, in their own area.
+- **Damage you take** and the attacks you dodge, parry, block or resist, in their own area. Magic hits show their school ("-120 Shadow" in purple), so you know when to pop a Shadow Ward or a resistance potion.
 - **Heals** you get and heals you do, under your character.
 - **Notifications**: combat, experience, reputation, honor, loot, money, skill ups, seals and (if you want) buffs.
 - **Ability alerts**: Overpower, Revenge, Riposte, Execute, Hammer of Wrath and procs like Clearcasting or Hot Streak.

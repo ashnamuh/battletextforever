@@ -131,6 +131,7 @@ local DEFAULTS = {
     inDamage = true, inHeals = true, inMisses = true, inPower = false,
     inOtherHeals = true,      -- heals on you the game doesn't name (other players', food, passives)
     inBlocked = true,         -- "(blocked)" after a hit on you that you partly blocked
+    inSchools = true,         -- a magic hit on you in its school's color, with the school's name ("-120 Shadow")
     nCombat = true, nKill = true, nXP = true, nRep = true, nHonor = true,
     nLoot = true, nMoney = false, nSkill = true, nSeals = true,
     nBuffs = false,           -- a line when a buff goes on or comes off (out of a fight only)

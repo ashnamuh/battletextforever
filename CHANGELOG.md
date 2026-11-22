@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.34.0
+
+- **See which school a hit on you is.** Magic damage you take now shows in its school's color with the school's name after the number, like "-120 Shadow" in purple or "-80 Fire" in orange. It uses the same colors as your own spells. Now you can tell when a mob hits with shadow or fire, and when to use Shadow Ward, Fire Ward or a resistance potion. Physical hits stay red. This works even when the game hides the number. If the spell's name already says the school ("Shadow Bolt"), the word isn't repeated. You can turn it off with "Damage schools" on the Incoming tab. (Thanks to Myleo-indark for the idea, issue #33.)
+- **"Concussion Blow ready" shows again.** In a fight the game sometimes hides both how long a cooldown is and whether it's only the global cooldown. BattleText then gave up on it, so some cooldowns (like Concussion Blow) never got their "ready" message. Now it keeps watching them. Anything that ends within 8 seconds still isn't announced, so the global cooldown doesn't spam you. (Thanks to ashnamuh for the report and the fix idea, issue #34.)
+
 ## 1.33.1
 
 - **The last Rip ticks are named too.** Two cases still slipped through 1.32.2. A Rip tick that landed between one of your swings and that swing's own hit was taken for the swing, and a Rip tick in the same moment as a Rake tick was dropped along with it. Rip's beat now gets its tick first, so both show as Rip, and the swing still gets its own hit. (Thanks again to Pansiere for the debug logs, issue #30.)

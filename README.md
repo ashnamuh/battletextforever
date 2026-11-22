@@ -11,7 +11,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 ## Features
 
 - **Your hits**, tinted by school, with the spell's name and icon when the game lets BattleText tell which spell it was. Crits are bigger and hold in place for a moment, and rapid hits of one spell add up ("Swipe 135 (x3)").
-- **What happens to you**, in its own area: the damage you take, and the attacks you dodge, parry, block or resist.
+- **What happens to you**, in its own area: the damage you take, and the attacks you dodge, parry, block or resist. Magic hits show in their school's color with its name ("-120 Shadow"), so you know when to use a Shadow Ward or a resistance potion.
 - **Heals**, the ones you get and the ones you do, in their own Healing area under your character (or with the damage, if you prefer).
 - **Notifications**: combat, experience, reputation, honor, loot, money, skill ups, a paladin's seals going on and coming off, and (if you turn it on) your buffs.
 - **Ability alerts**: "Overpower!" when your target dodges you, "Revenge!" when you dodge, parry or block (in Defensive Stance), "Riposte!" and "Counterattack!" when you parry (with the talent), "Execute!" and "Hammer of Wrath!" when your target is low enough, and procs: the ones the game lights up on your action bars (like Clearcasting), and Missile Barrage, Revelation, Hot Streak, Fingers of Frost and Brain Freeze when the game lets BattleText see the buff.
@@ -53,7 +53,7 @@ The options have the same look as TauntMaster Forever, ToppedOff Forever and Out
 | **Text** | Font (a list of 23, plus fonts other addons share through LibSharedMedia), crit font, outline and crit outline (none, thin, thick or shadow), text size, crit size, short numbers (12.3k), size by hit, icon zoom, smallest crit |
 | **Motion** | Crits stay in place, add up rapid hits, time on screen, area height, how long ticks and area hits add up |
 | **Outgoing** | Damage, misses, auto attacks, pet, damage shields, name seal hits, icons, names, hide hits below a number, DoTs and area spells; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
-| **Incoming** | Damage, avoids, "(blocked)" on partly blocked hits, power gains, icons, names; Warnings: low health and low mana, each with its own sound, and the mana line; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
+| **Incoming** | Damage, avoids, "(blocked)" on partly blocked hits, power gains, icons, names, damage schools; Warnings: low health and low mana, each with its own sound, and the mana line; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |
 | **Healing** | Heals you get, heals you do, show overhealing, icons, names, show who you healed, hide heals below a number; Appearance: size, opacity, movement and scroll upward |
 | **Notifications** | Show: combat, killing blows, experience, reputation, honor, loot, money, skill ups, seals, buffs, ability alerts, combo points, dispels, fight summary, cooldowns ready, interrupts, icons, crit sound and kill sound (each with its own pick of sound). Appearance: size, opacity, movement and scroll upward |
 | **Layout** | Which area each kind of text shows in: your hits, your misses, heals you do, damage you take, attacks you avoid, heals you get, power gains, notifications |
@@ -110,7 +110,7 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
 - **Seals in a fight.** The game hides your buffs during a fight, so a seal coming off is worked out: a new seal replaces it, or its time runs out (Judgement leaves it on).
 - **Buffs** (off unless you turn them on) show when they go on or come off. The game hides your buffs during a fight: there, a buff you put on yourself (Slice and Dice, Evasion, Sprint...) shows as you cast it, and the rest of what changed, including when those ran out, shows when the fight ends. Food, drink, and buffs with no time limit (mounts, auras, stances) aren't shown, and nothing is shown when you die.
 - **The last swing on a mob may not show**: the game stops reporting a unit the moment it dies.
-- **Damage you take has no spell names.**
+- **Damage you take has no spell names.** Its school still shows (the game doesn't hide it).
 - **The fight summary counts what BattleText can read.** When the game hides a hit's number, it isn't in the total. Killing blows (and their sound) need the game to let BattleText read its combat lines.
 - **Auto attacks off**: without the game's combat lines, a physical hit BattleText can't name counts as a swing and is hidden too.
 - When the game does let BattleText read the Combat Log's lines, they're used instead: every hit then has its spell, and your pet's hits are marked.

@@ -434,7 +434,7 @@ local PICK_TIP = L["Picking a sound plays it. If this game doesn't have it, chat
     .. "(through LibSharedMedia) are at the end of the list."]
 
 local function BuildIncoming(p, refs)
-    local card = Card(p, L["What happens to you"], 0, 0, PAGE_W, 116)
+    local card = Card(p, L["What happens to you"], 0, 0, PAGE_W, 142)
     Setting(card, L["Damage"], 12, -30, "inDamage", L["The damage you take."])
     Setting(card, L["Avoids"], COL2, -30, "inMisses", L["Attacks you dodge, parry, block or resist, and ones that miss you."])
     Setting(card, L["Power gains"], 12, -56, "inPower", L["Mana, rage and energy you gain."])
@@ -444,7 +444,11 @@ local function BuildIncoming(p, refs)
         .. "(\"(150 blocked)\")."], function() return BT.db.inDamage end)
     IconsAndNames(card, -82, "in", L["what hits you or what you avoid (only when the game says which spell)"],
         Either("inDamage", "inMisses"))
-    local warn = Card(p, L["Warnings"], 0, -126, PAGE_W, 112)
+    Setting(card, L["Damage schools"], 12, -108, "inSchools",
+        L["A magic hit on you in its school's color, with the school's name after the number (\"-120 Shadow\" in "
+        .. "purple), so you know when to use a Shadow Ward or a resistance potion. Physical hits stay in the "
+        .. "damage color."], function() return BT.db.inDamage end)
+    local warn = Card(p, L["Warnings"], 0, -152, PAGE_W, 106)
     Setting(warn, L["Low health"], 12, -32, "warnHealth",
         L["\"Low health!\" and a sound when your health drops to 35%. It warns again once you've healed back up. "
         .. "The game hides your health from addons, so this goes by its own warning, the red screen edges: it can't "
@@ -464,7 +468,7 @@ local function BuildIncoming(p, refs)
     Slider(warn, L["Low mana at"], COL2, -66, "lowManaAt", { suffix = "%", step = 5,
         enabledIf = function() return BT.db.warnMana end,
         tip = L["How low your mana goes before \"Low mana!\"."] })
-    AreaLook(p, -248, "in", true, function() return BT:AreaUsed("incoming") end, L["Nothing shows here (Layout tab)"])
+    AreaLook(p, -268, "in", true, function() return BT:AreaUsed("incoming") end, L["Nothing shows here (Layout tab)"])
 end
 
 local function BuildHealing(p)

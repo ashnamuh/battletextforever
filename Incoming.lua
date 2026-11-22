@@ -20,6 +20,31 @@ function BT:SchoolColor(unit)
     return unit and self.schools[unit:lower()]
 end
 
+-- The school of a hit on you, for its color and word ("-120 Shadow", in shadow purple; GitHub #33):
+-- by the log line's school word, or by UNIT_COMBAT's school mask (never hidden on Forever, only
+-- the amount is). A mix of schools goes by its first. Physical (or none, or "Schools" off): nil.
+-- spell: the spell's name on the line; one that holds the word already ("Shadow Bolt") skips it.
+function BT:IncomingSchool(word, mask, spell)
+    if not (self.db and self.db.inSchools) then return nil end
+    local color, label
+    word = Str(word)
+    if word then
+        color = self:SchoolColor(word)
+        label = color and word or nil
+    elseif not IsSecret(mask) and Num(mask) then
+        local m = Num(mask)
+        for i, s in ipairs(SCHOOL_KEYS) do
+            if math.floor(m / 2 ^ i) % 2 == 1 then
+                color, label = s[3], Str(_G[s[1]]) or s[2]
+                break
+            end
+        end
+    end
+    if not color then return nil end
+    if spell and spell:lower():find(label:lower(), 1, true) then return color, "" end
+    return color, " " .. label
+end
+
 -- An icon (a texture's file ID or path) as text, with a space after it. With "Icon zoom" the
 -- icon's edge is cropped (8% each side of the usual 64x64 icon), so the art fills its square.
 function BT:IconTag(tex)
@@ -477,8 +502,11 @@ function BT:ShowCombat(info)
             if mine and not self:LogDelivers("damage") then return true end
             if not mine then self:NoteLogIncoming("damage") end
             if db.inDamage then
-                local text = "-" .. Commas(info.amount) .. SpellAfter(icon, name) .. Partials(info, not db.inBlocked)
-                self:Emit(self:Area("InDamage"), text, C.inDamage, { crit = info.crit or info.crushing, amount = info.amount })
+                local color, school = self:IncomingSchool(info.unit, nil, name)
+                local text = "-" .. Commas(info.amount) .. (school or "") .. SpellAfter(icon, name)
+                    .. Partials(info, not db.inBlocked)
+                self:Emit(self:Area("InDamage"), text, color or C.inDamage,
+                    { crit = info.crit or info.crushing, amount = info.amount })
             end
             return true
         elseif (mine or pet) and not info.split then
@@ -827,11 +855,13 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             if self:LogCovers("damage") or not db.inDamage then return end
             -- Partly blocked: the game says so (BLOCK_REDUCED) but not by how much
             local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(" .. L["blocked"] .. ")|r" or ""
+            local color, word = self:IncomingSchool(nil, school)
+            color, word = color or C.inDamage, word or ""
             if secret then
-                self:Emit(self:Area("InDamage"), "-", C.inDamage, { crit = crit, secret = amount,
-                    after = note ~= "" and note or nil })
+                self:Emit(self:Area("InDamage"), "-", color, { crit = crit, secret = amount,
+                    after = (word .. note) ~= "" and (word .. note) or nil })
             else
-                self:Emit(self:Area("InDamage"), "-" .. Commas(n) .. note, C.inDamage, { crit = crit, amount = n })
+                self:Emit(self:Area("InDamage"), "-" .. Commas(n) .. word .. note, color, { crit = crit, amount = n })
             end
         else
             -- No damage: fully absorbed, blocked or resisted, or a plain miss

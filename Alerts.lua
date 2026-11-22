@@ -150,7 +150,10 @@ function BT:LookCooldowns(update)
         elseif cd.enabled == false then
             -- Held until something ends (Stealth: it starts when you come out)
             self.cdCast[id], self.cooling[id] = nil, { at = now }
-        elseif cd.active and (cd.gcd == false or (cd.gcd == nil and cd.length and cd.length > 2)) then
+        elseif cd.active and (cd.gcd == false or (cd.gcd == nil and (not cd.length or cd.length > 2))) then
+            -- (the game can hide both isOnGCD and the length in a fight: Concussion Blow, GitHub #34.
+            -- It's watched with its length hidden; only the global cooldown is over within
+            -- COOLDOWN_SHORTEST, so that isn't announced.)
             self.cdCast[id] = nil
             if not cd.length or (cd.length >= COOLDOWN_SHORTEST and cd.length <= COOLDOWN_LONGEST) then
                 self.cooling[id] = { at = now, seen = true, from = at, hidden = not cd.length }
