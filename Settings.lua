@@ -776,7 +776,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "CHAT_MSG_LOOT" then
         BT:OnLoot(a1)
     elseif event == "CHAT_MSG_MONEY" then
-        BT:OnChatNotice("nMoney", a1, BT.TEXT_COLORS.notify)
+        BT:OnMoney(a1)
     elseif event == "CHAT_MSG_SKILL" then
         BT:OnChatNotice("nSkill", a1, BT.TEXT_COLORS.power)
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
