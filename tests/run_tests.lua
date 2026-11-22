@@ -3622,6 +3622,8 @@ assertEq(STATE.cvars.floatingCombatTextCombatDamage, "0", "turned off")
 assertEq(STATE.cvars.floatingCombatTextCombatDamage_v2, "0", "Forever's numbers over the mobs you hit too")
 assertEq(STATE.cvars.floatingCombatTextCombatHealing_v2, "0", "and over the units you heal")
 assertEq(STATE.cvars.floatingCombatTextPetMeleeDamage_v2, "0", "and your pet's")
+assertEq(STATE.cvars.floatingCombatTextEnergyGains_v2, "0", "and the game's own +mana, rage and energy")
+assertEq(STATE.cvars.floatingCombatTextPeriodicEnergyGains_v2, "0", "over time too")
 assertEq(STATE.cvars.floatingCombatTextCombatLogPeriodicSpells_v2, nil, "a setting the game doesn't have is left alone")
 -- The game's "+XP" in the world has no setting of its own (a player's report: it still showed)
 assertEq(STATE.cvars.WorldTextScale_v2, "1000", "the game's +XP: its world text drawn too big to see")
@@ -3636,6 +3638,7 @@ assertEq(STATE.cvars.WorldTextScale_v2, "1000", "XP back on: hidden again")
 SlashCmdList.BATTLETEXTFOREVER("off")
 assertEq(STATE.cvars.floatingCombatTextCombatDamage_v2, "1", "BattleText off: Forever's come back too")
 assertEq(STATE.cvars.floatingCombatTextCombatDamage, "1", "BattleText off: the game's numbers come back")
+assertEq(STATE.cvars.floatingCombatTextEnergyGains_v2, "1", "its +mana too")
 SlashCmdList.BATTLETEXTFOREVER("on")
 assertEq(STATE.cvars.floatingCombatTextCombatDamage, "0", "and go again")
 COMBAT = true   -- even when you leave mid-fight
@@ -4476,6 +4479,19 @@ Advance(1)
 wound(280, 8)
 assertEq(last("outgoing"), "280", "but a nature hit isn't it")
 BT.flying = nil
+clear()
+-- A hunter's Multi-Shot (CurseForge, feuerbanane on 1.30.0: "Multi-Shot also prints out no
+-- text"): a physical shot that flies. Its hit is named, and shows with "Auto attacks" off.
+BT.db.outSwings = false
+fly(2643)
+Advance(0.4)
+wound(85, 1)
+assertEq(last("outgoing"), "Multi-Shot 85", "Multi-Shot's hit is named, with auto attacks off")
+fly(19434)
+Advance(0.5)
+wound(140, 1)
+assertEq(last("outgoing"), "Aimed Shot 140", "and Aimed Shot's")
+BT.db.outSwings = true
 clear()
 -- Only a hit of its school, on the mob it was cast at, while it can still be on its way
 fly(116)   -- Frostbolt

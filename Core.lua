@@ -1768,6 +1768,9 @@ local FLIGHT_SPELLS = {
     { 5176, "Wrath", 8 }, { 2912, "Starfire", 64 },
     { 403, "Lightning Bolt", 8 }, { 421, "Chain Lightning", 8 },
     { 24275, "Hammer of Wrath", 2 }, { 3044, "Arcane Shot", 64 },
+    -- A hunter's Multi-Shot and Aimed Shot are physical shots: without this their hit had no name,
+    -- and counted as an auto attack (hidden with "Auto attacks" off) (CurseForge, feuerbanane)
+    { 2643, "Multi-Shot", 1 }, { 19434, "Aimed Shot", 1 },
     { 1326079, "Arcane Wrath", 64 },   -- Forever's own (an Arcane mage's long-cast nuke)
     -- Forever's Frostfire Bolt (Wowhead Forever: 1237313): Frostfire (Fire and Frost, 20), and
     -- it leaves the mob burning for 9 seconds (three ticks)
@@ -5775,6 +5778,10 @@ local BLIZZARD_CVARS = {
     "floatingCombatTextCombatLogPeriodicSpells_v2", "floatingCombatTextPetMeleeDamage_v2",
     "floatingCombatTextPetSpellDamage_v2",
     "floatingCombatTextCombatDamage", "floatingCombatTextCombatHealing",
+    -- The game's own "+12 Mana" over your character (CurseForge, feuerbanane on 1.30.0: "I have
+    -- power gains off but it still shows +mana"). Names from Gethe/wow-ui-source forever,
+    -- Blizzard_CombatText CombatTextConstants.lua.
+    "floatingCombatTextEnergyGains_v2", "floatingCombatTextPeriodicEnergyGains_v2",
 }
 -- The game's "+XP" that pops up in the world when you gain experience has no setting of its
 -- own. It's world text, like the numbers over mobs: "WorldTextScale" made huge draws it too big

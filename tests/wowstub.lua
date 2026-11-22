@@ -218,10 +218,11 @@ STATE = {
     -- Forever's: the numbers over the mobs you hit are the "_v2" ones
     cvars = { WorldTextScale_v2 = "1", enableFloatingCombatText = "1", floatingCombatTextCombatDamage_v2 = "1", floatingCombatTextCombatHealing_v2 = "1",
         floatingCombatTextPetMeleeDamage_v2 = "1", floatingCombatTextPetSpellDamage_v2 = "1",
-        floatingCombatTextCombatDamage = "1", floatingCombatTextCombatHealing = "1" },
+        floatingCombatTextCombatDamage = "1", floatingCombatTextCombatHealing = "1",
+        floatingCombatTextEnergyGains_v2 = "1", floatingCombatTextPeriodicEnergyGains_v2 = "1" },
     filteredEvents = false,       -- C_CombatLog.SetFilteredEventsEnabled
     spellIcons = { [16827] = 132140, [8921] = 136096 },   -- by spell ID
-    spellNames = { [16827] = "Claw", [8921] = "Moonfire", [1082] = "Claw", [1822] = "Rake", [1079] = "Rip", [5221] = "Shred",
+    spellNames = { [2643] = "Multi-Shot", [19434] = "Aimed Shot", [16827] = "Claw", [8921] = "Moonfire", [1082] = "Claw", [1822] = "Rake", [1079] = "Rip", [5221] = "Shred",
         [467] = "Thorns", [782] = "Thorns", [1075] = "Thorns", [324] = "Lightning Shield", [5570] = "Insect Swarm",
         [768] = "Cat Form", [6807] = "Maul", [5185] = "Healing Touch", [774] = "Rejuvenation",
         [1237313] = "Frostfire Bolt", [133] = "Fireball", [11366] = "Pyroblast", [116] = "Frostbolt", [2136] = "Fire Blast", [5176] = "Wrath",
