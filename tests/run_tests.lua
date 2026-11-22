@@ -29,9 +29,10 @@ step("files and keybindings")
 local toc = read_file(ADDON_DIR .. "/" .. ADDON .. ".toc")
 local tocFiles = {}
 for line in toc:gmatch("[^\r\n]+") do
-    if not line:find("^#") and line:find("%S") then tocFiles[#tocFiles + 1] = line:match("^%s*(.-)%s*$") end
+    if not line:find("^#") and line:find("%S") then tocFiles[#tocFiles + 1] = line:match("^%s*(.-)%s*$"):gsub("\\", "/") end
 end
-assertEq(table.concat(tocFiles, " "), "Theme.lua Parse.lua Core.lua Options.lua", "the files the game loads, in order")
+assertEq(table.concat(tocFiles, " "), "Theme.lua Locales/Locales.lua Locales/koKR.lua Parse.lua Core.lua Options.lua",
+    "the files the game loads, in order")
 for _, file in ipairs(tocFiles) do assert(io.open(ADDON_DIR .. "/" .. file), "listed file is missing: " .. file) end
 assertEq(toc:match("## Interface: (%d+)"), "16001", "made for WoW: Forever")
 assert(toc:find("## SavedVariables: BattleTextForeverDB", 1, true), "settings are saved")
@@ -58,7 +59,7 @@ do
     for name in pkgmeta:match("ignore:(.*)$"):gmatch("%-%s*(%S+)") do ignored[name] = true end
     local SHIPPED = { ["BattleTextForever.toc"] = true, ["Theme.lua"] = true, ["Parse.lua"] = true, ["Core.lua"] = true,
         ["Options.lua"] = true, ["Bindings.xml"] = true, ["CHANGELOG.md"] = true, ["README.md"] = true, ["LICENSE"] = true,
-        Fonts = true, Media = true }
+        Fonts = true, Media = true, Locales = true }
     local listing = io.popen('ls -A "' .. ADDON_DIR .. '"')
     for name in listing:lines() do
         if not name:find("^%.") and not ignored[name] then
@@ -7317,6 +7318,63 @@ do
     BT.areaOn, BT.dots = nil, nil
     clear()
 end
+
+step("translations: the addon's own text in the player's language")
+;(function()   -- (a function: the file is near Lua's limit of locals)
+    -- The language files list every line the addon writes, and are up to date
+    -- (lua5.1 tests/tools/make_locales.lua writes them)
+    MAKE_LOCALES_LIBRARY = true
+    local M = dofile(ADDON_DIR .. "/tests/tools/make_locales.lua")
+    MAKE_LOCALES_LIBRARY = nil
+    local keys = M.Keys()
+    assert(#keys > 300, "the options, chat and on-screen text are all translatable (" .. #keys .. " lines)")
+    local codes = M.Locales()
+    assertEq(table.concat(codes, " "), "koKR", "the language files the game loads")
+    for _, code in ipairs(codes) do
+        local found, order, src = M.Read(code)
+        assertEq(src, M.Make(code), "Locales/" .. code .. ".lua is up to date: run lua5.1 tests/tools/make_locales.lua")
+        assertEq(#order, #keys, code .. " has every line")
+        -- A translation keeps the %s and %d of its English (or the line breaks in game)
+        for english, text in pairs(found) do
+            if text ~= "" then
+                assertEq(M.Codes(text), M.Codes(english), code .. ": the %s and %d codes in " .. english)
+            end
+        end
+    end
+    assertEq(M.Codes("%s damage (%s DPS), 50%% %d"), "%s %s %d", "codes are read in order, %% isn't one")
+
+    -- A language file does nothing in another language
+    local function runLocale(code, locale)
+        local wrote = 0
+        local chunk = assert(loadstring(read_file(ADDON_DIR .. "/Locales/" .. code .. ".lua")))
+        setfenv(chunk, setmetatable({ GetLocale = function() return locale end }, { __index = _G }))
+        chunk(ADDON, { L = setmetatable({}, { __newindex = function() wrote = wrote + 1 end }) })
+        return wrote
+    end
+    assertEq(runLocale("koKR", "enUS"), 0, "the Korean file is skipped in an English game")
+    assertEq(runLocale("koKR", "koKR"), #keys, "and read in a Korean one")
+
+    -- L: the English when there's no translation, or it's still ""
+    local L = ns.L
+    assertEq(L["Some text nobody translated"], "Some text nobody translated", "untranslated: the English")
+    L["Crit"] = ""
+    assertEq(L["Crit"], "Crit", "an empty translation shows the English")
+    assertEq(rawget(L, "Crit"), nil, "and isn't kept")
+
+    -- A translation shows on screen, in chat and with its numbers filled in
+    L["Crit"] = "치명타"
+    L["%s damage (%s DPS)"] = "피해 %s (초당 %s)"
+    L["%s in %ss"] = "%s, %s초"
+    clear()
+    BT:SetOutline("critOutline", BT.db.critOutline)
+    assertEq(last("notify"), "치명타", "the sample crit line, translated")
+    assertEq(BT:FightLine({ damage = 4820, heal = 0, secs = 38 }), "피해 4,820 (초당 127), 38초", "the fight summary, translated")
+    rawset(L, "Crit", nil)
+    rawset(L, "%s damage (%s DPS)", nil)
+    rawset(L, "%s in %ss", nil)
+    assertEq(BT:FightLine({ damage = 4820, heal = 0, secs = 38 }), "4,820 damage (127 DPS) in 38s", "and English again")
+    clear()
+end)()
 
 assertClean("by the end")
 print("ALL TESTS PASSED")

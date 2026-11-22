@@ -10,6 +10,7 @@
 local ADDON, ns = ...
 local BT = ns.BT
 local T = ns.Theme
+local L = ns.L
 local C, Text, FlatButton, Card = T.C, T.Text, T.FlatButton, T.Card
 
 local PAGE_W = T.WINDOW.PAGE_W
@@ -44,7 +45,7 @@ local function Setting(parent, text, x, y, key, tip, enabledIf)
             BT.db[key] = self:IsOn()
             BT:ApplySettings()
             if key == "hideBlizzard" and InCombatLockdown() then
-                Print("the game's own numbers change when this fight ends.")
+                Print(L["the game's own numbers change when this fight ends."])
             end
         end
         BT:RefreshConfig()   -- (other controls may depend on it)
@@ -99,43 +100,43 @@ end
 
 -- The two switches the combat tabs share
 local function IconsAndNames(card, y, section, what, enabledIf)
-    Setting(card, "Icons", 12, y, section .. "Icons", "Shows the spell's icon beside " .. what .. ".", enabledIf)
-    Setting(card, "Names", COL2, y, section .. "Names", "Shows the spell's name beside " .. what .. ".", enabledIf)
+    Setting(card, L["Icons"], 12, y, section .. "Icons", L["Shows the spell's icon beside %s."]:format(what), enabledIf)
+    Setting(card, L["Names"], COL2, y, section .. "Names", L["Shows the spell's name beside %s."]:format(what), enabledIf)
 end
 
 -- Each area's own text size, opacity and movement. curved: the side areas, whose
 -- lines can bow outward. enabledIf/offNote: when the area isn't in use, and why.
 local function AreaLook(p, y, prefix, curved, enabledIf, offNote)
-    local card = Card(p, "Appearance", 0, y, PAGE_W, curved and 142 or 116)
-    Slider(card, "Size", 12, -30, prefix .. "Size", { suffix = "%", step = 5, enabledIf = enabledIf,
-        tip = "This area's text, as a percent of the text size on the Text tab." })
-    Slider(card, "Opacity", COL2, -30, prefix .. "Alpha", { suffix = "%", step = 5, enabledIf = enabledIf,
-        tip = "How see-through this area's text is. 100% is solid." })
+    local card = Card(p, L["Appearance"], 0, y, PAGE_W, curved and 142 or 116)
+    Slider(card, L["Size"], 12, -30, prefix .. "Size", { suffix = "%", step = 5, enabledIf = enabledIf,
+        tip = L["This area's text, as a percent of the text size on the Text tab."] })
+    Slider(card, L["Opacity"], COL2, -30, prefix .. "Alpha", { suffix = "%", step = 5, enabledIf = enabledIf,
+        tip = L["How see-through this area's text is. 100% is solid."] })
     local keys = {}
     for _, st in ipairs(BT.STYLES) do keys[#keys + 1] = st.key end
-    T.RowLabel(card, "Movement", 12, -82)
+    T.RowLabel(card, L["Movement"], 12, -82)
     local style = prefix .. "Style"
     local d = Dropdown(card, DROP_X, -82, 150, keys, function(k) return BT:StyleName(k) end, style,
         function(k) BT.db[style] = k end,
-        "Scroll: lines move up or down the area, one after another. Pop: each one jumps out somewhere in the area "
+        L["Scroll: lines move up or down the area, one after another. Pop: each one jumps out somewhere in the area "
         .. "and fades. Fountain: thrown up and falling to the side. Horizontal: they slide sideways, away from the "
-        .. "middle. Crits that stay in place (Motion tab) stay put whatever this is.", enabledIf)
+        .. "middle. Crits that stay in place (Motion tab) stay put whatever this is."], enabledIf)
     local function scrolling()
         return (not enabledIf or enabledIf()) and BT:AreaStyle({ def = { prefix = prefix } }) == "scroll"
     end
-    Setting(card, "Scroll upward", COL2, -84, prefix .. "ScrollUp",
-        "Lines start at the bottom and move up. Off: they scroll down. Only with Scroll movement.", scrolling)
+    Setting(card, L["Scroll upward"], COL2, -84, prefix .. "ScrollUp",
+        L["Lines start at the bottom and move up. Off: they scroll down. Only with Scroll movement."], scrolling)
     if curved then
-        Setting(card, "Curved scrolling", COL2, -110, prefix .. "Curved",
-            "Lines bow outward as they scroll. Off: straight lines. Only with Scroll movement.", scrolling)
+        Setting(card, L["Curved scrolling"], COL2, -110, prefix .. "Curved",
+            L["Lines bow outward as they scroll. Off: straight lines. Only with Scroll movement."], scrolling)
         -- (the side areas: their lines can line up left, centered or right)
         local aligns = {}
         for _, al in ipairs(BT.ALIGNS) do aligns[#aligns + 1] = al.key end
-        T.RowLabel(card, "Alignment", 12, -110)
+        T.RowLabel(card, L["Alignment"], 12, -110)
         Dropdown(card, DROP_X, -110, 150, aligns, function(k) return BT:AlignName(k) end, prefix .. "Align",
             function(k) BT.db[prefix .. "Align"] = k end,
-            "Which side this area's lines line up on. Crits that stay in place line up on the other side, "
-            .. "so they don't sit on top of the rest.", enabledIf)
+            L["Which side this area's lines line up on. Crits that stay in place line up on the other side, "
+            .. "so they don't sit on top of the rest."], enabledIf)
     end
     if offNote then
         local note = T.Note(card, offNote, 0, 0)
@@ -183,7 +184,7 @@ local function Swatch(parent, text, x, y, key)
             paint()
         end)
     end)
-    T.Tooltip(b, text, "Click to pick a color.")
+    T.Tooltip(b, text, L["Click to pick a color."])
     AddRefresher(paint)
     return b
 end
@@ -214,7 +215,7 @@ function BT:Confirm(text, yesLabel, onYes)
         f.text:SetWidth(348)
         f.text:SetWordWrap(true)
         f.text:SetJustifyH("LEFT")
-        f.no = FlatButton(f, "Cancel", 100)
+        f.no = FlatButton(f, L["Cancel"], 100)
         f.no:SetPoint("BOTTOMRIGHT", -16, 14)
         f.no:SetScript("OnClick", function() f:Hide() end)
         f.yes = FlatButton(f, "", 120)
@@ -233,12 +234,12 @@ end
 
 -- "Reset all" (the button and /btf resetall) asks first
 function BT:ConfirmResetAll()
-    local what = self:OwnSettings() and "this character's settings back to how they started"
-        or "every setting back to how it started"
-    self:Confirm(("Put %s? Colors, places and your Spells list too."):format(what),
-        "Reset all", function()
+    local what = self:OwnSettings() and L["this character's settings back to how they started"]
+        or L["every setting back to how it started"]
+    self:Confirm((L["Put %s? Colors, places and your Spells list too."]):format(what),
+        L["Reset all"], function()
             BT:ResetAll()
-            Print("every setting is back to how it started.")
+            Print(L["every setting is back to how it started."])
         end)
 end
 
@@ -246,75 +247,75 @@ end
 -- The pages. refs collects the widgets the window keeps a name for.
 ---------------------------------------------------------------------------
 local function BuildGeneral(p, refs)
-    local card = Card(p, "Basics", 0, 0, PAGE_W, 176)
-    Setting(card, "Show BattleText", 12, -30, "enabled",
-        "Turns all of BattleText's text on or off (also /btf on and /btf off).")
-    Setting(card, "Move the text areas", COL2, -30, "locked",
-        "Shows a box for each text area. Drag the boxes where you want them, then turn this off. "
-        .. "Closing the options locks them again.")
-    Setting(card, "Hide the game's own numbers", 12, -56, "hideBlizzard",
-        "Turns off the game's floating combat text so numbers aren't shown twice (and its \"+XP\" while Experience "
+    local card = Card(p, L["Basics"], 0, 0, PAGE_W, 176)
+    Setting(card, L["Show BattleText"], 12, -30, "enabled",
+        L["Turns all of BattleText's text on or off (also /btf on and /btf off)."])
+    Setting(card, L["Move the text areas"], COL2, -30, "locked",
+        L["Shows a box for each text area. Drag the boxes where you want them, then turn this off. "
+        .. "Closing the options locks them again."])
+    Setting(card, L["Hide the game's own numbers"], 12, -56, "hideBlizzard",
+        L["Turns off the game's floating combat text so numbers aren't shown twice (and its \"+XP\" while Experience "
         .. "is on in Notifications: the game has no setting for that alone, so all of its pop-up text in the world "
         .. "goes with it). Turn it off to bring them back. "
-        .. "During a fight, the change waits until the fight ends.")
-    Setting(card, "Minimap button", COL2, -56, "minimap",
-        "The BattleText button on the minimap: left-click opens the options, right-click shows sample text.")
-    Setting(card, "Remind me to click Start", 12, -82, "startReminder",
-        "If BattleText couldn't start by itself, a line in chat after your first fight says to click Start BattleText.")
-    Setting(card, "Login message", 12, -108, "loginMessage",
-        "\"BattleText Forever loaded. Type /btf for options.\" in chat when you log in or /reload.")
-    local own = T.LabeledSwitch(card, "Settings for this character only", COL2, -82)
+        .. "During a fight, the change waits until the fight ends."])
+    Setting(card, L["Minimap button"], COL2, -56, "minimap",
+        L["The BattleText button on the minimap: left-click opens the options, right-click shows sample text."])
+    Setting(card, L["Remind me to click Start"], 12, -82, "startReminder",
+        L["If BattleText couldn't start by itself, a line in chat after your first fight says to click Start BattleText."])
+    Setting(card, L["Login message"], 12, -108, "loginMessage",
+        L["\"BattleText Forever loaded. Type /btf for options.\" in chat when you log in or /reload."])
+    local own = T.LabeledSwitch(card, L["Settings for this character only"], COL2, -82)
     own:SetScript("OnClick", function(self)
         self:SetOn(not self:IsOn())
         BT:SetOwnSettings(self:IsOn())
     end)
-    T.Tooltip(own, "Settings for this character only",
-        "On: this character has its own settings. The first time, they start as a copy of the shared ones. "
-        .. "Off: it uses the settings every character shares, and keeps its own for when you turn this back on.")
+    T.Tooltip(own, L["Settings for this character only"],
+        L["On: this character has its own settings. The first time, they start as a copy of the shared ones. "
+        .. "Off: it uses the settings every character shares, and keeps its own for when you turn this back on."])
     AddRefresher(function() own:SetOn(BT:OwnSettings()) end)
     refs.ownSwitch = own
-    local sample = FlatButton(card, "Show sample text", 140)
+    local sample = FlatButton(card, L["Show sample text"], 140)
     sample:SetPoint("TOPLEFT", 12, -140)
     sample:SetScript("OnClick", function() BT:Test() end)
-    T.Tooltip(sample, nil, "A few sample lines in every area, to see the look and where the areas are.")
-    local reset = FlatButton(card, "Reset positions", 120)
+    T.Tooltip(sample, nil, L["A few sample lines in every area, to see the look and where the areas are."])
+    local reset = FlatButton(card, L["Reset positions"], 120)
     reset:SetPoint("LEFT", sample, "RIGHT", 8, 0)
     reset:SetScript("OnClick", function()
-        BT:Confirm("Move all four text areas back to where they started?", "Reset positions",
+        BT:Confirm(L["Move all four text areas back to where they started?"], L["Reset positions"],
             function() BT:ResetPositions() end)
     end)
-    local resetAll = FlatButton(card, "Reset all", 90)
+    local resetAll = FlatButton(card, L["Reset all"], 90)
     resetAll:SetPoint("LEFT", reset, "RIGHT", 8, 0)
     resetAll:SetScript("OnClick", function() BT:ConfirmResetAll() end)
-    T.Tooltip(resetAll, nil, "Every setting back to how it started: options, colors, places and the Spells list "
-        .. "(also /btf resetall). With \"Settings for this character only\" on, just this character's.")
+    T.Tooltip(resetAll, nil, L["Every setting back to how it started: options, colors, places and the Spells list "
+        .. "(also /btf resetall). With \"Settings for this character only\" on, just this character's."])
     refs.sampleButton, refs.resetButton, refs.resetAllButton = sample, reset, resetAll
 
-    local know = Card(p, "Good to know", 0, -186, PAGE_W, 124)
-    local text = Text(know, "Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
+    local know = Card(p, L["Good to know"], 0, -186, PAGE_W, 124)
+    local text = Text(know, L["Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
         .. "pet. Turn on enemy nameplates for the ones you aren't targeting.\n\n"
         .. "The game doesn't say whose hit it was: alone, your pet's hits show as yours.\n\n"
         .. "BattleText turns on the game's combat lines when you log in. They name the ticks of your bleeds and "
-        .. "leave other people's hits out. If a Start BattleText button shows, click it once.", "GameFontHighlightSmall", C.muted)
+        .. "leave other people's hits out. If a Start BattleText button shows, click it once."], "GameFontHighlightSmall", C.muted)
     text:SetPoint("TOPLEFT", 12, -34)
     text:SetWidth(PAGE_W - 24)
     text:SetWordWrap(true)
     text:SetJustifyH("LEFT")
 
-    local share = Card(p, "Share settings", 0, -320, PAGE_W, 90)
-    local export = FlatButton(share, "Export", 90)
+    local share = Card(p, L["Share settings"], 0, -320, PAGE_W, 90)
+    local export = FlatButton(share, L["Export"], 90)
     export:SetPoint("TOPLEFT", 12, -28)
     export:SetScript("OnClick", function() BT:OpenShareWindow("export") end)
-    local import = FlatButton(share, "Import", 90)
+    local import = FlatButton(share, L["Import"], 90)
     import:SetPoint("LEFT", export, "RIGHT", 8, 0)
     import:SetScript("OnClick", function() BT:OpenShareWindow("import") end)
-    CardNote(share, "Export: your settings as a line of text to copy. Import: paste someone else's to use them "
-        .. "(your text areas stay where they are unless you choose).", -58)
+    CardNote(share, L["Export: your settings as a line of text to copy. Import: paste someone else's to use them "
+        .. "(your text areas stay where they are unless you choose)."], -58)
     refs.exportButton, refs.importButton = export, import
 end
 
 local function BuildText(p, refs)
-    local card = Card(p, "Font and outline", 0, 0, PAGE_W, 124)
+    local card = Card(p, L["Font and outline"], 0, 0, PAGE_W, 124)
     local fontKeys, outlineKeys, outlineNames = {}, {}, {}
     for _, f in ipairs(BT.FONTS) do fontKeys[#fontKeys + 1] = f.name end
     for _, o in ipairs(BT.OUTLINES) do
@@ -322,92 +323,92 @@ local function BuildText(p, refs)
         outlineNames[o.flags] = o.name
     end
     local function outlineName(flags) return outlineNames[flags] or outlineNames.OUTLINE end
-    local outlineTip = "None, a thin or thick dark edge round the letters, or a drop shadow instead. "
-        .. "Picking one shows a sample line."
+    local outlineTip = L["None, a thin or thick dark edge round the letters, or a drop shadow instead. "
+        .. "Picking one shows a sample line."]
 
-    T.RowLabel(card, "Font", 12, -30)
-    refs.fontDropdown = Dropdown(card, DROP_X, -30, 220, fontKeys, function(k) return k end, "font",
-        function(name) BT:SetFont(name) end, "The letters of every line. Picking one shows a sample line in it. "
-        .. "Fonts your other addons share (through LibSharedMedia, like many UI packs) are at the end of the list.")
+    T.RowLabel(card, L["Font"], 12, -30)
+    refs.fontDropdown = Dropdown(card, DROP_X, -30, 220, fontKeys, function(k) return k == "Default" and L["Default"] or k end, "font",
+        function(name) BT:SetFont(name) end, L["The letters of every line. Picking one shows a sample line in it. "
+        .. "Fonts your other addons share (through LibSharedMedia, like many UI packs) are at the end of the list."])
     refs.fontDropdown.menuScroll = 20 * 12   -- twelve rows, then it scrolls
-    T.RowLabel(card, "Outline", 12, -60)
+    T.RowLabel(card, L["Outline"], 12, -60)
     refs.outlineDropdown = Dropdown(card, DROP_X, -60, 220, outlineKeys, outlineName, "outline",
-        function(flags) BT:SetOutline("outline", flags) end, "Normal lines: " .. outlineTip)
-    T.RowLabel(card, "Crit outline", 12, -90)
+        function(flags) BT:SetOutline("outline", flags) end, L["Normal lines: %s"]:format(outlineTip))
+    T.RowLabel(card, L["Crit outline"], 12, -90)
     refs.critOutlineDropdown = Dropdown(card, DROP_X, -90, 220, outlineKeys, outlineName, "critOutline",
-        function(flags) BT:SetOutline("critOutline", flags) end, "Crits: " .. outlineTip)
+        function(flags) BT:SetOutline("critOutline", flags) end, L["Crits: %s"]:format(outlineTip))
 
-    local size = Card(p, "Size", 0, -134, PAGE_W, 190)
-    Slider(size, "Text size", 12, -30, "fontSize",
-        { tip = "The size of normal lines. Each area can make its own bigger or smaller (Appearance, on its tab)." })
-    Slider(size, "Crit size", COL2, -30, "critScale", { suffix = "%", step = 10,
-        tip = "Crits, as a percent of the text size." })
-    Setting(size, "Short numbers", 12, -82, "shortNumbers",
-        "Big numbers in short: 12,345 shows as 12.3k, 1,234,567 as 1.2m. Below 10,000 they stay as they are.")
-    Setting(size, "Size by hit", COL2, -82, "sizeByHit",
-        "Each area compares a number with its recent ones: a bigger hit or heal shows bigger (up to 1.5 times), "
-        .. "a smaller one smaller (down to three quarters). A number the game hides keeps the usual size.")
-    Setting(size, "Icon zoom", 12, -108, "iconZoom",
-        "Crops the thin border round spell and item icons, so the picture fills its square and looks bigger.")
-    Slider(size, "Smallest crit", 12, -134, "minCrit", { step = 10, zero = "Off",
-        tip = "A crit for less than this shows as a normal line: normal size, no crit outline, it doesn't hold "
+    local size = Card(p, L["Size"], 0, -134, PAGE_W, 190)
+    Slider(size, L["Text size"], 12, -30, "fontSize",
+        { tip = L["The size of normal lines. Each area can make its own bigger or smaller (Appearance, on its tab)."] })
+    Slider(size, L["Crit size"], COL2, -30, "critScale", { suffix = "%", step = 10,
+        tip = L["Crits, as a percent of the text size."] })
+    Setting(size, L["Short numbers"], 12, -82, "shortNumbers",
+        L["Big numbers in short: 12,345 shows as 12.3k, 1,234,567 as 1.2m. Below 10,000 they stay as they are."])
+    Setting(size, L["Size by hit"], COL2, -82, "sizeByHit",
+        L["Each area compares a number with its recent ones: a bigger hit or heal shows bigger (up to 1.5 times), "
+        .. "a smaller one smaller (down to three quarters). A number the game hides keeps the usual size."])
+    Setting(size, L["Icon zoom"], 12, -108, "iconZoom",
+        L["Crops the thin border round spell and item icons, so the picture fills its square and looks bigger."])
+    Slider(size, L["Smallest crit"], 12, -134, "minCrit", { step = 10, zero = L["Off"],
+        tip = L["A crit for less than this shows as a normal line: normal size, no crit outline, it doesn't hold "
             .. "in place and it plays no crit sound, so only the big ones stand out. A number the game hides "
-            .. "still shows as a crit. Off: every crit stands out." })
+            .. "still shows as a crit. Off: every crit stands out."] })
 end
 
 local function BuildMotion(p)
-    local card = Card(p, "Motion", 0, 0, PAGE_W, 196)
-    Setting(card, "Crits stay in place", 12, -30, "sticky",
-        "Critical hits jump out and stay in place for a moment instead of moving with the rest, "
-        .. "whatever the area's movement.")
-    Setting(card, "Add up rapid hits", COL2, -30, "merge",
-        "Hits from the same spell that land together are shown as one line, like \"Swipe 150 (x3)\". When the game "
-            .. "hides the amounts, the line shows the latest hit and how many landed, like \"Swipe 50 (3 hits)\".")
-    Slider(card, "Time on screen", 12, -64, "scrollTime", { suffix = " sec", step = 0.5, fmt = "%.1f",
-        tip = "How long a line takes to cross its area. Notifications move a little faster, and Pop lines "
-            .. "stay a little over half as long." })
-    Slider(card, "Area height", COL2, -64, "height", { suffix = " px", step = 10,
-        tip = "How tall the Outgoing and Incoming areas are: how far their lines travel. The Healing area is "
-            .. "60% of it and Notifications 45%." })
-    Slider(card, "Ticks and area hits add up for", 12, -116, "tickMerge", { suffix = " sec", step = 0.5,
-        fmt = "%.1f", zero = "Off", enabledIf = function() return BT.db.merge end,
-        tip = "Ticks of your bleeds and DoTs, and the hits of an area spell, keep adding up on one line for this "
-            .. "long. Off: as quickly as other hits. Needs Add up rapid hits." })
-    Setting(card, "Keep Pop numbers apart", COL2, -120, "popApart",
-        "With Pop movement, a number that would land on top of one still showing moves to the nearest "
-        .. "free spot instead, so every number stays readable.")
-    CardNote(card, "How each area's lines move (Scroll, Pop, Fountain or Horizontal), which way, and whether they "
-        .. "curve, is under Appearance on that area's own tab.", -156)
+    local card = Card(p, L["Motion"], 0, 0, PAGE_W, 196)
+    Setting(card, L["Crits stay in place"], 12, -30, "sticky",
+        L["Critical hits jump out and stay in place for a moment instead of moving with the rest, "
+        .. "whatever the area's movement."])
+    Setting(card, L["Add up rapid hits"], COL2, -30, "merge",
+        L["Hits from the same spell that land together are shown as one line, like \"Swipe 150 (x3)\". When the game "
+            .. "hides the amounts, the line shows the latest hit and how many landed, like \"Swipe 50 (3 hits)\"."])
+    Slider(card, L["Time on screen"], 12, -64, "scrollTime", { suffix = L[" sec"], step = 0.5, fmt = "%.1f",
+        tip = L["How long a line takes to cross its area. Notifications move a little faster, and Pop lines "
+            .. "stay a little over half as long."] })
+    Slider(card, L["Area height"], COL2, -64, "height", { suffix = L[" px"], step = 10,
+        tip = L["How tall the Outgoing and Incoming areas are: how far their lines travel. The Healing area is "
+            .. "60% of it and Notifications 45%."] })
+    Slider(card, L["Ticks and area hits add up for"], 12, -116, "tickMerge", { suffix = L[" sec"], step = 0.5,
+        fmt = "%.1f", zero = L["Off"], enabledIf = function() return BT.db.merge end,
+        tip = L["Ticks of your bleeds and DoTs, and the hits of an area spell, keep adding up on one line for this "
+            .. "long. Off: as quickly as other hits. Needs Add up rapid hits."] })
+    Setting(card, L["Keep Pop numbers apart"], COL2, -120, "popApart",
+        L["With Pop movement, a number that would land on top of one still showing moves to the nearest "
+        .. "free spot instead, so every number stays readable."])
+    CardNote(card, L["How each area's lines move (Scroll, Pop, Fountain or Horizontal), which way, and whether they "
+        .. "curve, is under Appearance on that area's own tab."], -156)
 end
 
 local function BuildOutgoing(p)
-    local card = Card(p, "What you do", 0, 0, PAGE_W, 196)
+    local card = Card(p, L["What you do"], 0, 0, PAGE_W, 196)
     local damage = function() return BT.db.outDamage end
-    Setting(card, "Damage", 12, -30, "outDamage", "Your hits on mobs: spells, abilities and swings.")
-    Setting(card, "Misses", COL2, -30, "outMisses",
-        "Your attacks that miss, or are dodged, parried, fully blocked or resisted.")
-    Setting(card, "Auto attacks", 12, -56, "outSwings",
-        "Your white swings, your ranged attacks (Auto Shot, Shoot, Throw) and their misses. Off: only your "
+    Setting(card, L["Damage"], 12, -30, "outDamage", L["Your hits on mobs: spells, abilities and swings."])
+    Setting(card, L["Misses"], COL2, -30, "outMisses",
+        L["Your attacks that miss, or are dodged, parried, fully blocked or resisted."])
+    Setting(card, L["Auto attacks"], 12, -56, "outSwings",
+        L["Your white swings, your ranged attacks (Auto Shot, Shoot, Throw) and their misses. Off: only your "
         .. "spells and abilities. Without the game's combat "
-        .. "lines, a physical hit BattleText can't name counts as a swing.", Either("outDamage", "outMisses"))
-    Setting(card, "Pet", COL2, -56, "outPet",
-        "Your pet's hits and heals, marked with its name, and a hunter's hawks (Summon Hawk), marked (Hawk). This only works when the game lets BattleText read its combat "
-        .. "lines; when it doesn't, your pet's hits can't be told from yours and show with them.")
-    Setting(card, "Damage shields", 12, -82, "outShields",
-        "What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura "
-        .. "(named as soon as they hit), and gear that stings back. Off: hidden.", damage)
-    Setting(card, "Name seal hits", COL2, -82, "outSeals",
-        "Paladins: the Holy hit of Seal of Righteousness or Seal of Command that lands with your swing shows the "
-        .. "seal's name and icon. Off: it shows as a plain number.", damage)
-    IconsAndNames(card, -108, "out", "your hits and misses", Either("outDamage", "outMisses"))
-    Slider(card, "Hide hits below", 12, -142, "minDamage", { step = 5, zero = "Off", enabledIf = damage,
-        tip = "Your hits (and your pet's) for less than this aren't shown. A hit whose number the game hides "
-            .. "always shows, unless it's gear that always does the same (Cursed Murloc Eye's 2 Shadow)." })
-    Setting(card, "DoTs and area spells", COL2, -142, "outTicks",
-        "The ticks of your damage-over-time spells (Corruption, Rend, Moonfire...) and of spells that keep hitting "
+        .. "lines, a physical hit BattleText can't name counts as a swing."], Either("outDamage", "outMisses"))
+    Setting(card, L["Pet"], COL2, -56, "outPet",
+        L["Your pet's hits and heals, marked with its name, and a hunter's hawks (Summon Hawk), marked (Hawk). This only works when the game lets BattleText read its combat "
+        .. "lines; when it doesn't, your pet's hits can't be told from yours and show with them."])
+    Setting(card, L["Damage shields"], 12, -82, "outShields",
+        L["What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura "
+        .. "(named as soon as they hit), and gear that stings back. Off: hidden."], damage)
+    Setting(card, L["Name seal hits"], COL2, -82, "outSeals",
+        L["Paladins: the Holy hit of Seal of Righteousness or Seal of Command that lands with your swing shows the "
+        .. "seal's name and icon. Off: it shows as a plain number."], damage)
+    IconsAndNames(card, -108, "out", L["your hits and misses"], Either("outDamage", "outMisses"))
+    Slider(card, L["Hide hits below"], 12, -142, "minDamage", { step = 5, zero = L["Off"], enabledIf = damage,
+        tip = L["Your hits (and your pet's) for less than this aren't shown. A hit whose number the game hides "
+            .. "always shows, unless it's gear that always does the same (Cursed Murloc Eye's 2 Shadow)."] })
+    Setting(card, L["DoTs and area spells"], COL2, -142, "outTicks",
+        L["The ticks of your damage-over-time spells (Corruption, Rend, Moonfire...) and of spells that keep hitting "
         .. "everything in an area (Consecration, Blizzard, Rain of Fire, totems...). Off: hidden. A spell's own "
-        .. "first hit still shows. To hide one spell only, use the Spells tab.", damage)
-    AreaLook(p, -206, "out", true, function() return BT:AreaUsed("outgoing") end, "Nothing shows here (Layout tab)")
+        .. "first hit still shows. To hide one spell only, use the Spells tab."], damage)
+    AreaLook(p, -206, "out", true, function() return BT:AreaUsed("outgoing") end, L["Nothing shows here (Layout tab)"])
 end
 
 -- Every sound list shares one list of keys (sounds other addons share are added to it later)
@@ -420,132 +421,132 @@ local function SoundKeys()
     return soundKeys
 end
 local function SoundName(k) return BT:SoundName(k) end
-local PICK_TIP = "Picking a sound plays it. If this game doesn't have it, chat says so. Sounds your other addons share "
-    .. "(through LibSharedMedia) are at the end of the list."
+local PICK_TIP = L["Picking a sound plays it. If this game doesn't have it, chat says so. Sounds your other addons share "
+    .. "(through LibSharedMedia) are at the end of the list."]
 
 local function BuildIncoming(p, refs)
-    local card = Card(p, "What happens to you", 0, 0, PAGE_W, 116)
-    Setting(card, "Damage", 12, -30, "inDamage", "The damage you take.")
-    Setting(card, "Avoids", COL2, -30, "inMisses", "Attacks you dodge, parry, block or resist, and ones that miss you.")
-    Setting(card, "Power gains", 12, -56, "inPower", "Mana, rage and energy you gain.")
-    Setting(card, "Show blocked", COL2, -56, "inBlocked",
-        "A grey \"(blocked)\" after a hit you partly blocked with your shield. The game doesn't say how much "
+    local card = Card(p, L["What happens to you"], 0, 0, PAGE_W, 116)
+    Setting(card, L["Damage"], 12, -30, "inDamage", L["The damage you take."])
+    Setting(card, L["Avoids"], COL2, -30, "inMisses", L["Attacks you dodge, parry, block or resist, and ones that miss you."])
+    Setting(card, L["Power gains"], 12, -56, "inPower", L["Mana, rage and energy you gain."])
+    Setting(card, L["Show blocked"], COL2, -56, "inBlocked",
+        L["A grey \"(blocked)\" after a hit you partly blocked with your shield. The game doesn't say how much "
         .. "was blocked, so only when it lets BattleText read its combat lines does the amount show "
-        .. "(\"(150 blocked)\").", function() return BT.db.inDamage end)
-    IconsAndNames(card, -82, "in", "what hits you or what you avoid (only when the game says which spell)",
+        .. "(\"(150 blocked)\")."], function() return BT.db.inDamage end)
+    IconsAndNames(card, -82, "in", L["what hits you or what you avoid (only when the game says which spell)"],
         Either("inDamage", "inMisses"))
-    local warn = Card(p, "Warnings", 0, -126, PAGE_W, 112)
-    Setting(warn, "Low health", 12, -32, "warnHealth",
-        "\"Low health!\" and a sound when your health drops to 35%. It warns again once you've healed back up. "
+    local warn = Card(p, L["Warnings"], 0, -126, PAGE_W, 112)
+    Setting(warn, L["Low health"], 12, -32, "warnHealth",
+        L["\"Low health!\" and a sound when your health drops to 35%. It warns again once you've healed back up. "
         .. "The game hides your health from addons, so this goes by its own warning, the red screen edges: it can't "
         .. "warn if you've turned those off in the game's options, or while the map is open in a fight. "
-        .. "Pick the sound in the list beside it.")
+        .. "Pick the sound in the list beside it."])
     refs.lowHealthDropdown = Dropdown(warn, 130, -30, 126, SoundKeys(), SoundName, "lowHealthSound",
         function(k) BT:SetAlertSound("lowHealth", k) end, PICK_TIP, function() return BT.db.warnHealth end)
-    Setting(warn, "Low mana", COL2, -32, "warnMana",
-        "\"Low mana!\" and a sound when your mana drops to the line below. It warns again once your mana is 10% "
+    Setting(warn, L["Low mana"], COL2, -32, "warnMana",
+        L["\"Low mana!\" and a sound when your mana drops to the line below. It warns again once your mana is 10% "
         .. "above it. Pick the sound in the list beside it. If the game hides your mana from addons (it does for "
         .. "some players), BattleText can't tell when it drops, so instead a steady \"Low mana\" shows above the "
-        .. "notifications while you're under the line, with no sound.")
+        .. "notifications while you're under the line, with no sound."])
     refs.lowManaDropdown = Dropdown(warn, COL2 + 118, -30, 126, SoundKeys(), SoundName, "lowManaSound",
         function(k) BT:SetAlertSound("lowMana", k) end, PICK_TIP, function() return BT.db.warnMana end)
     refs.lowHealthDropdown.menuScroll, refs.lowManaDropdown.menuScroll = 20 * 12, 20 * 12
-    T.Note(warn, "Low health goes by the game's red screen edges, at 35% health.", 12, -70, COL2 - 36)
-    Slider(warn, "Low mana at", COL2, -66, "lowManaAt", { suffix = "%", step = 5,
+    T.Note(warn, L["Low health goes by the game's red screen edges, at 35% health."], 12, -70, COL2 - 36)
+    Slider(warn, L["Low mana at"], COL2, -66, "lowManaAt", { suffix = "%", step = 5,
         enabledIf = function() return BT.db.warnMana end,
-        tip = "How low your mana goes before \"Low mana!\"." })
-    AreaLook(p, -248, "in", true, function() return BT:AreaUsed("incoming") end, "Nothing shows here (Layout tab)")
+        tip = L["How low your mana goes before \"Low mana!\"."] })
+    AreaLook(p, -248, "in", true, function() return BT:AreaUsed("incoming") end, L["Nothing shows here (Layout tab)"])
 end
 
 local function BuildHealing(p)
-    local card = Card(p, "Heals", 0, 0, PAGE_W, 196)
+    local card = Card(p, L["Heals"], 0, 0, PAGE_W, 196)
     local anyHeals = Either("inHeals", "outHeals")
-    Setting(card, "Heals you get", 12, -30, "inHeals", "Heals on you, yours and other people's.")
-    Setting(card, "Heals you do", COL2, -30, "outHeals", "Your heals on others (and your pet's).")
-    Setting(card, "Show overhealing", 12, -56, "healOver",
-        "The grey \"(40 over)\" after a heal. Only when the game lets BattleText read its combat lines.", anyHeals)
-    T.Note(card, "Which area heals show in: Layout tab.", COL2, -58, PAGE_W - COL2 - 12)
+    Setting(card, L["Heals you get"], 12, -30, "inHeals", L["Heals on you, yours and other people's."])
+    Setting(card, L["Heals you do"], COL2, -30, "outHeals", L["Your heals on others (and your pet's)."])
+    Setting(card, L["Show overhealing"], 12, -56, "healOver",
+        L["The grey \"(40 over)\" after a heal. Only when the game lets BattleText read its combat lines."], anyHeals)
+    T.Note(card, L["Which area heals show in: Layout tab."], COL2, -58, PAGE_W - COL2 - 12)
     IconsAndNames(card, -82, "heal", "heals", anyHeals)
-    Setting(card, "Show who you healed", 12, -108, "healWho",
-        "The name of the player you healed, after the number. Only when the game lets BattleText read it.",
+    Setting(card, L["Show who you healed"], 12, -108, "healWho",
+        L["The name of the player you healed, after the number. Only when the game lets BattleText read it."],
         function() return BT.db.outHeals end)
-    Setting(card, "Unnamed heals on you", COL2, -108, "inOtherHeals",
-        "Heals on you the game doesn't name: other players' heals, food, and small passive heals like Thrill of "
+    Setting(card, L["Unnamed heals on you"], COL2, -108, "inOtherHeals",
+        L["Heals on you the game doesn't name: other players' heals, food, and small passive heals like Thrill of "
         .. "Adventure. The game often hides their number, so \"Hide heals below\" can't catch them: turn this off "
-        .. "to hide them. Your own heals keep their name and still show.",
+        .. "to hide them. Your own heals keep their name and still show."],
         function() return BT.db.inHeals end)
-    Slider(card, "Hide heals below", 12, -142, "minHeal", { step = 5, zero = "Off", enabledIf = anyHeals,
-        tip = "Heals for less than this aren't shown. A heal whose number the game hides always shows "
-            .. "(turn off \"Unnamed heals on you\" for other people's)." })
-    AreaLook(p, -206, "heal", false, function() return BT:AreaUsed("heal") end, "Nothing shows here (Layout tab)")
+    Slider(card, L["Hide heals below"], 12, -142, "minHeal", { step = 5, zero = L["Off"], enabledIf = anyHeals,
+        tip = L["Heals for less than this aren't shown. A heal whose number the game hides always shows "
+            .. "(turn off \"Unnamed heals on you\" for other people's)."] })
+    AreaLook(p, -206, "heal", false, function() return BT:AreaUsed("heal") end, L["Nothing shows here (Layout tab)"])
 end
 
 local function BuildNotifications(p, refs)
-    local card = Card(p, "Show", 0, 0, PAGE_W, 284)
-    Setting(card, "Combat", 12, -30, "nCombat", "+Combat and -Combat as you enter and leave a fight.")
-    Setting(card, "Killing blows", COL2, -30, "nKill",
-        "\"Killing blow!\" when your hit kills. Only when the game lets BattleText read its combat lines "
-        .. "(it often hides them).")
-    Setting(card, "Experience", 12, -56, "nXP", "The experience you gain, like \"+103 XP\". With \"Hide the game's own numbers\" on, the game's "
-        .. "own \"+XP\" goes, and with it all of the game's pop-up text in the world.")
-    Setting(card, "Reputation", COL2, -56, "nRep", "Reputation you gain or lose with a faction.")
-    Setting(card, "Honor", 12, -82, "nHonor", "Honor you gain.")
-    Setting(card, "Loot", COL2, -82, "nLoot", "Items you loot, with how many.")
-    Setting(card, "Money", 12, -108, "nMoney", "Money you loot or get.")
-    Setting(card, "Skill ups", COL2, -108, "nSkill", "A skill going up, like First Aid or a weapon skill.")
-    Setting(card, "Seals", 12, -134, "nSeals",
-        "Paladins: a line when a seal goes on or comes off. In a fight the game hides your buffs, so a seal "
-        .. "coming off is worked out: a new seal replaces it, or its 30 seconds run out. Judgement leaves it on.")
-    Setting(card, "Buffs", COL2, -134, "nBuffs",
-        "A line when a buff goes on or comes off. The game hides your buffs during a fight: there, a buff you put on "
+    local card = Card(p, L["Show"], 0, 0, PAGE_W, 284)
+    Setting(card, L["Combat"], 12, -30, "nCombat", L["+Combat and -Combat as you enter and leave a fight."])
+    Setting(card, L["Killing blows"], COL2, -30, "nKill",
+        L["\"Killing blow!\" when your hit kills. Only when the game lets BattleText read its combat lines "
+        .. "(it often hides them)."])
+    Setting(card, L["Experience"], 12, -56, "nXP", L["The experience you gain, like \"+103 XP\". With \"Hide the game's own numbers\" on, the game's "
+        .. "own \"+XP\" goes, and with it all of the game's pop-up text in the world."])
+    Setting(card, L["Reputation"], COL2, -56, "nRep", L["Reputation you gain or lose with a faction."])
+    Setting(card, L["Honor"], 12, -82, "nHonor", L["Honor you gain."])
+    Setting(card, L["Loot"], COL2, -82, "nLoot", L["Items you loot, with how many."])
+    Setting(card, L["Money"], 12, -108, "nMoney", L["Money you loot or get."])
+    Setting(card, L["Skill ups"], COL2, -108, "nSkill", L["A skill going up, like First Aid or a weapon skill."])
+    Setting(card, L["Seals"], 12, -134, "nSeals",
+        L["Paladins: a line when a seal goes on or comes off. In a fight the game hides your buffs, so a seal "
+        .. "coming off is worked out: a new seal replaces it, or its 30 seconds run out. Judgement leaves it on."])
+    Setting(card, L["Buffs"], COL2, -134, "nBuffs",
+        L["A line when a buff goes on or comes off. The game hides your buffs during a fight: there, a buff you put on "
         .. "yourself (Slice and Dice, Evasion...) shows as you cast it, and the rest of what changed shows when the fight "
-        .. "ends. Not shown: food and drink, and buffs with no time limit (mounts, auras, stances).")
-    Setting(card, "Ability alerts", 12, -160, "nAlerts",
-        "A line when an ability you can use only just then opens up: \"Overpower!\" when your target dodges you, "
+        .. "ends. Not shown: food and drink, and buffs with no time limit (mounts, auras, stances)."])
+    Setting(card, L["Ability alerts"], 12, -160, "nAlerts",
+        L["A line when an ability you can use only just then opens up: \"Overpower!\" when your target dodges you, "
         .. "\"Revenge!\" when you dodge, parry or block (warriors), \"Riposte!\" or \"Counterattack!\" when you "
         .. "parry (rogues and hunters with the talent), \"Execute!\" and \"Hammer of Wrath!\" when your target is "
-        .. "low enough, and procs and spells the game lights up on your action bars (like Clearcasting).")
-    Setting(card, "Combo points", COL2, -160, "nCombo",
-        "Rogues and cat druids: \"2 CP\" as your combo points go up, and \"5 CP: Finish it!\" when you have "
-        .. "them all.")
-    Setting(card, "Dispels", 12, -186, "nDispels",
-        "A line when you take something off: \"Dispelled Deadly Poison\" from a friend or yourself, \"Purged ...\" "
+        .. "low enough, and procs and spells the game lights up on your action bars (like Clearcasting)."])
+    Setting(card, L["Combo points"], COL2, -160, "nCombo",
+        L["Rogues and cat druids: \"2 CP\" as your combo points go up, and \"5 CP: Finish it!\" when you have "
+        .. "them all."])
+    Setting(card, L["Dispels"], 12, -186, "nDispels",
+        L["A line when you take something off: \"Dispelled Deadly Poison\" from a friend or yourself, \"Purged ...\" "
         .. "from an enemy, \"Stole ...\" with Spellsteal. Needs one box in the Combat Log: right-click its tab, "
-        .. "Settings, Message Types, Auras, tick Dispels. Without it, only the spell you cast shows (\"Cleanse\").")
+        .. "Settings, Message Types, Auras, tick Dispels. Without it, only the spell you cast shows (\"Cleanse\")."])
 
     -- (the extras share the card, so the page still fits with Dispels)
     local extras = card
-    Setting(extras, "Fight summary", COL2, -186, "nSummary",
-        "When a fight ends: your damage, damage per second and healing, like \"4,820 damage (127 DPS) in 38s\". "
-        .. "Only counts numbers the game lets BattleText read. Type /btf last for that fight spell by spell.")
-    Setting(extras, "Cooldowns ready", 12, -212, "nCooldowns",
-        "A line when a spell of yours comes off its cooldown, like \"Kick ready\". Only cooldowns of 8 seconds "
-        .. "or more, up to 10 minutes. Hide one you don't want on the Spells tab.")
-    Setting(extras, "Interrupts", COL2, -212, "nInterrupts",
-        "\"Interrupted Frostbolt\" when you or your pet stop an enemy's cast. If the game hides who stopped it, "
-        .. "BattleText goes by your interrupt (Kick, Pummel, Counterspell...) landing just as your target's cast stopped.")
-    Setting(extras, "Icons", 12, -264, "nIcons",
-        "Shows the icon beside loot, skill ups, seals, buffs, ability alerts, cooldowns, interrupts and dispels.",
+    Setting(extras, L["Fight summary"], COL2, -186, "nSummary",
+        L["When a fight ends: your damage, damage per second and healing, like \"4,820 damage (127 DPS) in 38s\". "
+        .. "Only counts numbers the game lets BattleText read. Type /btf last for that fight spell by spell."])
+    Setting(extras, L["Cooldowns ready"], 12, -212, "nCooldowns",
+        L["A line when a spell of yours comes off its cooldown, like \"Kick ready\". Only cooldowns of 8 seconds "
+        .. "or more, up to 10 minutes. Hide one you don't want on the Spells tab."])
+    Setting(extras, L["Interrupts"], COL2, -212, "nInterrupts",
+        L["\"Interrupted Frostbolt\" when you or your pet stop an enemy's cast. If the game hides who stopped it, "
+        .. "BattleText goes by your interrupt (Kick, Pummel, Counterspell...) landing just as your target's cast stopped."])
+    Setting(extras, L["Icons"], 12, -264, "nIcons",
+        L["Shows the icon beside loot, skill ups, seals, buffs, ability alerts, cooldowns, interrupts and dispels."],
         Either("nLoot", "nSkill", "nSeals", "nBuffs", "nAlerts", "nDispels", "nCooldowns", "nInterrupts"))
     local soundKeys, soundName, pickTip = SoundKeys(), SoundName, PICK_TIP
-    Setting(extras, "Crit sound", 12, -238, "soundCrit", "A sound when you crit. Pick it in the list beside it.")
+    Setting(extras, L["Crit sound"], 12, -238, "soundCrit", L["A sound when you crit. Pick it in the list beside it."])
     refs.critSoundDropdown = Dropdown(extras, 130, -236, 126, soundKeys, soundName, "critSound",
         function(k) BT:SetAlertSound("crit", k) end, pickTip)
-    Setting(extras, "Kill sound", COL2, -238, "soundKill",
-        "A sound on your killing blows (only when the game lets BattleText read its combat lines). "
-        .. "Pick it in the list beside it.")
+    Setting(extras, L["Kill sound"], COL2, -238, "soundKill",
+        L["A sound on your killing blows (only when the game lets BattleText read its combat lines). "
+        .. "Pick it in the list beside it."])
     refs.killSoundDropdown = Dropdown(extras, COL2 + 118, -236, 126, soundKeys, soundName, "killSound",
         function(k) BT:SetAlertSound("kill", k) end, pickTip)
     refs.critSoundDropdown.menuScroll, refs.killSoundDropdown.menuScroll = 20 * 12, 20 * 12
-    AreaLook(p, -294, "n", false, function() return BT:AreaUsed("notify") end, "Nothing shows here (Layout tab)")
+    AreaLook(p, -294, "n", false, function() return BT:AreaUsed("notify") end, L["Nothing shows here (Layout tab)"])
 end
 
 -- Which area each kind of text shows in. Areas are named for where they start on screen.
 local function BuildLayout(p, refs)
-    local card = Card(p, "Where each kind of text shows", 0, 0, PAGE_W, 40 + #BT.ROUTES * 30 + 52)
+    local card = Card(p, L["Where each kind of text shows"], 0, 0, PAGE_W, 40 + #BT.ROUTES * 30 + 52)
     local areaKeys = { "outgoing", "incoming", "heal", "notify" }
-    local areaNames = { outgoing = "Outgoing (right)", incoming = "Incoming (left)", heal = "Healing (bottom)",
-        notify = "Notifications (top)" }
+    local areaNames = { outgoing = L["Outgoing (right)"], incoming = L["Incoming (left)"], heal = L["Healing (bottom)"],
+        notify = L["Notifications (top)"] }
     refs.routeDropdowns = {}
     for i, r in ipairs(BT.ROUTES) do
         local y = -30 - (i - 1) * 30
@@ -553,29 +554,29 @@ local function BuildLayout(p, refs)
         local key = "route" .. r.key
         refs.routeDropdowns[r.key] = Dropdown(card, 200, y, 220, areaKeys, function(k) return areaNames[k] or k end,
             key, function(k) BT.db[key] = k end,
-            r.name .. ": the text area it shows in. Each area keeps its own look (Appearance, on its tab).")
+            L["%s: the text area it shows in. Each area keeps its own look (Appearance, on its tab)."]:format(r.name))
     end
-    CardNote(card, "Areas are named for where they start; move them anywhere with \"Move the text areas\" "
-        .. "(General tab). Each area keeps its own size, opacity, movement and alignment.", -40 - #BT.ROUTES * 30)
+    CardNote(card, L["Areas are named for where they start; move them anywhere with \"Move the text areas\" "
+        .. "(General tab). Each area keeps its own size, opacity, movement and alignment."], -40 - #BT.ROUTES * 30)
 end
 
 local function BuildColors(p)
     local rows = math.ceil(#BT.COLOR_CHOICES / 2)
-    local card = Card(p, "Colors", 0, 0, PAGE_W, 40 + rows * 26 + 66)
+    local card = Card(p, L["Colors"], 0, 0, PAGE_W, 40 + rows * 26 + 66)
     for i, choice in ipairs(BT.COLOR_CHOICES) do
         local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
         Swatch(card, choice[2], col == 0 and 12 or COL2, -30 - row * 26, choice[1])
     end
-    local reset = FlatButton(card, "Reset colors", 120)
+    local reset = FlatButton(card, L["Reset colors"], 120)
     reset:SetPoint("TOPLEFT", 12, -36 - rows * 26)
     reset:SetScript("OnClick", function()
-        BT:Confirm("Put every text color back to how it started?", "Reset colors", function()
+        BT:Confirm(L["Put every text color back to how it started?"], L["Reset colors"], function()
             wipe(BT.db.colors)
             BT:ApplyColors()
             BT:RefreshConfig()
         end)
     end)
-    CardNote(card, "Spells that do Holy, Fire, Nature, Frost, Shadow or Arcane damage keep their school's color.",
+    CardNote(card, L["Spells that do Holy, Fire, Nature, Frost, Shadow or Arcane damage keep their school's color."],
         -72 - rows * 26)
 end
 
@@ -583,26 +584,26 @@ end
 -- a color square (right-click: its usual color again) and Remove
 local RULE_ROW = 28
 local function BuildSpells(p, refs)
-    local card = Card(p, "Add a spell", 0, 0, PAGE_W, 92)
-    T.RowLabel(card, "Spell", 12, -32)
+    local card = Card(p, L["Add a spell"], 0, 0, PAGE_W, 92)
+    T.RowLabel(card, L["Spell"], 12, -32)
     local box = T.EditBox(card, 220)
     box:SetPoint("TOPLEFT", DROP_X, -30)
     box:SetMaxLetters(60)
-    local add = FlatButton(card, "Add", 80)
+    local add = FlatButton(card, L["Add"], 80)
     add:SetPoint("LEFT", box, "RIGHT", 8, 0)
-    T.Tooltip(add, nil, "Puts the spell on the list below. Then hide it, or give it a color of its own.")
-    CardNote(card, "Type the name as it shows on your hits and heals, like Ferocious Bite. It works on what you do, "
-        .. "and your pet.", -62)
+    T.Tooltip(add, nil, L["Puts the spell on the list below. Then hide it, or give it a color of its own."])
+    CardNote(card, L["Type the name as it shows on your hits and heals, like Ferocious Bite. It works on what you do, "
+        .. "and your pet."], -62)
     refs.spellBox, refs.spellAdd = box, add
 
     local listH = T.WINDOW.BODY_H - 102
-    local list = Card(p, "Your spells", 0, -102, PAGE_W, listH)
+    local list = Card(p, L["Your spells"], 0, -102, PAGE_W, listH)
     local holder = CreateFrame("Frame", nil, list)
     holder:SetPoint("TOPLEFT", 12, -30)
     holder:SetPoint("BOTTOMRIGHT", -6, 10)
     local viewH = listH - 40
     local scroll = T.ScrollArea(holder, viewH)
-    local empty = Text(list, "Nothing on the list yet.", "GameFontHighlightSmall", C.muted)
+    local empty = Text(list, L["Nothing on the list yet."], "GameFontHighlightSmall", C.muted)
     empty:SetPoint("TOPLEFT", 12, -34)
     local rows = {}
     refs.spellRows = rows
@@ -616,19 +617,19 @@ local function BuildSpells(p, refs)
         row.name:SetPoint("LEFT", 2, 0)
         row.name:SetWidth(220)
         row.name:SetJustifyH("LEFT")
-        row.hide = T.LabeledSwitch(row, "Hide", 232, -4)
+        row.hide = T.LabeledSwitch(row, L["Hide"], 232, -4)
         row.hide:SetScript("OnClick", function(self)
             BT:SetSpellRule(row.rule, "hide", not self:IsOn())
             self:SetOn(row.rule.hide)
             row.swatch:SetAlpha(row.rule.hide and 0.4 or 1)
         end)
-        T.Tooltip(row.hide, "Hide", "Its hits, heals and misses aren't shown. They still count in the fight summary.")
+        T.Tooltip(row.hide, L["Hide"], L["Its hits, heals and misses aren't shown. They still count in the fight summary."])
         local sw = CreateFrame("Button", nil, row)
         sw:SetSize(30, 16)
         sw:SetPoint("LEFT", 330, 0)
         sw.fill = T.Fill(sw, { 1, 1, 1, 1 }, "ARTWORK")
         T.Border(sw, C.edge)
-        sw.label = Text(row, "Color", "GameFontHighlight")
+        sw.label = Text(row, L["Color"], "GameFontHighlight")
         sw.label:SetPoint("LEFT", sw, "RIGHT", 8, 0)
         T.ClickableLabel(sw, sw.label)
         sw:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -648,9 +649,9 @@ local function BuildSpells(p, refs)
                 render()
             end)
         end)
-        T.Tooltip(sw, "Color", "Click to pick this spell's own color. Right-click: its usual color again.")
+        T.Tooltip(sw, L["Color"], L["Click to pick this spell's own color. Right-click: its usual color again."])
         row.swatch = sw
-        row.remove = FlatButton(row, "Remove", 70)
+        row.remove = FlatButton(row, L["Remove"], 70)
         row.remove:SetPoint("RIGHT", -4, 0)
         row.remove:SetScript("OnClick", function()
             for j, r in ipairs(BT.db.spellRules) do
@@ -672,7 +673,7 @@ local function BuildSpells(p, refs)
             local c = rule.color or BT.TEXT_COLORS.spell
             row.swatch.fill:SetColorTexture(c[1], c[2], c[3], 1)
             row.swatch:SetAlpha(rule.hide and 0.4 or 1)
-            row.swatch.label:SetText(rule.color and "Color" or "Usual color")
+            row.swatch.label:SetText(rule.color and L["Color"] or L["Usual color"])
             row:Show()
         end
         for i = #rules + 1, #rows do rows[i]:Hide() end
@@ -696,16 +697,16 @@ end
 
 -- Tab icons are the game's own icon files
 local TABS = {
-    { key = "general",  label = "General",       icon = "Interface\\Icons\\INV_Misc_Gear_01",                build = BuildGeneral },
-    { key = "text",     label = "Text",          icon = "Interface\\Icons\\INV_Misc_Note_01",                build = BuildText },
-    { key = "scroll",   label = "Motion",        icon = "Interface\\Icons\\INV_Misc_Spyglass_03",            build = BuildMotion },
-    { key = "outgoing", label = "Outgoing",      icon = "Interface\\Icons\\INV_Sword_04",                    build = BuildOutgoing },
-    { key = "incoming", label = "Incoming",      icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance", build = BuildIncoming },
-    { key = "healing",  label = "Healing",       icon = "Interface\\Icons\\Spell_Holy_Heal",                 build = BuildHealing },
-    { key = "notify",   label = "Notifications", icon = "Interface\\Icons\\INV_Misc_Bag_08",                 build = BuildNotifications },
-    { key = "layout",   label = "Layout",        icon = "Interface\\Icons\\INV_Misc_Map_01",                 build = BuildLayout },
-    { key = "spells",   label = "Spells",        icon = "Interface\\Icons\\INV_Misc_Book_09",                build = BuildSpells },
-    { key = "colors",   label = "Colors",        icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",         build = BuildColors },
+    { key = "general",  label = L["General"],       icon = "Interface\\Icons\\INV_Misc_Gear_01",                build = BuildGeneral },
+    { key = "text",     label = L["Text"],          icon = "Interface\\Icons\\INV_Misc_Note_01",                build = BuildText },
+    { key = "scroll",   label = L["Motion"],        icon = "Interface\\Icons\\INV_Misc_Spyglass_03",            build = BuildMotion },
+    { key = "outgoing", label = L["Outgoing"],      icon = "Interface\\Icons\\INV_Sword_04",                    build = BuildOutgoing },
+    { key = "incoming", label = L["Incoming"],      icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance", build = BuildIncoming },
+    { key = "healing",  label = L["Healing"],       icon = "Interface\\Icons\\Spell_Holy_Heal",                 build = BuildHealing },
+    { key = "notify",   label = L["Notifications"], icon = "Interface\\Icons\\INV_Misc_Bag_08",                 build = BuildNotifications },
+    { key = "layout",   label = L["Layout"],        icon = "Interface\\Icons\\INV_Misc_Map_01",                 build = BuildLayout },
+    { key = "spells",   label = L["Spells"],        icon = "Interface\\Icons\\INV_Misc_Book_09",                build = BuildSpells },
+    { key = "colors",   label = L["Colors"],        icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",         build = BuildColors },
 }
 BT.CONFIG_TABS = TABS
 
@@ -718,7 +719,7 @@ function BT:BuildConfig()
     local win = T.Window({
         name = "BattleTextForeverOptions",
         tabs = tabs,
-        hint = "/btf to open  -  /btf test for sample text",
+        hint = L["/btf to open  -  /btf test for sample text"],
         version = function()
             local get = C_AddOns and C_AddOns.GetAddOnMetadata
             local v = get and get(ADDON, "Version")
@@ -787,15 +788,15 @@ local function TextWindow()
     local f = Popup("BattleTextForeverCopy", COPY_W, COPY_H)
     local header, close = f.header, f.close
     -- Share settings' Import: takes what's in the box, and whether to take their area positions too
-    f.action = FlatButton(header, "Import", 80, 24)
+    f.action = FlatButton(header, L["Import"], 80, 24)
     f.action:SetPoint("RIGHT", close, "LEFT", -8, 0)
     f.action:Hide()
-    f.positions = T.LabeledSwitch(header, "Positions too", 0, 0)
+    f.positions = T.LabeledSwitch(header, L["Positions too"], 0, 0)
     f.positions:ClearAllPoints()
     f.positions:SetPoint("RIGHT", f.action, "LEFT", -112, 0)
     f.positions:SetScript("OnClick", function(self) self:SetOn(not self:IsOn()) end)
-    T.Tooltip(f.positions, "Positions too",
-        "Also move your text areas to where they were on their screen. Off: yours stay where they are.")
+    T.Tooltip(f.positions, L["Positions too"],
+        L["Also move your text areas to where they were on their screen. Off: yours stay where they are."])
     f.positions:Hide()
     f.positions.label:Hide()
 
@@ -838,41 +839,41 @@ function BT:ShowTextWindow(title, text, rows, action)
 end
 
 function BT:OpenCopyWindow()
-    local text = "Nothing recorded yet. Type /btf debug, fight for a moment, then /btf copy."
+    local text = L["Nothing recorded yet. Type /btf debug, fight for a moment, then /btf copy."]
     local count = 1
     if self.recorded and #self.recorded > 0 then
         -- A hidden value can't be joined into the text (issue #23): it's left as a note
         local lines = {}
         for i, line in ipairs(self.recorded) do
-            lines[i] = self.Str(line) or "(a line with a hidden value)"
+            lines[i] = self.Str(line) or L["(a line with a hidden value)"]
         end
         -- "|" doubled, so the links show as text instead of turning into links
         text = (table.concat(lines, "\n"):gsub("|", "||"))
         count = #self.recorded
     end
     -- Long lines wrap, so leave room for about two rows each
-    self:ShowTextWindow("Combat lines: press Ctrl+C to copy, then paste into your report", text, count)
+    self:ShowTextWindow(L["Combat lines: press Ctrl+C to copy, then paste into your report"], text, count)
 end
 
 -- mode: "export" (your settings, to copy) or "import" (paste, then click Import)
 function BT:OpenShareWindow(mode)
     if mode == "export" then
-        self:ShowTextWindow("Your settings: press Ctrl+C to copy, then share them", self:ExportSettings(), 8)
+        self:ShowTextWindow(L["Your settings: press Ctrl+C to copy, then share them"], self:ExportSettings(), 8)
         return
     end
     local f
-    f = self:ShowTextWindow("Paste settings with Ctrl+V, then click Import", "", 8, function()
+    f = self:ShowTextWindow(L["Paste settings with Ctrl+V, then click Import"], "", 8, function()
         local t, count = BT:ReadSettings(f.edit:GetText())
         if not t then
-            BT.Print("couldn't import: " .. count .. ".")
+            BT.Print(L["couldn't import: %s."]:format(count))
             return
         end
-        local whose = BT:OwnSettings() and "this character's own settings" or "the settings every character shares"
+        local whose = BT:OwnSettings() and L["this character's own settings"] or L["the settings every character shares"]
         local positions = f.positions:IsOn()
-        BT:Confirm(("Replace %s with these (%d settings)?%s"):format(whose, count,
-            positions and " Your text areas move to their places too." or ""), "Import", function()
+        BT:Confirm((L["Replace %s with these (%d settings)?%s"]):format(whose, count,
+            positions and L[" Your text areas move to their places too."] or ""), L["Import"], function()
             BT:TakeSettings(t, positions)
-            BT.Print("settings imported.")
+            BT.Print(L["settings imported."])
             f:Hide()
         end)
     end)
@@ -884,8 +885,8 @@ end
 local LAST_W, LAST_H, LAST_ROW = 620, 420, 20
 -- The columns after the spell's name: heading, the row's field, where its right edge is
 local LAST_COLUMNS = {
-    { "Hits", "hits", 340 }, { "Crits", "crits", 395 }, { "Total", "total", 470 },
-    { "Share", "share", 520 }, { "Biggest", "biggest", 578 },
+    { L["Hits"], "hits", 340 }, { L["Crits"], "crits", 395 }, { L["Total"], "total", 470 },
+    { L["Share"], "share", 520 }, { L["Biggest"], "biggest", 578 },
 }
 
 function BT:OpenLastFight()
@@ -911,19 +912,19 @@ function BT:OpenLastFight()
     local list = {}
     local rows, fight = self:FightBreakdown()
     if fight then
-        f.title:SetText("Last fight: " .. self:FightLine(fight))
+        f.title:SetText(L["Last fight: %s"]:format(self:FightLine(fight)))
         local kind
         for _, s in ipairs(rows) do
             if s.heal ~= kind then
                 kind = s.heal
-                list[#list + 1] = { heading = kind and "Healing" or "Damage" }
+                list[#list + 1] = { heading = kind and L["Healing"] or L["Damage"] }
             end
             list[#list + 1] = s
         end
-        if #rows == 0 then list[1] = { note = "No numbers the game let BattleText read." } end
+        if #rows == 0 then list[1] = { note = L["No numbers the game let BattleText read."] } end
     else
-        f.title:SetText("Last fight")
-        list[1] = { note = "No fight yet. Fight something, then type /btf last again." }
+        f.title:SetText(L["Last fight"])
+        list[1] = { note = L["No fight yet. Fight something, then type /btf last again."] }
     end
     for i, item in ipairs(list) do
         local row = f.rows[i] or { cells = {} }

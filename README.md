@@ -131,6 +131,10 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
 
 Found a bug or have an idea? Please [submit it on GitHub](https://github.com/severd8/battletextforever/issues/new/choose). A short form asks for your class, your Combat Log filter and any error message. You'll need a free GitHub account. Otherwise, feel free to leave a comment on the CurseForge page.
 
+## Translations
+
+BattleText shows its options, chat messages and on-screen words in your game's language when a translation is in (spell and item names always are, since they come from the game). Anything not translated yet shows in English. Korean is in progress. To help with your language, fill in a copy of `Locales/koKR.lua` (each line is the English text, then yours after the `=`) and send it on CurseForge or GitHub.
+
 ## Support the addon
 
 BattleText Forever is free. If you enjoy it, you can [leave a small tip on Ko-fi](https://ko-fi.com/tauntmasterforever). Thank you!

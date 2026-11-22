@@ -667,7 +667,7 @@ function T.Window(opts)
     fline:SetColorTexture(unpack(C.line))
     local hint = Text(foot, opts.hint or "", "GameFontDisableSmall")
     hint:SetPoint("LEFT", 14, 0)
-    local close = FlatButton(foot, "Close", 90)
+    local close = FlatButton(foot, type(CLOSE) == "string" and CLOSE or "Close", 90)   -- (the game's word, in its language)
     close:SetPoint("RIGHT", -14, 0)
     close:SetScript("OnClick", function() win:Hide() end)
     win.footer = foot

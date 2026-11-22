@@ -11,6 +11,8 @@
 ## X-Category: Combat
 
 Theme.lua
+Locales\Locales.lua
+Locales\koKR.lua
 Parse.lua
 Core.lua
 Options.lua

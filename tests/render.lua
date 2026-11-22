@@ -93,6 +93,8 @@ local function load_file(path)
     assert(loadstring(src, "@" .. path))(ADDON, ns)
 end
 load_file("Theme.lua")
+load_file("Locales/Locales.lua")
+load_file("Locales/koKR.lua")
 load_file("Parse.lua")
 load_file("Core.lua")
 load_file("Options.lua")

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.31.0
+
+- **BattleText can now be translated.** Every word BattleText writes itself (the options window, the text on screen like "Killing blow!" and "Low mana!", the fight summary, chat messages and tooltips) can now be shown in your game's language. Spell, item and player names were already in your language, since they come from the game. Korean is the first language being worked on (thanks to the Korean player on CurseForge who offered to translate). Until a translation is in, everything shows in English as before.
+- **Want BattleText in your language?** The file to fill in is `Locales/koKR.lua` in the addon folder (or on GitHub). Copy it, write your language's text after each `=`, and send it on CurseForge or GitHub. Lines you leave empty stay in English, so a half-done translation works too.
+
 ## 1.30.0
 
 - **Frostfire Bolt is named.** BattleText didn't know Frostfire Bolt, so its hit and the burn it leaves showed as bare numbers with no name or icon. It's now known as a spell that lands a moment after the cast, and its burn ticks are named too.

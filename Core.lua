@@ -9,6 +9,8 @@ ns.BT = BT
 local Parser = ns.Parser
 -- The look is the shared one of severd8's Forever addons (Theme.lua, loaded first)
 local T = ns.Theme
+-- The addon's own text in the player's language (Locales\Locales.lua): L["English"]
+local L = ns.L
 
 BT.ICON = T.LOGO
 BT.LOGO_TEXT = "|T" .. BT.ICON .. ":0|t"
@@ -42,15 +44,15 @@ for k, c in pairs(BT.TEXT_COLORS) do BT.DEFAULT_COLORS[k] = { c[1], c[2], c[3] }
 -- The colors you can change, in the order the options list them
 -- (by area: outgoing, incoming, heals, notifications; two columns, read across)
 BT.COLOR_CHOICES = {
-    { "melee", "Your hits" }, { "spell", "Your spells" },
-    { "miss", "Your misses" }, { "inDamage", "Damage you take" },
-    { "inAvoid", "Attacks you avoid" }, { "power", "Power gains" },
-    { "heal", "Heals" }, { "notify", "Notifications" },
-    { "combat", "+Combat and killing blows" }, { "xp", "Experience" },
-    { "loot", "Loot" }, { "seal", "Seals" },
-    { "buff", "Buffs" }, { "alert", "Ability alerts" },
-    { "combo", "Combo points" }, { "dispel", "Dispels" },
-    { "lowHealth", "Low health" }, { "lowMana", "Low mana" },
+    { "melee", L["Your hits"] }, { "spell", L["Your spells"] },
+    { "miss", L["Your misses"] }, { "inDamage", L["Damage you take"] },
+    { "inAvoid", L["Attacks you avoid"] }, { "power", L["Power gains"] },
+    { "heal", L["Heals"] }, { "notify", L["Notifications"] },
+    { "combat", L["+Combat and killing blows"] }, { "xp", L["Experience"] },
+    { "loot", L["Loot"] }, { "seal", L["Seals"] },
+    { "buff", L["Buffs"] }, { "alert", L["Ability alerts"] },
+    { "combo", L["Combo points"] }, { "dispel", L["Dispels"] },
+    { "lowHealth", L["Low health"] }, { "lowMana", L["Low mana"] },
 }
 -- Spell damage is tinted by its school (the game's own words for them)
 local SCHOOL_KEYS = {
@@ -191,31 +193,31 @@ BT.FONTS = {
 
 -- How thick the outline round the letters is: the game's font flags
 BT.OUTLINES = {
-    { name = "None", flags = "" },
-    { name = "Thin", flags = "OUTLINE" },
-    { name = "Thick", flags = "THICKOUTLINE" },
-    { name = "Shadow", flags = "SHADOW" },   -- no outline: a drop shadow
+    { name = L["None"], flags = "" },
+    { name = L["Thin"], flags = "OUTLINE" },
+    { name = L["Thick"], flags = "THICKOUTLINE" },
+    { name = L["Shadow"], flags = "SHADOW" },   -- no outline: a drop shadow
 }
 
 -- Which side the lines in an area line up on
 BT.ALIGNS = {
-    { key = "LEFT", name = "Left" }, { key = "CENTER", name = "Center" }, { key = "RIGHT", name = "Right" },
+    { key = "LEFT", name = L["Left"] }, { key = "CENTER", name = L["Center"] }, { key = "RIGHT", name = L["Right"] },
 }
 
 -- How the lines in an area move
 BT.STYLES = {
-    { key = "scroll", name = "Scroll" },           -- up or down the area, one after another
-    { key = "pop", name = "Pop" },                 -- jump out somewhere in the area and fade
-    { key = "fountain", name = "Fountain" },       -- thrown up and falling to one side
-    { key = "horizontal", name = "Horizontal" },   -- slide sideways, away from the middle
+    { key = "scroll", name = L["Scroll"] },           -- up or down the area, one after another
+    { key = "pop", name = L["Pop"] },                 -- jump out somewhere in the area and fade
+    { key = "fountain", name = L["Fountain"] },       -- thrown up and falling to one side
+    { key = "horizontal", name = L["Horizontal"] },   -- slide sideways, away from the middle
 }
 
 -- Scroll areas. dir: which way a curved line bows (-1 left, 1 right, 0 none).
 BT.AREAS = {
-    incoming = { label = "Incoming", dir = -1, justify = "RIGHT", prefix = "in" },
-    outgoing = { label = "Outgoing", dir = 1, justify = "LEFT", prefix = "out" },
-    notify   = { label = "Notifications", dir = 0, justify = "CENTER", short = true, prefix = "n" },
-    heal     = { label = "Healing", dir = 0, justify = "CENTER", heightScale = 0.6, prefix = "heal" },
+    incoming = { label = "Incoming", title = L["Incoming"], dir = -1, justify = "RIGHT", prefix = "in" },
+    outgoing = { label = "Outgoing", title = L["Outgoing"], dir = 1, justify = "LEFT", prefix = "out" },
+    notify   = { label = "Notifications", title = L["Notifications"], dir = 0, justify = "CENTER", short = true, prefix = "n" },
+    heal     = { label = "Healing", title = L["Healing"], dir = 0, justify = "CENTER", heightScale = 0.6, prefix = "heal" },
 }
 local AREA_WIDTH = 60        -- how far a curved line bows out
 local MAX_DELAY = 1.2        -- a line never waits longer than this for room
@@ -412,7 +414,7 @@ function BT:BuildAreas()
         mover.header:SetPoint("TOPLEFT")
         mover.header:SetPoint("TOPRIGHT")
         mover.header:SetHeight(18)
-        T.HeaderStrip(mover.header, def.label)
+        T.HeaderStrip(mover.header, def.title)
         mover.header:FitLogo(18)
         mover.label = mover.header.text
         mover:EnableMouse(true)
@@ -535,14 +537,14 @@ end
 
 -- The kinds of text, and the area each shows in to start with (Layout tab)
 BT.ROUTES = {
-    { key = "OutDamage", name = "Your hits", usual = "outgoing" },
-    { key = "OutMisses", name = "Your misses", usual = "outgoing" },
-    { key = "OutHeals", name = "Heals you do", usual = "heal" },
-    { key = "InDamage", name = "Damage you take", usual = "incoming" },
-    { key = "InMisses", name = "Attacks you avoid", usual = "incoming" },
-    { key = "InHeals", name = "Heals you get", usual = "heal" },
-    { key = "InPower", name = "Power gains", usual = "incoming" },
-    { key = "Notify", name = "Notifications", usual = "notify" },
+    { key = "OutDamage", name = L["Your hits"], usual = "outgoing" },
+    { key = "OutMisses", name = L["Your misses"], usual = "outgoing" },
+    { key = "OutHeals", name = L["Heals you do"], usual = "heal" },
+    { key = "InDamage", name = L["Damage you take"], usual = "incoming" },
+    { key = "InMisses", name = L["Attacks you avoid"], usual = "incoming" },
+    { key = "InHeals", name = L["Heals you get"], usual = "heal" },
+    { key = "InPower", name = L["Power gains"], usual = "incoming" },
+    { key = "Notify", name = L["Notifications"], usual = "notify" },
 }
 
 -- The area a kind of text shows in ("OutDamage", "Notify"... as in BT.ROUTES)
@@ -632,7 +634,7 @@ function BT:Emit(areaKey, text, color, opts)
             r.count, r.time = r.count + 1, now
             if hidden then
                 r.line.text:SetFormattedText("%s%s%s", text, opts.secret,
-                    (opts.after or "") .. " |cffb0b0b0(" .. r.count .. " hits)|r")
+                    (opts.after or "") .. " |cffb0b0b0(" .. L["%s hits"]:format(r.count) .. ")|r")
             else
                 r.total = r.total + opts.amount
                 r.line.text:SetText(opts.format(r.total, r.count))
@@ -951,11 +953,11 @@ end
 -- "(3 blocked)" style notes after a number
 local function Partials(info, noBlocked)
     local parts = {}
-    if info.blocked and not noBlocked then parts[#parts + 1] = Commas(info.blocked) .. " blocked" end
-    if info.absorbed then parts[#parts + 1] = Commas(info.absorbed) .. " absorbed" end
-    if info.resisted then parts[#parts + 1] = Commas(info.resisted) .. " resisted" end
-    if info.glancing then parts[#parts + 1] = "glancing" end
-    if info.crushing then parts[#parts + 1] = "crushing" end
+    if info.blocked and not noBlocked then parts[#parts + 1] = L["%s blocked"]:format(Commas(info.blocked)) end
+    if info.absorbed then parts[#parts + 1] = L["%s absorbed"]:format(Commas(info.absorbed)) end
+    if info.resisted then parts[#parts + 1] = L["%s resisted"]:format(Commas(info.resisted)) end
+    if info.glancing then parts[#parts + 1] = L["glancing"] end
+    if info.crushing then parts[#parts + 1] = L["crushing"] end
     if #parts == 0 then return "" end
     return " |cffb0b0b0(" .. table.concat(parts, ", ") .. ")|r"
 end
@@ -991,7 +993,7 @@ function BT:PetName()
     end
     local kept = self.petName
     if kept and (not guid or not kept.guid or kept.guid == guid) then return kept.name end
-    return "Pet"
+    return L["Pet"]
 end
 
 -- The mark in front of your pet's hits: "(Fluffy) "
@@ -1056,11 +1058,11 @@ end
 
 -- What to call a hit nothing named, for /btf last: a physical one is a swing, the rest by school
 local function UnnamedHit(mask)
-    if not mask or mask == 1 then return "Auto attack" end
+    if not mask or mask == 1 then return L["Auto attack"] end
     for i, school in ipairs(SCHOOL_KEYS) do
-        if 2 ^ i == mask then return "Unnamed " .. (Str(_G[school[1]]) or school[2]) end
+        if 2 ^ i == mask then return L["Unnamed %s"]:format(Str(_G[school[1]]) or school[2]) end
     end
-    return "Unnamed"
+    return L["Unnamed"]
 end
 
 -- The last fight by spell: damage first, then heals, each biggest total first, with each
@@ -1086,10 +1088,10 @@ end
 function BT:FightLine(f)
     local parts = {}
     if f.damage > 0 then
-        parts[#parts + 1] = Commas(f.damage) .. " damage (" .. Commas(math.floor(f.damage / f.secs + 0.5)) .. " DPS)"
+        parts[#parts + 1] = L["%s damage (%s DPS)"]:format(Commas(f.damage), Commas(math.floor(f.damage / f.secs + 0.5)))
     end
-    if f.heal > 0 then parts[#parts + 1] = Commas(f.heal) .. " healed" end
-    return table.concat(parts, ", ") .. " in " .. f.secs .. "s"
+    if f.heal > 0 then parts[#parts + 1] = L["%s healed"]:format(Commas(f.heal)) end
+    return L["%s in %ss"]:format(table.concat(parts, ", "), f.secs)
 end
 
 function BT:FightSummary()
@@ -1105,24 +1107,24 @@ end
 -- name. Forever may not have every one of them: a sound it lacks plays the
 -- fallback (FALLBACK_SOUNDS) instead.
 BT.SOUNDS = {
-    { key = "UI_PROFESSION_CRAFTING_RESULT_CRIT", name = "Crafting crit" },
-    { key = "UI_73_ARTIFACT_OVERLOADED_ORB_IMPACT_MEDIUM", name = "Impact" },
-    { key = "UI_73_ARTIFACT_OVERLOADED_ORB_IMPACT_LOW", name = "Low impact" },
-    { key = "UI_REFORGING_REFORGE", name = "Anvil" },
-    { key = "UI_POWER_AURA_GENERIC", name = "Power up" },
-    { key = "UI_LOSS_OF_CONTROL_START", name = "Whoosh" },
-    { key = "MAP_PING", name = "Ping" },
-    { key = "LOOT_WINDOW_COIN_SOUND", name = "Coins" },
-    { key = "RAID_WARNING", name = "Raid warning" },
-    { key = "READY_CHECK", name = "Ready check" },
-    { key = "PVP_THROUGH_QUEUE", name = "Battle horn" },
-    { key = "UI_BATTLEGROUND_COUNTDOWN_FINISHED", name = "Countdown end" },
-    { key = "IG_QUEST_LIST_COMPLETE", name = "Quest complete" },
-    { key = "UI_RAID_BOSS_DEFEATED", name = "Boss defeated" },
-    { key = "UI_MISSION_SUCCESS_CHEERS", name = "Cheers" },
-    { key = "UI_CHALLENGES_NEW_RECORD", name = "New record" },
-    { key = "UI_EPICLOOT_TOAST", name = "Epic loot" },
-    { key = "UI_LEGENDARY_LOOT_TOAST", name = "Legendary loot" },
+    { key = "UI_PROFESSION_CRAFTING_RESULT_CRIT", name = L["Crafting crit"] },
+    { key = "UI_73_ARTIFACT_OVERLOADED_ORB_IMPACT_MEDIUM", name = L["Impact"] },
+    { key = "UI_73_ARTIFACT_OVERLOADED_ORB_IMPACT_LOW", name = L["Low impact"] },
+    { key = "UI_REFORGING_REFORGE", name = L["Anvil"] },
+    { key = "UI_POWER_AURA_GENERIC", name = L["Power up"] },
+    { key = "UI_LOSS_OF_CONTROL_START", name = L["Whoosh"] },
+    { key = "MAP_PING", name = L["Ping"] },
+    { key = "LOOT_WINDOW_COIN_SOUND", name = L["Coins"] },
+    { key = "RAID_WARNING", name = L["Raid warning"] },
+    { key = "READY_CHECK", name = L["Ready check"] },
+    { key = "PVP_THROUGH_QUEUE", name = L["Battle horn"] },
+    { key = "UI_BATTLEGROUND_COUNTDOWN_FINISHED", name = L["Countdown end"] },
+    { key = "IG_QUEST_LIST_COMPLETE", name = L["Quest complete"] },
+    { key = "UI_RAID_BOSS_DEFEATED", name = L["Boss defeated"] },
+    { key = "UI_MISSION_SUCCESS_CHEERS", name = L["Cheers"] },
+    { key = "UI_CHALLENGES_NEW_RECORD", name = L["New record"] },
+    { key = "UI_EPICLOOT_TOAST", name = L["Epic loot"] },
+    { key = "UI_LEGENDARY_LOOT_TOAST", name = L["Legendary loot"] },
 }
 local FALLBACK_SOUNDS = { crit = "MAP_PING", kill = "IG_QUEST_LIST_COMPLETE", lowHealth = "MAP_PING",
     lowMana = "MAP_PING" }
@@ -1167,8 +1169,8 @@ end
 function BT:SetAlertSound(what, key)
     self.db[what .. "Sound"] = key
     if not PlayKit(key) then
-        Print(self:SoundName(key) .. " isn't in this game's sounds. Pick another: "
-            .. "until then, " .. self:SoundName(FALLBACK_SOUNDS[what]) .. " plays instead.")
+        Print(L["%s isn't in this game's sounds. Pick another: until then, %s plays instead."]:format(
+            self:SoundName(key), self:SoundName(FALLBACK_SOUNDS[what])))
     end
 end
 
@@ -1225,9 +1227,9 @@ function BT:Warn(what)
     self.warnedAt[what] = now
     local C = self.TEXT_COLORS
     if what == "lowHealth" then
-        self:Notify("Low health!", C.lowHealth, { crit = true })
+        self:Notify(L["Low health!"], C.lowHealth, { crit = true })
     else
-        self:Notify("Low mana!", C.lowMana, { crit = true })
+        self:Notify(L["Low mana!"], C.lowMana, { crit = true })
     end
     self:PlayAlert(what)
 end
@@ -1315,7 +1317,7 @@ function BT:UpdateManaSign(hidden)
         sign.text:SetFont(STANDARD_TEXT_FONT, size, flags)
     end
     -- (the text only after its font: a new font string has none, and SetText on it is an error)
-    sign.text:SetText("Low mana")
+    sign.text:SetText(L["Low mana"])
     local c = self.TEXT_COLORS.lowMana
     sign.text:SetTextColor(c[1], c[2], c[3])
     sign:SetAlpha(alpha)   -- (a hidden number: only the game reads it)
@@ -1357,7 +1359,7 @@ function BT:ShowCombat(info)
             return true
         elseif (mine or pet) and not info.split then
             self:CountFight("damage", info.amount)
-            self:CountSpell(petTag .. (info.spell or "Auto attack"), info.amount, info.crit, false,
+            self:CountSpell(petTag .. (info.spell or L["Auto attack"]), info.amount, info.crit, false,
                 spellIcon)
             if pet and not db.outPet then return true end
             if mine and (info.melee or self:IsRangedName(info.spell)) and not db.outSwings then return true end
@@ -1382,7 +1384,7 @@ function BT:ShowCombat(info)
         end
     elseif info.kind == "heal" then
         if not info.amount then return false end
-        local over = (db.healOver and info.overheal) and (" |cffb0b0b0(" .. Commas(info.overheal) .. " over)|r") or ""
+        local over = (db.healOver and info.overheal) and (" |cffb0b0b0(" .. L["%s over"]:format(Commas(info.overheal)) .. ")|r") or ""
         local nothing = info.amount == 0 and info.overheal   -- all of it was overhealing
         local rule = (mine or pet) and self:SpellRule(info.spell) or nil
         local healColor = rule and rule.color or C.heal
@@ -1390,7 +1392,7 @@ function BT:ShowCombat(info)
             if mine then
                 self:NoteSelfHeal(info.amount, info.overheal)
                 self:CountFight("heal", info.amount)
-                self:CountSpell(info.spell or "Unnamed heal", info.amount, info.crit, true, spellIcon)
+                self:CountSpell(info.spell or L["Unnamed heal"], info.amount, info.crit, true, spellIcon)
             elseif not pet then
                 self:NoteLogIncoming("heal")   -- (your pet's heal on you comes with "My actions" + Pet)
             end
@@ -1405,7 +1407,7 @@ function BT:ShowCombat(info)
             return true
         elseif mine or pet then
             self:CountFight("heal", info.amount)
-            self:CountSpell(petTag .. (info.spell or "Unnamed heal"), info.amount, info.crit, true,
+            self:CountSpell(petTag .. (info.spell or L["Unnamed heal"]), info.amount, info.crit, true,
                 spellIcon)
             if pet and not db.outPet then return true end
             if rule and rule.hide then return true end
@@ -1449,7 +1451,7 @@ function BT:ShowCombat(info)
     elseif info.kind == "kill" then
         if mine then
             if db.soundKill then self:PlayAlert("kill") end
-            if db.nKill then self:Notify("Killing blow!", C.combat, { crit = true }) end
+            if db.nKill then self:Notify(L["Killing blow!"], C.combat, { crit = true }) end
             return true
         end
     end
@@ -1606,7 +1608,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             self:Queue({ blow = true })   -- (a blow that landed: see the hit for nothing, below)
             if self:LogCovers("damage") or not db.inDamage then return end
             -- Partly blocked: the game says so (BLOCK_REDUCED) but not by how much
-            local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(blocked)|r" or ""
+            local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(" .. L["blocked"] .. ")|r" or ""
             if secret then
                 self:Emit(self:Area("InDamage"), "-", C.inDamage, { crit = crit, secret = amount,
                     after = note ~= "" and note or nil })
@@ -2334,7 +2336,7 @@ function BT:CooldownReady(id)
     local rule = self:SpellRule(name)
     if rule and rule.hide then return end
     local icon = self.db.nIcons and self:IconText(id) or ""
-    self:Notify(icon .. name .. " ready", (rule and rule.color) or self.TEXT_COLORS.alert)
+    self:Notify(icon .. L["%s ready"]:format(name), (rule and rule.color) or self.TEXT_COLORS.alert)
 end
 
 ---------------------------------------------------------------------------
@@ -2398,7 +2400,7 @@ function BT:OnInterrupted(unit, castGUID, spellId, interruptedBy)
     local id = Num(spellId)
     local name = id and SpellName(id)
     local icon = self.db.nIcons and self:IconText(id or (kick and kick.id)) or ""
-    local text = (pet and self:PetLabel() or "") .. (name and ("Interrupted " .. name) or "Interrupted!")
+    local text = (pet and self:PetLabel() or "") .. (name and L["Interrupted %s"]:format(name) or L["Interrupted!"])
     self:Notify(icon .. text, self.TEXT_COLORS.alert, { crit = true })
 end
 
@@ -2414,9 +2416,10 @@ function BT:ShowDispel(info, mine, pet)
     if not self.db.nDispels then return true end
     local rule = self:SpellRule(info.spell)
     if rule and rule.hide then return true end
-    local word = info.stolen and "Stole" or (info.aura == "BUFF" and not info.toMe) and "Purged" or "Dispelled"
+    local word = info.stolen and L["Stole %s"] or (info.aura == "BUFF" and not info.toMe) and L["Purged %s"]
+        or L["Dispelled %s"]
     local icon = self.db.nIcons and self:IconText(info.extraSpellId or what) or ""
-    self:Notify(icon .. (pet and self:PetLabel() or "") .. word .. " " .. what, self.TEXT_COLORS.dispel)
+    self:Notify(icon .. (pet and self:PetLabel() or "") .. word:format(what), self.TEXT_COLORS.dispel)
     return true
 end
 
@@ -2593,9 +2596,9 @@ function BT:OnComboPoints()
     self.combo = n
     if not self.db.nCombo or n <= was then return end
     if n >= most then
-        self:Notify(n .. " CP: Finish it!", self.TEXT_COLORS.combo, { crit = true })
+        self:Notify(L["%d CP: Finish it!"]:format(n), self.TEXT_COLORS.combo, { crit = true })
     else
-        self:Notify(n .. " CP", self.TEXT_COLORS.combo)
+        self:Notify(L["%d CP"]:format(n), self.TEXT_COLORS.combo)
     end
 end
 
@@ -2617,9 +2620,9 @@ end
 -- Adds a spell to the Spells tab's list. Returns the rule, or nil and why not.
 function BT:AddSpellRule(name)
     name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
-    if name == "" then return nil, "type a spell's name first" end
-    if #name > 60 then return nil, "that name is too long" end
-    if self:SpellRule(name) then return nil, name .. " is already on the list" end
+    if name == "" then return nil, L["type a spell's name first"] end
+    if #name > 60 then return nil, L["that name is too long"] end
+    if self:SpellRule(name) then return nil, L["%s is already on the list"]:format(name) end
     local rule = { name = name, hide = false }
     table.insert(self.db.spellRules, rule)
     self.rulesByName = nil
@@ -3115,7 +3118,7 @@ function BT:SwingOwner(h, hand)
     if hand ~= nil then return nil end
     if self:HawkOn(h) then
         if PetOn(h.unit) then return self:PetLabel() end
-        return "(Hawk) "
+        return L["(Hawk)"] .. " "
     end
     local whose = self:NotYourSwing(h)
     if whose == "pet" then return self:PetLabel() end
@@ -3766,12 +3769,12 @@ end
 
 -- /btf gear: what BattleText read from each item you wear, for a player to paste in a bug report
 function BT:ReportGear()
-    if InCombatLockdown() then Print("gear can't be read in a fight. Try again after it.") return end
+    if InCombatLockdown() then Print(L["gear can't be read in a fight. Try again after it."]) return end
     local report = { "game language " .. Locale() }
     self:ScanItemShields(report)
     self.recorded = {}
     for _, text in ipairs(report) do self:Record(text) end
-    Print("gear read. Type /btf copy to copy what was found.")
+    Print(L["gear read. Type /btf copy to copy what was found."])
     return report
 end
 
@@ -4843,7 +4846,7 @@ function BT:ShowUnitHit(h, what, spell, area)
     if h.kind == "damage" or h.kind == "heal" then
         self:CountFight(h.kind, h.n)
         self:CountSpell((petSwing or "")
-            .. (spellName or (h.kind == "heal" and "Unnamed heal") or UnnamedHit(Num(h.school))), h.n, h.crit,
+            .. (spellName or (h.kind == "heal" and L["Unnamed heal"]) or UnnamedHit(Num(h.school))), h.n, h.crit,
             h.kind == "heal", icon)
     end
     if petSwing and not db.outPet then return "your pet's hits are turned off" end
@@ -5069,7 +5072,7 @@ function BT:OnXP()
     if not last or not self.db.nXP then return end
     local gained = xp - last
     if gained < 0 and lastMax then gained = (lastMax - last) + xp end   -- levelled up
-    if gained > 0 then self:Notify("+" .. Commas(gained) .. " XP", self.TEXT_COLORS.xp) end
+    if gained > 0 then self:Notify(L["+%s XP"]:format(Commas(gained)), self.TEXT_COLORS.xp) end
 end
 
 -- A game sentence like "You receive loot: %sx%d." as a pattern that matches it
@@ -5188,13 +5191,13 @@ function BT:CheckGameData()
     self.recorded = {}
     for _, text in ipairs(report) do self:Record(text) end
     if problems == 0 then
-        Print(("all %d checks passed."):format(#report))
+        Print(L["all %d checks passed."]:format(#report))
     else
-        Print(("%d of %d checks found a problem:"):format(problems, #report))
+        Print(L["%d of %d checks found a problem:"]:format(problems, #report))
         for _, text in ipairs(report) do
             if text:find("^PROBLEM") then print("  " .. text:gsub("^PROBLEM ", "")) end
         end
-        Print("type /btf copy to copy the full report.")
+        Print(L["type /btf copy to copy the full report."])
     end
     return problems, report
 end
@@ -5258,7 +5261,7 @@ function BT:BuildStartButton()
     -- only sends the release, so /click BattleTextForeverStart in your own macro works
     b:SetAttribute("useOnKeyDown", false)
     -- The shared header bar: logo, then the words in gold on red
-    T.HeaderStrip(b, "Start BattleText")
+    T.HeaderStrip(b, L["Start BattleText"])
     b:FitLogo(26)
     b.icon, b.label = b.logo, b.text
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
@@ -5266,12 +5269,12 @@ function BT:BuildStartButton()
     hl:SetColorTexture(1, 1, 1, 0.08)
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:AddLine("Start BattleText", T.C.gold[1], T.C.gold[2], T.C.gold[3])
-        GameTooltip:AddLine("BattleText couldn't turn on the game's combat lines by itself. "
-            .. "This click opens the Combat Log tab once and switches back, which starts them.", 1, 1, 1, true)
-        GameTooltip:AddLine("Playing alone, your hits show without it. In a group, BattleText needs those lines to tell "
-            .. "your hits from everyone else's.", 1, 1, 1, true)
-        GameTooltip:AddLine("Right-click to hide it until you log in again.", 0.7, 0.7, 0.7, true)
+        GameTooltip:AddLine(L["Start BattleText"], T.C.gold[1], T.C.gold[2], T.C.gold[3])
+        GameTooltip:AddLine(L["BattleText couldn't turn on the game's combat lines by itself. "
+            .. "This click opens the Combat Log tab once and switches back, which starts them."], 1, 1, 1, true)
+        GameTooltip:AddLine(L["Playing alone, your hits show without it. In a group, BattleText needs those lines to tell "
+            .. "your hits from everyone else's."], 1, 1, 1, true)
+        GameTooltip:AddLine(L["Right-click to hide it until you log in again."], 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -5347,9 +5350,9 @@ function BT:CheckStarted()
         local tab = _G.ChatFrame2Tab
         if tab and tab.IsVisible and tab:IsVisible() then return end
         BT.startFailSaid = true
-        Print("the click couldn't open the game's Combat Log tab. A chat addon (like Chattynator) may be "
+        Print(L["the click couldn't open the game's Combat Log tab. A chat addon (like Chattynator) may be "
             .. "hiding it, and there's no real way around that. Alone, your hits still show without it; in a group, "
-            .. "other people's hits may show as yours. Right-click the button to hide it.")
+            .. "other people's hits may show as yours. Right-click the button to hide it."])
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.3, check) else check() end
 end
@@ -5392,9 +5395,9 @@ end
 function BT:RemindStart()
     if not (self.db.enabled and self.db.startReminder) or self.started or self.startHidden then return end
     local key = GetBindingKey and Str(GetBindingKey("CLICK BattleTextForeverStart:LeftButton"))
-    Print("click |cffffd100Start BattleText|r at the top of your screen"
-        .. (key and (" (or press " .. key .. ")") or "")
-        .. ". It names your bleed ticks and, in a group, leaves other people's hits out.")
+    Print((key and L["click %s at the top of your screen (or press %s). It names your bleed ticks and, in a group, "
+            .. "leaves other people's hits out."] or L["click %s at the top of your screen. It names your bleed ticks and, "
+            .. "in a group, leaves other people's hits out."]):format("|cffffd100" .. L["Start BattleText"] .. "|r", key))
 end
 
 -- When the Combat Log window is shown the game loads its filter (so the lines
@@ -5503,7 +5506,7 @@ end
 function BT:SetOutline(key, flags)
     self.db[key] = flags
     self.testing = true
-    self:Emit("notify", key == "critOutline" and "Crit" or "Normal", self.TEXT_COLORS.notify,
+    self:Emit("notify", key == "critOutline" and L["Crit"] or L["Normal"], self.TEXT_COLORS.notify,
         { crit = key == "critOutline" })
     self.testing = false
 end
@@ -5654,9 +5657,9 @@ local function Clamp(v, range) return math.max(range[1], math.min(range[2], v)) 
 -- kind and in its range. Returns it and how many, or nil and why not.
 function BT:ReadSettings(text)
     text = type(text) == "string" and text:match("^%s*(.-)%s*$") or ""
-    if text:sub(1, #SHARE_PREFIX) ~= SHARE_PREFIX then return nil, "that isn't BattleText settings text" end
+    if text:sub(1, #SHARE_PREFIX) ~= SHARE_PREFIX then return nil, L["that isn't BattleText settings text"] end
     local t = Deserialize(text:sub(#SHARE_PREFIX + 1))
-    if type(t) ~= "table" then return nil, "the text is cut short or changed" end
+    if type(t) ~= "table" then return nil, L["the text is cut short or changed"] end
     local out, count = {}, 0
     for k, v in pairs(t) do
         local default = DEFAULTS[k]
@@ -5709,7 +5712,7 @@ function BT:ReadSettings(text)
             end
         end
     end
-    if count == 0 then return nil, "there were no settings in it" end
+    if count == 0 then return nil, L["there were no settings in it"] end
     return out, count
 end
 
@@ -5826,10 +5829,10 @@ function BT:Test()
         function() self:ShowCombat({ kind = "heal", fromMe = true, spell = "Healing Touch", amount = 214 }) end,
         function() self:ShowCombat({ kind = "miss", fromMe = true, melee = true, missType = "DODGE" }) end,
         function() self:Emit(self:Area("InDamage"), "-58", C.inDamage, { crit = true }) end,
-        function() self:Notify("+103 XP", C.xp) end,
+        function() self:Notify(L["+%s XP"]:format("103"), C.xp) end,
         function() self:ShowCombat({ kind = "damage", fromMe = true, melee = true, amount = 26, unit = "Physical", blocked = 3 }) end,
         function() self:Emit(self:Area("InMisses"), MissText("PARRY"), C.inAvoid) end,
-        function() self:Notify("Killing blow!", C.combat, { crit = true }) end,
+        function() self:Notify(L["Killing blow!"], C.combat, { crit = true }) end,
     }
     -- Shown even while BattleText is turned off, and whatever is ticked in the options
     local LOOKS = { sticky = true, outCurved = true, inCurved = true, outScrollUp = true, inScrollUp = true,
@@ -5901,9 +5904,9 @@ function BT:BuildMinimapButton()
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine(BT.LOGO_TEXT .. " BattleText Forever")
-        GameTooltip:AddLine("Left-click: options", 1, 1, 1)
-        GameTooltip:AddLine("Right-click: show sample text", 1, 1, 1)
-        GameTooltip:AddLine("Drag: move this button", 1, 1, 1)
+        GameTooltip:AddLine(L["Left-click: options"], 1, 1, 1)
+        GameTooltip:AddLine(L["Right-click: show sample text"], 1, 1, 1)
+        GameTooltip:AddLine(L["Drag: move this button"], 1, 1, 1)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -5919,24 +5922,24 @@ end
 -- Slash commands
 ---------------------------------------------------------------------------
 local function Help()
-    Print("commands:")
-    print("  |cffffd100/btf|r  open or close the options")
-    print("  |cffffd100/btf test|r  show sample text")
-    print("  |cffffd100/btf lock|r, |cffffd100/btf unlock|r  lock or unlock the text areas (unlock to drag them)")
-    print("  |cffffd100/btf reset|r  put the text areas back where they started")
-    print("  |cffffd100/btf resetall|r  put every setting back to how it started")
-    print("  |cffffd100/btf on|r, |cffffd100/btf off|r  turn the text on or off")
-    print("  |cffffd100/btf debug|r  record the combat lines the game sends; |cffffd100/btf copy|r shows them (for bug reports)")
-    print("  |cffffd100/btf last|r  your last fight, spell by spell")
-    print("  |cffffd100/btf check|r  check the spells, texts and icons BattleText uses against this game")
-    print("  |cffffd100/btf gear|r  show what BattleText read from your gear (then /btf copy)")
-    print("  |cffffd100/btf export|r, |cffffd100/btf import|r  share your settings as text, or take someone else's")
+    Print(L["commands:"])
+    print("  |cffffd100/btf|r  " .. L["open or close the options"])
+    print("  |cffffd100/btf test|r  " .. L["show sample text"])
+    print("  |cffffd100/btf lock|r, |cffffd100/btf unlock|r  " .. L["lock or unlock the text areas (unlock to drag them)"])
+    print("  |cffffd100/btf reset|r  " .. L["put the text areas back where they started"])
+    print("  |cffffd100/btf resetall|r  " .. L["put every setting back to how it started"])
+    print("  |cffffd100/btf on|r, |cffffd100/btf off|r  " .. L["turn the text on or off"])
+    print("  |cffffd100/btf debug|r  " .. L["record the combat lines the game sends; |cffffd100/btf copy|r shows them (for bug reports)"])
+    print("  |cffffd100/btf last|r  " .. L["your last fight, spell by spell"])
+    print("  |cffffd100/btf check|r  " .. L["check the spells, texts and icons BattleText uses against this game"])
+    print("  |cffffd100/btf gear|r  " .. L["show what BattleText read from your gear (then /btf copy)"])
+    print("  |cffffd100/btf export|r, |cffffd100/btf import|r  " .. L["share your settings as text, or take someone else's"])
 end
 
 -- Keybinding names (Options > Keybindings > BattleText Forever)
 BattleTextForever = BT
-_G["BINDING_NAME_CLICK BattleTextForeverStart:LeftButton"] = "Start BattleText"
-BINDING_NAME_BATTLETEXTFOREVER_OPTIONS = "Open options"
+_G["BINDING_NAME_CLICK BattleTextForeverStart:LeftButton"] = L["Start BattleText"]
+BINDING_NAME_BATTLETEXTFOREVER_OPTIONS = L["Open options"]
 
 SLASH_BATTLETEXTFOREVER1 = "/btf"
 SLASH_BATTLETEXTFOREVER2 = "/battletext"
@@ -5948,20 +5951,20 @@ SlashCmdList.BATTLETEXTFOREVER = function(msg)
         BT:Test()
     elseif cmd == "lock" or cmd == "unlock" then
         BT:SetLocked(cmd == "lock")
-        Print(cmd == "lock" and "text areas locked." or "text areas unlocked. Drag the boxes, then /btf lock.")
+        Print(cmd == "lock" and L["text areas locked."] or L["text areas unlocked. Drag the boxes, then /btf lock."])
     elseif cmd == "reset" then
         BT:ResetPositions()
-        Print("text areas moved back to where they started.")
+        Print(L["text areas moved back to where they started."])
     elseif cmd == "resetall" then
         BT:ConfirmResetAll()
     elseif cmd == "on" or cmd == "off" then
         BT.db.enabled = cmd == "on"
         BT:ApplySettings()
-        Print(cmd == "on" and "on." or "off.")
+        Print(cmd == "on" and L["on."] or L["off."])
     elseif cmd == "debug" then
         BT.db.debug = not BT.db.debug
         if BT.db.debug then BT.recorded = {} end
-        Print("debug " .. (BT.db.debug and "on. Fight for a moment, then type /btf copy to see what the game sent." or "off."))
+        Print(BT.db.debug and L["debug on. Fight for a moment, then type /btf copy to see what the game sent."] or L["debug off."])
     elseif cmd == "copy" then
         BT:OpenCopyWindow()
     elseif cmd == "check" then
@@ -6055,7 +6058,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         if C_Timer and C_Timer.NewTicker then
             C_Timer.NewTicker(3, function() BT:KeepLogFlowing() end)
         end
-        if BT.db.loginMessage then print(T.CHAT_PREFIX .. " loaded. Type /btf for options.") end
+        if BT.db.loginMessage then print(T.CHAT_PREFIX .. " " .. L["loaded. Type /btf for options."]) end
         return
     end
     if not BT.built then return end
@@ -6116,11 +6119,11 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:ScanItemShields()
         BT:SetStartMacro()   -- last chance before the fight to note which chat tab you're on
         BT:KeepLogFlowing()   -- (in case something turned the lines off since)
-        if BT.db.nCombat then BT:Notify("+Combat", BT.TEXT_COLORS.combat) end
+        if BT.db.nCombat then BT:Notify(L["+Combat"], BT.TEXT_COLORS.combat) end
         BT.fight = { start = GetTime(), damage = 0, heal = 0 }
         BT.actedInFight = false
     elseif event == "PLAYER_REGEN_ENABLED" then
-        if BT.db.nCombat then BT:Notify("-Combat", BT.TEXT_COLORS.notify) end
+        if BT.db.nCombat then BT:Notify(L["-Combat"], BT.TEXT_COLORS.notify) end
         BT:FightSummary()
         BT:ScanShield()   -- your buffs can be read again: what changed during the fight
         BT:ForgetOldDots()
