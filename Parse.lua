@@ -218,6 +218,8 @@ end
 
 -- Settles how an attack failed, from everything the line said
 function Parser:Finish(info, verb)
+    -- A hit for nothing is a miss ("hits X for 0. (52 Absorbed)"), never "Heroic Strike 0"
+    if info.kind == "damage" and info.amount == 0 then info.kind = "miss" end
     if info.kind == "miss" then
         info.missType = info.noteMiss
             or (info.blocked and "BLOCK") or (info.resisted and "RESIST") or (info.absorbed and "ABSORB")

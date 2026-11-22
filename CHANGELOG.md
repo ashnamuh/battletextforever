@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.1
+
+- **No more "Heroic Strike 0".** When an attack of yours did no damage, BattleText could show it as a hit for 0 instead of a miss. The game hides the number in many places, so BattleText couldn't tell it was a 0 and showed it anyway. Now a hidden 0 is simply left out, and a 0 the game does let BattleText read shows as Miss, Absorb, Block or Resist, whichever it was. Your real hits look the same as before.
+
 ## 1.34.0
 
 - **See which school a hit on you is.** Magic damage you take now shows in its school's color with the school's name after the number, like "-120 Shadow" in purple or "-80 Fire" in orange. It uses the same colors as your own spells. Now you can tell when a mob hits with shadow or fire, and when to use Shadow Ward, Fire Ward or a resistance potion. Physical hits stay red. This works even when the game hides the number. If the spell's name already says the school ("Shadow Bolt"), the word isn't repeated. You can turn it off with "Damage schools" on the Incoming tab. (Thanks to Myleo-indark for the idea, issue #33.)

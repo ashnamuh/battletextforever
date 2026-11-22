@@ -293,6 +293,25 @@ function BT:HealShown(n)
     return type(n) ~= "number" or n >= (self.db.minHeal or 0)
 end
 
+-- A hidden amount as the game will write it: blank when it's 0. A hit for nothing
+-- (UNIT_COMBAT WOUND 0: a miss, or the empty half of a blow in two parts) has a hidden
+-- 0 too, and showed as "Heroic Strike 0". C_StringUtil (Gethe forever,
+-- StringUtilDocumentation: SecretArguments AllowedWhenTainted) does it without reading it.
+local function HiddenNumber(secret)
+    local su = C_StringUtil
+    if su and su.TruncateWhenZero then return su.TruncateWhenZero(secret) end
+    return secret
+end
+-- A whole line around a hidden amount: nothing at all when the amount is 0
+local function HiddenLine(fontString, text, secret, after)
+    local su = C_StringUtil
+    if su and su.TruncateWhenZero and su.WrapString then
+        fontString:SetFormattedText("%s", su.WrapString(su.TruncateWhenZero(secret), text, after))
+    else
+        fontString:SetFormattedText("%s%s%s", text, secret, after)
+    end
+end
+
 -- Puts a line of text into an area.
 --   color = { r, g, b }
 --   opts.crit    bigger, and sticky if that's turned on
@@ -324,7 +343,8 @@ function BT:Emit(areaKey, text, color, opts)
         if young and r.line.key == opts.key and now - r.time <= window then
             r.count, r.time = r.count + 1, now
             if hidden then
-                r.line.text:SetFormattedText("%s%s%s", text, opts.secret,
+                -- (a 0 here leaves the count: blanking the line would lose the hits before it)
+                r.line.text:SetFormattedText("%s%s%s", text, HiddenNumber(opts.secret),
                     (opts.after or "") .. " |cffb0b0b0(" .. L["%s hits"]:format(r.count) .. ")|r")
             else
                 r.total = r.total + opts.amount
@@ -363,7 +383,7 @@ function BT:Emit(areaKey, text, color, opts)
         o.text:SetShadowOffset(0, 0)
     end
     if hidden then   -- (never compare a secret, even with nil: that throws)
-        o.text:SetFormattedText("%s%s%s", text, opts.secret, opts.after or "")
+        HiddenLine(o.text, text, opts.secret, opts.after or "")
     else
         o.text:SetText(text)
     end

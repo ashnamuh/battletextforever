@@ -140,7 +140,8 @@ function Methods:SetFormattedText(fmt, ...)
     local shown, hidden = {}, false
     for i = 1, select("#", ...) do
         local v = select(i, ...)
-        if issecretvalue(v) then hidden, shown[i] = true, "<secret>" else shown[i] = v end
+        -- (a hidden string the game's C_StringUtil built shows as what it would write)
+        if issecretvalue(v) then hidden, shown[i] = true, type(v.v) == "string" and v.v or "<secret>" else shown[i] = v end
     end
     -- (__shown: the text with each hidden value as <secret>, for tests that look closer)
     self.__shown = fmt:format(unpack(shown, 1, select("#", ...)))
@@ -614,6 +615,22 @@ function ClickButton(b, which, releaseOnly)
 end
 
 Secret = secret   -- tests make hidden values with Secret(123)
+-- Forever's C_StringUtil (StringUtilDocumentation): takes hidden values, returns hidden strings.
+-- The stub's hidden string holds the text the game would write ("<secret>" for the number).
+C_StringUtil = {
+    TruncateWhenZero = function(n)
+        local hidden = issecretvalue(n)
+        local v = hidden and n.v or n
+        local text = math.floor(v) == 0 and "" or (hidden and "<secret>" or tostring(math.floor(v)))
+        return hidden and secret(text) or text
+    end,
+    WrapString = function(infix, prefix, suffix)
+        local hidden = issecretvalue(infix)
+        local v = hidden and infix.v or infix
+        local text = v == "" and "" or ((prefix or "") .. v .. (suffix or ""))
+        return hidden and secret(text) or text
+    end,
+}
 function Methods:SetFontObject(f) self.__font = f or self.__font end
 function Methods:SetFont(path, size, flags) self.__font = { path, size, flags } return true end
 function Methods:SetTextColor(r, g, b) self.__color = { r, g, b } end

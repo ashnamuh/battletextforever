@@ -7909,5 +7909,53 @@ step("the lines stop after they've started (review L1), and heals on the group w
     clear()
 end)()
 
+step("a hit for nothing never shows as \"Heroic Strike 0\" (Tyler, in game)")
+;(function()
+    STATE.group = false
+    STATE.unit.hsMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000HS", target = "me" }
+    STATE.who.target = "hsMob"
+    freshFight()
+    BT.db.merge = true
+    SetIcons(false)
+    local function newest() local a = BT.areas.outgoing.active return a[#a] and a[#a].text.__shown end
+    STATE.spellNames[78] = "Heroic Strike"
+    -- Hidden amounts: the game writes the number, and a 0 is left blank, the whole line with it
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs1", 78)
+    fire("UNIT_COMBAT", "target", "WOUND", "", Secret(0), 1)
+    BT:FlushHits(true)
+    assertEq(newest(), "", "a hidden 0 writes nothing: not \"Heroic Strike 0\"")
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-hs2", 78)
+    fire("UNIT_COMBAT", "target", "WOUND", "", Secret(57), 1)
+    BT:FlushHits(true)
+    assertEq(newest(), "Heroic Strike <secret>", "a hidden hit still shows its number")
+    -- A hidden 0 joining a line keeps the hits before it (the count goes on)
+    Advance(5)
+    clear()
+    BT:Emit(BT:Area("OutDamage"), "Whirlwind ", { 1, 1, 1 }, { key = "ww", secret = Secret(40) })
+    BT:Emit(BT:Area("OutDamage"), "Whirlwind ", { 1, 1, 1 }, { key = "ww", secret = Secret(0) })
+    assertEq(newest(), "Whirlwind  |cffb0b0b0(2 hits)|r", "the line stays, with no 0 in it")
+    BT:Emit(BT:Area("OutDamage"), "Whirlwind ", { 1, 1, 1 }, { key = "ww", secret = Secret(41) })
+    assertEq(newest(), "Whirlwind <secret> |cffb0b0b0(3 hits)|r", "and the next hit's number shows")
+    -- A readable line "for 0" is a miss: absorbed, blocked or resisted when the line says so
+    Advance(5)
+    clear()
+    log(hit("Heroic Strike", 78, 0, "Physical"))
+    assertEq(last("outgoing"), "Heroic Strike Miss", "0 with nothing said: a miss")
+    Advance(1)
+    log(hit("Heroic Strike", 78, 0, "Physical", "(57 Absorbed)"))
+    assertEq(last("outgoing"), "Heroic Strike Absorb", "all of it absorbed")
+    Advance(1)
+    log(hit("Heroic Strike", 78, 0, "Physical", "(57 Blocked)"))
+    assertEq(last("outgoing"), "Heroic Strike Block", "all of it blocked")
+    Advance(1)
+    log(hit("Heroic Strike", 78, 12, "Physical"))
+    assertEq(last("outgoing"), "Heroic Strike 12", "a real hit is a hit")
+    SetIcons(true)
+    STATE.who.target = nil
+    clear()
+end)()
+
 assertClean("by the end")
 print("ALL TESTS PASSED")
