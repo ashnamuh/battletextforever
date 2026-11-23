@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.38.1
+
+- **Mouseover heals show in dungeons.** Heals cast with a mouseover macro (or a click on a party frame) on a party member, like Penance, weren't shown as yours in a dungeon, because the game hides everyone's names there and BattleText couldn't tell who the cast went to. Now a friend under your mouse is who it went to, as long as your target isn't another friend. (Thanks to k45tr0spam for the log.)
+
 ## 1.38.0
 
 - **Masque skins BattleText's icons.** If you use Masque, the spell icons on your scrolling text now take your Masque skin, like your action bars. Pick the skin under Masque's options, group "BattleText Forever" (turn the group off there for plain icons). The icons stay where they were on each line. Without Masque nothing changes. (Thanks to the CurseForge player who asked.)

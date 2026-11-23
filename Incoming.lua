@@ -696,6 +696,7 @@ function BT:OnSpellSent(target, spellId)
     end
     self:NoteHelpfulCast(id, name)   -- (as the key is pressed: before the heal can land)
     local unit
+    local hidden = IsSecret(target)   -- (the game hides the name, or every unit's name it could be)
     local who = Str(target)
     if who then
         if who == "" then return end   -- (a spell with no one to go to: as before)
@@ -703,19 +704,30 @@ function BT:OnSpellSent(target, spellId)
         for _, u in ipairs(SENT_UNITS) do
             if Flag(UnitExists, u) then
                 local ok, n = pcall(UnitName, u)
+                if ok and IsSecret(n) then hidden = true end
                 n = ok and Str(n) or nil
                 if n and (n == who or n == short) then unit = u break end
             end
         end
-    elseif IsSecret(target) then
-        -- The game hides the name (and then names in general): a friend under the mouse while your
-        -- target isn't one is who a mouseover cast is on. With a friend targeted, it can't be told.
-        if CanHelp("mouseover") and not Flag(UnitIsUnit, "mouseover", "player")
-                and not (Flag(UnitExists, "target") and CanHelp("target")) then
-            unit = "mouseover"
-        end
     end
-    if self.db.debug then self:Record("SENT " .. tostring(id) .. " to " .. tostring(unit or "?")) end
+    local mouse = CanHelp("mouseover") and not Flag(UnitIsUnit, "mouseover", "player")
+    local friendTargeted = Flag(UnitExists, "target") and CanHelp("target")
+    if not unit and hidden then
+        -- The names can't be matched: in a dungeon the game hides the name SENT gives, or every
+        -- unit's name to match it with (GitHub #29: Penance with a mouseover macro on a party
+        -- member, "SENT to ?", each heal dropped). A friend under the mouse while your target isn't
+        -- one is who a mouseover cast is on. With a friend targeted, it can't be told.
+        if mouse and not friendTargeted then unit = "mouseover" end
+    end
+    if self.db.debug then
+        local why = ""
+        if not unit then   -- (why not: for the next log)
+            why = " (" .. (hidden and "names hidden" or "no name match") .. ", mouse "
+                .. (mouse and "on a friend" or "not on a friend") .. ", target "
+                .. (friendTargeted and "a friend" or "not a friend") .. ")"
+        end
+        self:Record("SENT " .. tostring(id) .. " to " .. tostring(unit or "?") .. why)
+    end
     if not unit then return end
     local ok, guid = pcall(UnitGUID, unit)
     self.sent = { at = GetTime(), id = id, name = name, unit = LastingUnit(unit), guid = ok and Str(guid) or nil,

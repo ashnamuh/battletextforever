@@ -7875,6 +7875,106 @@ step("heals cast with a mouseover macro (CurseForge: Renew, Penance, Prayer of M
     clear()
 end)()
 
+step("mouseover heals when the game hides names (GitHub #29: Penance on a party member)")
+;(function()   -- (a function: the file is near Lua's limit of locals)
+    clear()
+    local whoWas, unitWas, groupWas = STATE.who, STATE.unit, STATE.group
+    -- In a dungeon the game hides every unit's name: SENT names the friend, but nothing can be
+    -- matched to it (the player's log: "SENT 402174 to ?", every Penance heal on party1 dropped)
+    STATE.who = { nameplate1 = "mob", party1 = "friend", party2 = "buddy" }
+    STATE.unit = { friend = { guid = "Player-5555-0FRIEND1", name = "Friendo", secretName = true },
+        buddy = { guid = "Player-5555-0BUDDY01", name = "Buddy", secretName = true },
+        mob = { enemy = true, guid = "Creature-0-1-2-3-4-000129", target = "friend", name = "Boss", secretName = true } }
+    STATE.group = true
+    STATE.spellNames[402174], STATE.spellIcons[402174] = "Penance", 237545
+    STATE.spellNames[402289], STATE.spellIcons[402289] = "Penance", 237545
+    STATE.spellNames[9474], STATE.spellIcons[9474] = "Flash Heal", 135907
+    STATE.helpful = STATE.helpful or {}
+    STATE.helpful[9474] = true
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    local function mouse(id) STATE.who.mouseover = id end
+    local function sent(name, id) fire("UNIT_SPELLCAST_SENT", "player", name, "Cast-s" .. id, id) end
+    local function heal(unit, n, crit) fire("UNIT_COMBAT", unit, "HEAL", crit and "CRITICAL" or "", n, 1) end
+    Advance(1)
+    -- 1. Penance with the mouseover macro on party1, nothing targeted (the log, 958.30 on)
+    mouse("friend")
+    sent("Friendo", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn1", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn2", 402289)
+    assertEq(BT.sent and BT.sent.unit, "party1", "with the names hidden, the friend under the mouse is who it went to")
+    mouse(nil)
+    Advance(0.55)
+    heal("party1", 50, true)
+    hidden(6)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Penance +50", "its first heal (a crit), named")
+    Advance(0.17)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn3", 402289)
+    Advance(0.5)
+    heal("party1", 51)
+    hidden(7)
+    Advance(0.53)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn4", 402289)
+    Advance(0.45)
+    heal("party1", 52)
+    hidden(7)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Penance +51 / Penance +52",
+        "and its next heals, named")
+    assertEq(#lines("incoming"), 0, "and none of it is shown as healing you")
+    clear()
+    -- 2. Flash Heal on yourself, no target and no mouseover: the heal comes before the cast, in one frame
+    Advance(2)
+    sent("Me", 9474)
+    Advance(1.33)
+    heal("player", 300)
+    hidden(8)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-fh1", 9474)
+    Advance(0.3)
+    assertEq(last("incoming"), "+300 Flash Heal", "Flash Heal on yourself, named")
+    clear()
+    -- 3. Flash Heal on party1, targeted
+    STATE.who.target, STATE.who.softfriend = "friend", "friend"
+    Advance(5)
+    sent("Friendo", 9474)
+    Advance(1.36)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-fh2", 9474)
+    heal("party1", 400)
+    heal("target", 400)
+    heal("softfriend", 400)
+    hidden(9)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Flash Heal +400", "Flash Heal on your target, named once")
+    clear()
+    -- A friend targeted and another under the mouse, names hidden: it can't be told, so your target
+    BT.dots = nil
+    Advance(5)
+    mouse("buddy")
+    local debugWas = BT.db.debug
+    BT.db.debug, BT.recorded = true, {}
+    sent("Buddy", 402174)
+    BT.db.debug = debugWas
+    assertEq(BT.sent, nil, "with a friend targeted, the mouse doesn't decide it")
+    assert(BT.recorded[1]:find("SENT 402174 to ? (names hidden, mouse on a friend, target a friend)", 1, true),
+        "the debug log says why: " .. tostring(BT.recorded[1]))
+    mouse(nil)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn5", 402174)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn6", 402289)
+    -- 4. (Penance on the targeted friend, as in the log at 975.86)
+    Advance(0.44)
+    heal("party1", 60)
+    heal("target", 60)
+    heal("softfriend", 60)
+    hidden(7)
+    Advance(0.3)
+    assertEq(last("outgoing"), "Penance +60", "Penance on your target, named")
+    STATE.who, STATE.unit, STATE.group = whoWas, unitWas, groupWas
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    clear()
+end)()
+
 step("a font of their own for crits")
 -- CurseForge (beefsupreme3954, a healer): "it would be great to select a separate font for crits"
 ;(function()
