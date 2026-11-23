@@ -163,6 +163,7 @@ function Methods:SetPoint(p, rel, rp, x, y)
     if COMBAT and self.__protected then BLOCKED[#BLOCKED + 1] = (self.__name or self.__kind) .. ":SetPoint" end
     self.__point = p
     if type(rel) == "table" then self.__pos = { x or 0, y or 0 } else self.__pos = { rel or 0, rp or 0 } end
+    self.__rel = type(rel) == "table" and rel or nil
 end
 function Methods:GetWidth() return 140 end
 function Methods:GetCenter() return 0, 0 end

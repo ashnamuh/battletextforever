@@ -553,6 +553,7 @@ function BT:ShowCombat(info)
                 key = (pet and "pet:" or "") .. (info.periodic and "tick:" or "") .. (info.spellId or info.spell or "melee"),
                 amount = info.amount,
                 window = info.periodic and db.tickMerge or nil,
+                guid = info.destGUID,
                 format = function(total, count)
                     return outPre .. Commas(total) .. outPost .. " |cffb0b0b0(x" .. count .. ")|r"
                 end,
@@ -610,7 +611,7 @@ function BT:ShowCombat(info)
             if mine and (info.melee or self:IsRangedName(info.spell)) and not db.outSwings then return true end
             local rule = self:SpellRule(info.spell)
             if rule and rule.hide then return true end
-            if db.outMisses then self:Emit(self:Area("OutMisses"), outPre .. word .. outPost, C.miss) end
+            if db.outMisses then self:Emit(self:Area("OutMisses"), outPre .. word .. outPost, C.miss, { guid = info.destGUID }) end
             return true
         end
     elseif info.kind == "energize" then

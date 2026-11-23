@@ -227,7 +227,7 @@ end
 BT.RANGES = {
     fontSize = { 10, 40 }, critScale = { 100, 250 }, scrollTime = { 1, 6 }, height = { 100, 500 },
     tickMerge = { 0, 3 }, minDamage = { 0, 500 }, minHeal = { 0, 500 }, minCrit = { 0, 1000 },
-    lowManaAt = { 10, 60 },
+    lowManaAt = { 10, 60 }, plateX = { -150, 150 }, plateY = { -60, 150 },
 }
 for _, area in pairs(BT.AREAS) do
     BT.RANGES[area.prefix .. "Size"] = { 50, 200 }
@@ -249,6 +249,7 @@ function BT:Choices(key)
     elseif key:match("^route") then
         local keys = {}
         for areaKey in pairs(self.AREAS) do keys[areaKey] = true end
+        keys.plates = true   -- (your hits and misses only: other kinds treat it as their usual area)
         return keys
     else return nil end
     local keys = {}
@@ -632,6 +633,7 @@ pcall(events.RegisterUnitEvent, events, "UNIT_POWER_UPDATE", "player")
 pcall(events.RegisterUnitEvent, events, "UNIT_POWER_FREQUENT", "player")   -- (Life Tap's mana)
 pcall(events.RegisterEvent, events, "SPELL_UPDATE_COOLDOWN")        -- Cooldowns ready
 pcall(events.RegisterEvent, events, "UNIT_SPELLCAST_INTERRUPTED")   -- every unit: casts you stop
+pcall(events.RegisterEvent, events, "NAME_PLATE_UNIT_REMOVED")      -- (lines over a nameplate go with it)
 
 -- Events only worth handling while BattleText is turned on
 local WHILE_ON = { UNIT_COMBAT = true, UNIT_SPELLCAST_SENT = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_CHANNEL_START = true,
@@ -698,6 +700,8 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         if BT.cdCast and next(BT.cdCast) then BT:LookCooldowns(true) end
     elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
         BT:OnInterrupted(a1, a2, a3, a4)
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+        BT:PlateGone(a1)
     elseif event == "GROUP_ROSTER_UPDATE" then
         BT.groupAt = nil
     elseif event == "PLAYER_SWING" then

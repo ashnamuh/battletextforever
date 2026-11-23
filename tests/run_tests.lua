@@ -4091,13 +4091,13 @@ for _, f in ipairs(ALL_FRAMES) do
                 scrollTime = "time on screen", height = "area height", minDamage = "hide hits below", minHeal = "hide heals below",
                 outSize = "size", inSize = "size", healSize = "size", nSize = "size",
                 outAlpha = "opacity", inAlpha = "opacity", healAlpha = "opacity", nAlpha = "opacity",
-                tickMerge = "ticks and area hits", minCrit = "smallest crit", lowManaAt = "low mana at" })[moved[1]], 1, true),
+                tickMerge = "ticks and area hits", minCrit = "smallest crit", lowManaAt = "low mana at", plateX = "left and right", plateY = "up and down" })[moved[1]], 1, true),
                 "slider label matches its setting: " .. tostring(f.label) .. " -> " .. moved[1])
             f.__scripts.OnValueChanged(f, snapshot[moved[1]])
         end
     end
 end
-assertEq(sliders, 17, "seventeen sliders: nine, and each area's size and opacity")
+assertEq(sliders, 19, "nineteen sliders: eleven, and each area's size and opacity")
 for k, v in pairs(before) do
     if type(v) ~= "table" then assertEq(BT.db[k], v, "setting unchanged after the sliders: " .. k) end
 end
@@ -8456,6 +8456,104 @@ step("line order: {icon} {damage} {name} (CurseForge, xSky7)")
     BT.db.outFormat, BT.db.healFormat = BT.LINE_FORMAT, BT.LINE_FORMAT
     SetIcons(true)
     clear()
+end)()
+---------------------------------------------------------------------------
+step("your hits and misses over the enemy's nameplate (Layout tab: Enemy nameplates)")
+;(function()
+    clear()
+    STATE.unit.plateMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000PL", target = "me" }
+    STATE.unit.farMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000FA", target = "me" }
+    STATE.who.target, STATE.who.nameplate4, STATE.who.nameplate6 = "plateMob", "plateMob", "farMob"
+    BT.hiddenSeen, BT.hiddenAt, BT.credits, BT.dots, BT.spellSchool, BT.schoolSeen = nil, nil, nil, nil, nil, nil
+    -- The game has a nameplate for plateMob only (farMob's is off screen)
+    local plate4 = CreateFrame("Frame", "NamePlate4", UIParent)
+    local plates = { nameplate4 = plate4 }
+    local hadPlates = C_NamePlate
+    C_NamePlate = {
+        GetNamePlateForUnit = function(unit)
+            for token, p in pairs(plates) do if UnitIsUnit(token, unit) then return p end end
+            return nil
+        end,
+        GetNamePlates = function() return { plate4 } end,
+    }
+    local onPlates = BT.plateArea.active
+    SetIcons(false)
+    local function wound(unit, amount) fire("UNIT_COMBAT", unit, "WOUND", "", amount, 1) BT:FlushHits(true) end
+
+    wound("target", 28)
+    assertEq(last("outgoing"), "28", "usually your hits show in Outgoing")
+    assertEq(#onPlates, 0, "and nothing over nameplates")
+    clear()
+
+    BT.db.routeOutDamage, BT.db.plateX, BT.db.plateY = "plates", 20, 40
+    assertEq(BT:Area("OutDamage"), "plates", "Your hits can go to Enemy nameplates")
+    assertEq(BT:AreaUsed("outgoing"), true, "Outgoing still counts as used (its look, and the fallback)")
+    BT.db.routeInDamage = "plates"
+    assertEq(BT:Area("InDamage"), "incoming", "damage you take can't: it stays in its usual area")
+    BT.db.routeInDamage = "incoming"
+    wound("target", 31)
+    assertEq(#lines("outgoing"), 0, "with Enemy nameplates, the hit isn't in Outgoing")
+    assertEq(#onPlates, 1, "it's over a nameplate")
+    local o = onPlates[1]
+    assertEq(o.plate, plate4, "the nameplate of the mob it landed on")
+    assertEq(o.text:GetText(), "31", "with the hit's text")
+    Advance(0.5)
+    assertEq(o.__rel, plate4, "anchored to that nameplate")
+    assert(o.__pos[1] >= 0 and o.__pos[1] <= 40, "moved right by Left and right (20, give or take its spread): " .. o.__pos[1])
+    assert(o.__pos[2] >= 40 and o.__pos[2] <= 70, "and up by Up and down (40, and its drift): " .. o.__pos[2])
+    Advance(0.5)
+    wound("nameplate4", 33)
+    wound("nameplate4", 34)
+    assertEq(#onPlates, 3, "more hits on it: more lines")
+    assert(onPlates[3].py > onPlates[2].py, "one that comes right after another starts above it, so they don't cover each other")
+    assertEq(BT:PlateFor(nil, STATE.unit.plateMob.guid), plate4, "a combat log line's mob (its GUID) finds its nameplate too")
+    clear()
+    assertEq(#onPlates, 0, "they fade like other lines")
+
+    wound("nameplate6", 44)
+    assertEq(last("outgoing"), "44", "a mob without a nameplate on screen: Outgoing, as before")
+    assertEq(#onPlates, 0, "and not over some other nameplate")
+    clear()
+
+    -- The nameplate goes (out of sight, dead): its lines go with it, before the game hands it to another mob
+    wound("target", 35)
+    assertEq(#onPlates, 1, "a line over it")
+    fire("NAME_PLATE_UNIT_REMOVED", "nameplate4")
+    Advance(0.05)
+    assertEq(#onPlates, 0, "the nameplate's gone: so is its line")
+    wound("target", 36)
+    plate4:Hide()
+    assertEq(BT:PlateFor("target"), nil, "a hidden nameplate isn't used")
+    Advance(0.05)
+    assertEq(#onPlates, 0, "and a line over one that's hidden goes")
+    wound("target", 37)
+    assertEq(last("outgoing"), "37", "so a hit then shows in Outgoing")
+    plate4:Show()
+    clear()
+
+    -- Misses can go there too, by their own choice
+    fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1) BT:FlushHits(true)
+    assertEq(last("outgoing"), "Dodge", "Your misses stay in Outgoing unless they're moved too")
+    clear()
+    BT.db.routeOutMisses = "plates"
+    fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1) BT:FlushHits(true)
+    assertEq(#onPlates, 1, "moved: over the nameplate")
+    assertEq(onPlates[1].text:GetText(), "Dodge", "the miss")
+    clear()
+
+    -- A game without the nameplate functions: Outgoing, and no error
+    C_NamePlate = nil
+    wound("target", 38)
+    assertEq(last("outgoing"), "38", "no nameplates to ask about: Outgoing")
+    clear()
+    C_NamePlate = hadPlates
+
+    -- The Layout tab offers it for your hits and misses only, and the offsets wait until it's picked
+    BT.db.routeOutDamage, BT.db.routeOutMisses, BT.db.plateX, BT.db.plateY = "outgoing", "outgoing", 0, 10
+    assertEq(BT:Choices("routeOutDamage").plates, true, "shared settings can carry it")
+    STATE.who.target, STATE.who.nameplate4, STATE.who.nameplate6 = nil, nil, nil
+    STATE.unit.plateMob, STATE.unit.farMob = nil, nil
+    SetIcons(true)
 end)()
 
 assertClean("by the end")

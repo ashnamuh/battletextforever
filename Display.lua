@@ -165,6 +165,17 @@ function BT:BuildAreas()
     end
     self:ApplyAreas()
 
+    -- Lines over enemy nameplates (Layout tab: "Enemy nameplates"). Each line is anchored to a
+    -- nameplate; this frame only holds them. Its look (size, opacity) is the Outgoing area's.
+    local plates = CreateFrame("Frame", "BattleTextForeverPlates", UIParent)
+    plates:SetFrameStrata("LOW")   -- (above the nameplates, under the game's windows)
+    plates:SetAllPoints()
+    plates.key, plates.def = "plates", { prefix = "out", justify = "CENTER", dir = 0, label = "Plates" }
+    plates.active, plates.pool, plates.recent = {}, {}, {}
+    self.plateArea = plates
+    self.allAreas = { plates }   -- (every area Animate moves lines in)
+    for _, a in pairs(self.areas) do self.allAreas[#self.allAreas + 1] = a end
+
     local driver = CreateFrame("Frame")
     driver:SetScript("OnUpdate", function() BT:Animate(GetTime()) end)
     self.driver = driver
@@ -264,14 +275,14 @@ local function ReleaseLine(a, o)
     o:Hide()
     local r = o.key and a.recent[o.key]
     if r and r.line == o then a.recent[o.key] = nil end   -- nothing can be added to it any more
-    o.key = nil
+    o.key, o.plate = nil, nil
     a.pool[#a.pool + 1] = o
 end
 
 -- The kinds of text, and the area each shows in to start with (Layout tab)
 BT.ROUTES = {
-    { key = "OutDamage", name = L["Your hits"], usual = "outgoing" },
-    { key = "OutMisses", name = L["Your misses"], usual = "outgoing" },
+    { key = "OutDamage", name = L["Your hits"], usual = "outgoing", plates = true },
+    { key = "OutMisses", name = L["Your misses"], usual = "outgoing", plates = true },
     { key = "OutHeals", name = L["Heals you do"], usual = "heal" },
     { key = "InDamage", name = L["Damage you take"], usual = "incoming" },
     { key = "InMisses", name = L["Attacks you avoid"], usual = "incoming" },
@@ -281,21 +292,65 @@ BT.ROUTES = {
 }
 
 -- The area a kind of text shows in ("OutDamage", "Notify"... as in BT.ROUTES)
+-- "plates" for your hits or misses: over the enemy's nameplate (Outgoing when it has none).
 function BT:Area(kind)
     local area = self.db["route" .. kind]
     if area and self.AREAS[area] then return area end
     for _, r in ipairs(self.ROUTES) do
-        if r.key == kind then return r.usual end
+        if r.key == kind then
+            if area == "plates" and r.plates then return "plates" end
+            return r.usual
+        end
     end
     return "notify"
 end
 
--- Whether any kind of text shows in an area
+-- Whether any kind of text shows in an area. Nameplates use Outgoing too: its look, and
+-- it's where a hit goes on a mob without a nameplate.
 function BT:AreaUsed(areaKey)
     for _, r in ipairs(self.ROUTES) do
-        if self:Area(r.key) == areaKey then return true end
+        local area = self:Area(r.key)
+        if area == areaKey or (area == "plates" and areaKey == "outgoing") then return true end
     end
     return false
+end
+
+-- The nameplate of the unit a hit landed on (unit: "target", "nameplate3"...; or its GUID,
+-- from a combat log line). nil when it has none on screen: the game hides it (off, too far,
+-- behind the camera), or it's one an addon can't use (friendly ones in dungeons).
+-- Sample text (/btf test) goes over your target's.
+function BT:PlateFor(unit, guid)
+    local np = C_NamePlate
+    if not (np and np.GetNamePlateForUnit) then return nil end
+    if type(unit) ~= "string" or unit == "" then unit = nil end
+    guid = Str(guid)
+    if not unit and guid then unit = self:UnitFromGUID(guid) end
+    if not unit and self.testing then unit = "target" end
+    if not unit then return nil end
+    local ok, plate = pcall(np.GetNamePlateForUnit, unit)
+    if ok and type(plate) == "table" and Flag(plate.IsShown, plate) then return plate end
+    -- Not a name the game takes for this (focus, party1target...): the plate showing that unit
+    if not np.GetNamePlates then return nil end
+    local okAll, plates = pcall(np.GetNamePlates)
+    if not okAll or type(plates) ~= "table" then return nil end
+    for _, p in ipairs(plates) do
+        local token = type(p) == "table" and Str(p.unitToken or p.namePlateUnitToken)
+        if token and Flag(UnitIsUnit, token, unit) and Flag(p.IsShown, p) then return p end
+    end
+    return nil
+end
+
+-- A nameplate is going (its unit is out of sight, or dead): its lines go with it, as the
+-- game hands the nameplate to another unit
+function BT:PlateGone(unit)
+    local a = self.plateArea
+    if not a or #a.active == 0 or not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
+    local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, Str(unit))
+    if not ok or type(plate) ~= "table" then return end
+    local now = GetTime()
+    for _, o in ipairs(a.active) do
+        if o.plate == plate then o.duration = math.max(0, now - o.start) end
+    end
 end
 
 -- Where a heal goes (areaKey: "outgoing" for yours, "incoming" for one on you)
@@ -455,10 +510,20 @@ end
 --                text (and opts.after follows it). With opts.key, hidden hits that arrive
 --                together share a line too: they can't be added up, so it shows the last
 --                hit and how many there were.
+--   opts.unit, opts.guid  who it landed on: with "Enemy nameplates" (areaKey "plates") it
+--                shows over that one's nameplate, or in Outgoing when it has none
 function BT:Emit(areaKey, text, color, opts)
-    local a = self.areas and self.areas[areaKey]
-    if not a or not (self.db.enabled or self.testing) then return end
+    if not (self.db.enabled or self.testing) then return end
     opts = opts or {}
+    local plate
+    if areaKey == "plates" then
+        plate = self.plateArea and self:PlateFor(opts.unit, opts.guid)
+        areaKey = "outgoing"
+        -- (hits on one mob add up; on another, they're another line)
+        if plate and opts.key then opts.key = opts.key .. "@" .. tostring(plate) end
+    end
+    local a = plate and self.plateArea or (self.areas and self.areas[areaKey])
+    if not a then return end
     local now = GetTime()
     -- "Smallest crit": a small one is a normal line (and can add up with the hits beside it)
     if opts.crit and not self:BigCrit(true, opts.amount) then opts.crit = false end
@@ -521,11 +586,11 @@ function BT:Emit(areaKey, text, color, opts)
     end
     o.text:SetTextColor(color[1], color[2], color[3])
     o.size = size
-    o.sticky = opts.crit and self.db.sticky or false
-    o.key, o.style = nil, nil
+    o.sticky = not plate and opts.crit and self.db.sticky or false
+    o.key, o.style, o.plate = nil, nil, plate
     -- Scrolling lines grow away from the middle of the screen. A crit that holds
     -- grows the other way, so it never sits on top of them.
-    local justify = self:AreaJustify(a)
+    local justify = plate and "CENTER" or self:AreaJustify(a)
     local anchor = justify
     if o.sticky and a.def.dir ~= 0 then
         anchor = (justify == "LEFT" and "RIGHT") or (justify == "RIGHT" and "LEFT") or "CENTER"
@@ -537,7 +602,17 @@ function BT:Emit(areaKey, text, color, opts)
         o.text:SetJustifyH(anchor)
     end
 
-    if o.sticky then
+    if plate then
+        -- Jumps out just above the nameplate, drifts up and fades. Lines that come at once stack.
+        local stacked = 0
+        for _, other in ipairs(a.active) do
+            if other.plate == plate and now - other.start < 0.35 then stacked = stacked + 1 end
+        end
+        o.style = "plate"
+        o.px = (math.random() - 0.5) * 40
+        o.py = (stacked % 4) * (size + 2)
+        o.start, o.duration = now, math.max(1.2, self:ScrollTime(a) * 0.6)
+    elseif o.sticky then
         o.start, o.duration = now, 1.7
         -- The lowest free place among the crits still holding
         local taken, oldest = {}, nil
@@ -704,7 +779,7 @@ end
 function BT:Animate(now)
     if not self.areas then return end
     local moving = false
-    for _, a in pairs(self.areas) do
+    for _, a in ipairs(self.allAreas or {}) do
         local n = #a.active
         -- (an area's settings, read once a frame rather than for each line)
         local h = n > 0 and self:AreaHeight(a) or 0
@@ -715,13 +790,18 @@ function BT:Animate(now)
         for i = n, 1, -1 do
             local o = a.active[i]
             local t = now - o.start
-            if t >= o.duration then
+            -- (a nameplate that's hidden takes its lines with it)
+            if t >= o.duration or (o.plate and not Flag(o.plate.IsShown, o.plate)) then
                 table.remove(a.active, i)
                 ReleaseLine(a, o)
             elseif t >= 0 then
                 local p = t / o.duration
                 local x, y, alpha, scale = 0, 0, 1, 1
-                if o.sticky then
+                if o.plate then
+                    if t < 0.12 then scale = 1 + 0.5 * (1 - t / 0.12) end
+                    x, y = o.px + (self.db.plateX or 0), o.py + (self.db.plateY or 0) + 30 * p
+                    if p > 0.6 then alpha = (1 - p) / 0.4 end
+                elseif o.sticky then
                     if a.def.dir == 0 then
                         y = o.size + o.slot * (o.size + 4)        -- above the notifications
                     else
@@ -758,7 +838,7 @@ function BT:Animate(now)
                     o.curScale = scale
                     o:SetScale(scale)
                 end
-                o:SetPoint(o.anchor, a, "TOP", x / scale, y / scale)
+                o:SetPoint(o.anchor, o.plate or a, "TOP", x / scale, y / scale)
                 alpha = alpha * fade
                 if o.curAlpha ~= alpha then
                     o.curAlpha = alpha

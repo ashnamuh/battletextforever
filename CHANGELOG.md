@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.0
+
+- **Your hits over the enemy's nameplate.** On the Layout tab, "Your hits" (and "Your misses", if you like) can now be set to **Enemy nameplates**. Each number then pops up over the nameplate of the mob you hit and drifts up, instead of scrolling in the Outgoing area. A mob with no nameplate on screen still gets its numbers in Outgoing, so nothing is lost. Two new sliders under it, **Left and right** and **Up and down**, move the numbers to fit custom nameplates from other addons. Off unless you pick it. Turn on enemy nameplates in the game (V) to use it. (Thanks to xSky7 for the idea.)
+
 ## 1.39.0
 
 - **Put your lines in your own order.** A new "Line order" box on the Outgoing tab sets how your hits and misses are written, with `{icon}`, `{name}` and `{damage}`. The usual is `{icon} {name} {damage}`; type `{icon} {damage} {name}` to get "[icon] 250 Fireball", or take a part out. The Healing tab has its own box for the heals you do. Reset puts it back. Works with hidden numbers too, and the Icons and Names switches still hide their parts. (Thanks to xSky7 for the idea.)

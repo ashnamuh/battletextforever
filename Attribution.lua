@@ -2413,13 +2413,14 @@ function BT:ShowUnitHit(h, what, spell, area)
         if h.secret then
             -- Hidden amounts can't be added up, but hits of one spell together still share a line
             self:Emit(self:Area("OutDamage"), pre, color, { crit = h.crit, secret = h.amount, after = post .. note,
-                key = key, window = window })
+                key = key, window = window, unit = h.unit })
         else
             self:Emit(self:Area("OutDamage"), pre .. Commas(h.n) .. post .. note, color, {
                 crit = h.crit,
                 key = key,
                 amount = h.n,
                 window = window,
+                unit = h.unit,
                 format = function(total, count)
                     return pre .. Commas(total) .. post .. " |cffb0b0b0(x" .. count .. ")|r"
                 end,
@@ -2440,7 +2441,7 @@ function BT:ShowUnitHit(h, what, spell, area)
         -- A wound for nothing says how in its flag; a plain miss has none
         local how = h.action
         if how == "WOUND" then how = (h.flag and MISS_TEXT[h.flag]) and h.flag or "MISS" end
-        self:Emit(self:Area("OutMisses"), pre .. MissText(how) .. post, C.miss)
+        self:Emit(self:Area("OutMisses"), pre .. MissText(how) .. post, C.miss, { unit = h.unit })
     end
     return nil
 end

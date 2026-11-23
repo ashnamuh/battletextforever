@@ -110,6 +110,8 @@ local DEFAULTS = {
     routeOutDamage = "outgoing", routeOutMisses = "outgoing", routeOutHeals = "heal",
     routeInDamage = "incoming", routeInMisses = "incoming", routeInHeals = "heal", routeInPower = "incoming",
     routeNotify = "notify",
+    -- (your hits and misses can also go over the enemy's nameplate: "plates", Layout tab)
+    plateX = 0, plateY = 10,  -- where those lines start, from the top middle of the nameplate
     healOver = true,          -- show overhealing after a heal, when the game says
     minHeal = 0,              -- hide heals below this
     healWho = true,           -- "on <name>" after a heal you do, when the game says who

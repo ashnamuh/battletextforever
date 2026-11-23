@@ -600,21 +600,36 @@ end
 
 -- Which area each kind of text shows in. Areas are named for where they start on screen.
 local function BuildLayout(p, refs)
-    local card = Card(p, L["Where each kind of text shows"], 0, 0, PAGE_W, 40 + #BT.ROUTES * 30 + 52)
+    local ROW = 28
+    local card = Card(p, L["Where each kind of text shows"], 0, 0, PAGE_W, 40 + #BT.ROUTES * ROW + 52)
     local areaKeys = { "outgoing", "incoming", "heal", "notify" }
+    local plateKeys = { "outgoing", "incoming", "heal", "notify", "plates" }
     local areaNames = { outgoing = L["Outgoing (right)"], incoming = L["Incoming (left)"], heal = L["Healing (bottom)"],
-        notify = L["Notifications (top)"] }
+        notify = L["Notifications (top)"], plates = L["Enemy nameplates"] }
     refs.routeDropdowns = {}
     for i, r in ipairs(BT.ROUTES) do
-        local y = -30 - (i - 1) * 30
+        local y = -30 - (i - 1) * ROW
         T.RowLabel(card, r.name, 12, y)
         local key = "route" .. r.key
-        refs.routeDropdowns[r.key] = Dropdown(card, 200, y, 220, areaKeys, function(k) return areaNames[k] or k end,
-            key, function(k) BT.db[key] = k end,
-            L["%s: the text area it shows in. Each area keeps its own look (Appearance, on its tab)."]:format(r.name))
+        local tip = L["%s: the text area it shows in. Each area keeps its own look (Appearance, on its tab)."]:format(r.name)
+        if r.plates then
+            tip = tip .. " " .. L["Enemy nameplates: over the nameplate of the mob it landed on, or in Outgoing when "
+                .. "that mob has none on screen. They take Outgoing's size and opacity."]
+        end
+        refs.routeDropdowns[r.key] = Dropdown(card, 200, y, 220, r.plates and plateKeys or areaKeys,
+            function(k) return areaNames[k] or k end, key, function(k) BT.db[key] = k end, tip)
     end
     CardNote(card, L["Areas are named for where they start; move them anywhere with \"Move the text areas\" "
-        .. "(General tab). Each area keeps its own size, opacity, movement and alignment."], -40 - #BT.ROUTES * 30)
+        .. "(General tab). Each area keeps its own size, opacity, movement and alignment."], -40 - #BT.ROUTES * ROW)
+
+    -- Where lines over nameplates start, for nameplates of other addons that sit higher or wider
+    local onPlates = function() return BT:Area("OutDamage") == "plates" or BT:Area("OutMisses") == "plates" end
+    local plates = Card(p, L["Enemy nameplates"], 0, -(50 + #BT.ROUTES * ROW + 52), PAGE_W, 74)
+    Slider(plates, L["Left and right"], 12, -30, "plateX", { suffix = L[" px"], enabledIf = onPlates,
+        tip = L["Moves the lines over nameplates sideways. Less than 0: to the left."] })
+    Slider(plates, L["Up and down"], COL2, -30, "plateY", { suffix = L[" px"], enabledIf = onPlates,
+        tip = L["How far above the top of the nameplate the lines start. Raise it if your nameplates "
+            .. "(from another addon) show more above the bar."] })
 end
 
 local function BuildColors(p)
