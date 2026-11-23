@@ -104,6 +104,44 @@ local function IconsAndNames(card, y, section, what, enabledIf)
     Setting(card, L["Names"], COL2, y, section .. "Names", L["Shows the spell's name beside %s."]:format(what), enabledIf)
 end
 
+-- A box for the order of a line of yours (key: "outFormat" or "healFormat"), with Reset beside it
+local function LineOrder(card, y, key, what, enabledIf)
+    T.RowLabel(card, L["Line order"], 12, y - 2)
+    local box = T.EditBox(card, 250)
+    box:SetPoint("TOPLEFT", DROP_X, y)
+    box:SetMaxLetters(60)
+    box:SetScript("OnTextChanged", function(self, typed)
+        if typed then BT.db[key] = self:GetText() end
+    end)
+    box:SetScript("OnEditFocusLost", function(self)
+        if not BT.db[key]:find("%S") then BT.db[key] = BT.LINE_FORMAT end
+        self:SetText(BT.db[key])
+    end)
+    T.Tooltip(box, L["Line order"], L["How %s are written: move the parts around, or take one out. {icon} is the "
+        .. "spell's icon, {name} its name, {damage} the number. Example: {icon} {damage} {name}. The Icons and "
+        .. "Names switches still hide theirs."]:format(what))
+    local reset = FlatButton(card, L["Reset"], 70)
+    reset:SetPoint("LEFT", box, "RIGHT", 8, 0)
+    T.Tooltip(reset, nil, L["Back to {icon} {name} {damage}."])
+    reset:SetScript("OnClick", function()
+        if reset.disabled then return end
+        BT.db[key] = BT.LINE_FORMAT
+        box:ClearFocus()
+        BT:RefreshConfig()
+    end)
+    T.Disabler(box, { box })
+    T.Disabler(reset, { reset })
+    AddRefresher(function()
+        if not box:HasFocus() then box:SetText(BT.db[key] or BT.LINE_FORMAT) end
+        local off = enabledIf and not enabledIf() or false
+        box:SetDisabled(off)
+        box:EnableKeyboard(not off)   -- (greyed out: can't be typed in)
+        if off then box:ClearFocus() end
+        reset:SetDisabled(off)
+    end)
+    return box, reset
+end
+
 -- Each area's own text size, opacity and movement. curved: the side areas, whose
 -- lines can bow outward. enabledIf/offNote: when the area isn't in use, and why.
 local function AreaLook(p, y, prefix, curved, enabledIf, offNote)
@@ -393,7 +431,7 @@ local function BuildMotion(p)
 end
 
 local function BuildOutgoing(p)
-    local card = Card(p, L["What you do"], 0, 0, PAGE_W, 196)
+    local card = Card(p, L["What you do"], 0, 0, PAGE_W, 228)
     local damage = function() return BT.db.outDamage end
     Setting(card, L["Damage"], 12, -30, "outDamage", L["Your hits on mobs: spells, abilities and swings."])
     Setting(card, L["Misses"], COL2, -30, "outMisses",
@@ -419,7 +457,8 @@ local function BuildOutgoing(p)
         L["The ticks of your damage-over-time spells (Corruption, Rend, Moonfire...) and of spells that keep hitting "
         .. "everything in an area (Consecration, Blizzard, Rain of Fire, totems...). Off: hidden. A spell's own "
         .. "first hit still shows. To hide one spell only, use the Spells tab."], damage)
-    AreaLook(p, -206, "out", true, function() return BT:AreaUsed("outgoing") end, L["Nothing shows here (Layout tab)"])
+    LineOrder(card, -192, "outFormat", L["your hits and misses"], Either("outDamage", "outMisses"))
+    AreaLook(p, -238, "out", true, function() return BT:AreaUsed("outgoing") end, L["Nothing shows here (Layout tab)"])
 end
 
 -- Every sound list shares one list of keys (sounds other addons share are added to it later)
@@ -474,7 +513,7 @@ local function BuildIncoming(p, refs)
 end
 
 local function BuildHealing(p)
-    local card = Card(p, L["Heals"], 0, 0, PAGE_W, 196)
+    local card = Card(p, L["Heals"], 0, 0, PAGE_W, 228)
     local anyHeals = Either("inHeals", "outHeals")
     Setting(card, L["Heals you get"], 12, -30, "inHeals", L["Heals on you, yours and other people's."])
     Setting(card, L["Heals you do"], COL2, -30, "outHeals", L["Your heals on others (and your pet's)."])
@@ -493,7 +532,8 @@ local function BuildHealing(p)
     Slider(card, L["Hide heals below"], 12, -142, "minHeal", { step = 5, zero = L["Off"], enabledIf = anyHeals,
         tip = L["Heals for less than this aren't shown. A heal whose number the game hides always shows "
             .. "(turn off \"Unnamed heals on you\" for other people's)."] })
-    AreaLook(p, -206, "heal", false, function() return BT:AreaUsed("heal") end, L["Nothing shows here (Layout tab)"])
+    LineOrder(card, -192, "healFormat", L["your heals"], function() return BT.db.outHeals end)
+    AreaLook(p, -238, "heal", false, function() return BT:AreaUsed("heal") end, L["Nothing shows here (Layout tab)"])
 end
 
 local function BuildNotifications(p, refs)

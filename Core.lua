@@ -100,6 +100,8 @@ local DEFAULTS = {
     inIcons = true, inNames = true,        -- what happens to you
     healIcons = true, healNames = true,    -- heals, yours and on you
     nIcons = true,                         -- notifications: loot and skill ups
+    outFormat = "{icon} {name} {damage}",  -- the order of your hits and misses (BT.LINE_FORMAT)
+    healFormat = "{icon} {name} {damage}", -- and of your heals
     merge = true,             -- rapid hits of one spell add up on one line
     tickMerge = 0,            -- seconds ticks and area hits keep adding up (0: as quick as other hits)
     minDamage = 0,            -- hide your hits below this

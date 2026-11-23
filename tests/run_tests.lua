@@ -8386,5 +8386,77 @@ end)()
     clear()
 end)()
 
+step("line order: {icon} {damage} {name} (CurseForge, xSky7)")
+;(function()
+    clear()
+    local I = "|Tx:0|t "   -- (an icon as BT:IconTag writes it, space and all)
+    local function parts(key, icon, name, pet) return table.concat({ BT:LineParts(key, icon, name, pet) }, "#") end
+    assertEq(BT.db.outFormat, "{icon} {name} {damage}", "the usual order to start with")
+    assertEq(parts("outFormat", I, "Fireball"), "|Tx:0|t Fireball #", "as before: icon, name, number")
+    assertEq(parts("outFormat", "", nil), "#", "a swing with nothing to name it: just the number")
+    assertEq(parts("outFormat", I, nil), "|Tx:0|t #", "names off: no gap")
+    assertEq(parts("outFormat", "", "Claw", "(Fluffy) "), "Claw (Fluffy) #", "your pet's mark goes with the name")
+    assertEq(parts("outFormat", "", nil, "(Fluffy) "), "(Fluffy) #", "a pet's swing")
+    BT.db.outFormat = "{icon} {damage} {name}"
+    assertEq(parts("outFormat", I, "Fireball"), "|Tx:0|t # Fireball", "the number before the name")
+    assertEq(parts("outFormat", I, nil), "|Tx:0|t #", "names off: no space left after the number")
+    assertEq(parts("outFormat", "", nil), "#", "nor with neither")
+    BT.db.outFormat = "{DAMAGE} - {name}"
+    assertEq(parts("outFormat", I, "Fireball"), "# - Fireball", "words between parts stay; any case")
+    BT.db.outFormat = "{icon} {name}"
+    assertEq(parts("outFormat", I, "Fireball"), "|Tx:0|t Fireball #", "no {damage}: the number goes at the end")
+    BT.db.outFormat = "{damage} {damage} {name}"
+    assertEq(parts("outFormat", "", "Fireball"), "# Fireball", "the number shows once")
+    BT.db.outFormat = "|cffff0000{name} {damage}"
+    assertEq(parts("outFormat", "", "Fireball"), "||cffff0000Fireball #", "a typed | is only a |")
+    BT.db.outFormat = "   "
+    assertEq(parts("outFormat", I, "Fireball"), "|Tx:0|t Fireball #", "an empty box is the usual order")
+    BT.db.outFormat = "{icon} {damage} {name}"
+    assertEq(parts("healFormat", I, "Flash Heal"), "|Tx:0|t Flash Heal #", "heals have an order of their own")
+
+    -- On screen: a line you can read, one added up, a miss, a heal
+    SetIcons(false)
+    local function newestText(area) BT:FlushHits(true) local act = BT.areas[area].active return act[#act].text.__shown end
+    BT.db.merge = false
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082, amount = 40 })
+    assertEq(newestText("outgoing"), "40 Claw", "the number, then the name")
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082,
+        amount = 40, absorbed = 5 })
+    assertEq(newestText("outgoing"), "40 Claw |cffb0b0b0(5 absorbed)|r", "notes stay at the end")
+    BT.db.merge = true
+    clear()
+    Advance(5)
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082, amount = 40 })
+    BT:ShowCombat({ kind = "damage", fromMe = true, event = "SPELL_DAMAGE", spell = "Claw", spellId = 1082, amount = 30 })
+    assertEq(newestText("outgoing"), "70 Claw |cffb0b0b0(x2)|r", "hits added up keep the order")
+    BT:ShowCombat({ kind = "miss", fromMe = true, spell = "Claw", spellId = 1082, missType = "DODGE" })
+    assertEq(newestText("outgoing"), "Dodge Claw", "a miss too")
+    BT.db.healFormat = "{damage} {name}"
+    BT:ShowCombat({ kind = "heal", fromMe = true, spell = "Flash Heal", spellId = 2061, amount = 120 })
+    assertEq(newestText(BT:HealArea("outgoing")), "+120 Flash Heal", "a heal by its own order")
+
+    -- A hidden number: the game writes it, still between the parts, and a hidden 0 still writes nothing
+    STATE.group = false
+    STATE.unit.orderMob = { enemy = true, guid = "Creature-0-1-2-3-100-0000LO", target = "me" }
+    STATE.who.target = "orderMob"
+    freshFight()
+    STATE.spellNames[78] = "Heroic Strike"
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-lo1", 78)
+    fire("UNIT_COMBAT", "target", "WOUND", "", Secret(57), 1)
+    BT:FlushHits(true)
+    Advance(0.4)
+    assertEq(newestText("outgoing"), "<secret> Heroic Strike", "a hidden number before the name")
+    Advance(5)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-lo2", 78)
+    fire("UNIT_COMBAT", "target", "WOUND", "", Secret(0), 1)
+    BT:FlushHits(true)
+    Advance(0.4)
+    assertEq(newestText("outgoing"), "", "a hidden 0 still writes nothing at all")
+    BT.db.outFormat, BT.db.healFormat = BT.LINE_FORMAT, BT.LINE_FORMAT
+    SetIcons(true)
+    clear()
+end)()
+
 assertClean("by the end")
 print("ALL TESTS PASSED")

@@ -2394,7 +2394,8 @@ function BT:ShowUnitHit(h, what, spell, area)
     if rule and rule.hide then return "hidden on the Spells tab" end
     local name
     icon, name = self:SpellParts(h.kind == "heal" and "heal" or "out", icon, spellName)
-    local label = icon .. (name and (name .. " ") or "") .. (petSwing or "")
+    -- The text before the number and after it, in the order you set (Line order)
+    local pre, post = self:LineParts(h.kind == "heal" and "healFormat" or "outFormat", icon, name, petSwing)
     if h.kind == "damage" then
         if what == "shield" and not db.outShields then return "damage shields are turned off" end
         if not db.outDamage then return "damage is turned off" end
@@ -2411,16 +2412,16 @@ function BT:ShowUnitHit(h, what, spell, area)
         local window = (what == "tick" or area) and db.tickMerge or nil
         if h.secret then
             -- Hidden amounts can't be added up, but hits of one spell together still share a line
-            self:Emit(self:Area("OutDamage"), label, color, { crit = h.crit, secret = h.amount, after = note,
+            self:Emit(self:Area("OutDamage"), pre, color, { crit = h.crit, secret = h.amount, after = post .. note,
                 key = key, window = window })
         else
-            self:Emit(self:Area("OutDamage"), label .. Commas(h.n) .. note, color, {
+            self:Emit(self:Area("OutDamage"), pre .. Commas(h.n) .. post .. note, color, {
                 crit = h.crit,
                 key = key,
                 amount = h.n,
                 window = window,
                 format = function(total, count)
-                    return label .. Commas(total) .. " |cffb0b0b0(x" .. count .. ")|r"
+                    return pre .. Commas(total) .. post .. " |cffb0b0b0(x" .. count .. ")|r"
                 end,
             })
         end
@@ -2429,17 +2430,17 @@ function BT:ShowUnitHit(h, what, spell, area)
         local who = self:HealedName(h.unit)
         local healColor = rule and rule.color or C.heal
         if h.secret then
-            self:Emit(self:HealArea("outgoing"), label .. "+", healColor, { crit = h.crit, secret = h.amount, after = who })
+            self:Emit(self:HealArea("outgoing"), pre .. "+", healColor, { crit = h.crit, secret = h.amount, after = post .. who })
         else
             if not self:HealShown(h.n) then return "below \"Hide heals below\"" end
-            self:Emit(self:HealArea("outgoing"), label .. "+" .. Commas(h.n) .. who, healColor, { crit = h.crit, amount = h.n })
+            self:Emit(self:HealArea("outgoing"), pre .. "+" .. Commas(h.n) .. post .. who, healColor, { crit = h.crit, amount = h.n })
         end
     else
         if not db.outMisses then return "misses are turned off" end
         -- A wound for nothing says how in its flag; a plain miss has none
         local how = h.action
         if how == "WOUND" then how = (h.flag and MISS_TEXT[h.flag]) and h.flag or "MISS" end
-        self:Emit(self:Area("OutMisses"), label .. MissText(how), C.miss)
+        self:Emit(self:Area("OutMisses"), pre .. MissText(how) .. post, C.miss)
     end
     return nil
 end

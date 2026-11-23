@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.39.0
+
+- **Put your lines in your own order.** A new "Line order" box on the Outgoing tab sets how your hits and misses are written, with `{icon}`, `{name}` and `{damage}`. The usual is `{icon} {name} {damage}`; type `{icon} {damage} {name}` to get "[icon] 250 Fireball", or take a part out. The Healing tab has its own box for the heals you do. Reset puts it back. Works with hidden numbers too, and the Icons and Names switches still hide their parts. (Thanks to xSky7 for the idea.)
+
 ## 1.38.3
 
 - **Masque icons are the right size again.** With Masque installed, the spell icons on your text came out much bigger than the text (and stayed big with BattleText's Masque group turned off). Masque sizes a skin once, when the icon is first set up, so it never shrank to your text size. Now the icons are scaled to your text size, skin and all. (Thanks to Oncewasperfect.)

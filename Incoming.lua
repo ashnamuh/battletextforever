@@ -113,6 +113,30 @@ function BT:SpellParts(section, icon, name)
     return db[section .. "Icons"] and icon or "", db[section .. "Names"] and name or nil
 end
 
+-- The order of a line of yours (Outgoing tab and Healing tab, "Line order"): a pattern like
+-- "{icon} {name} {damage}" (CurseForge, xSky7: "{icon} {damage} {name}"). key: "outFormat" (your
+-- hits and misses) or "healFormat" (your heals). Returns the text before the number and the text
+-- after it: the number is never put in here, so a hidden one is still written by the game between
+-- the two (Emit's opts.after). A part that's empty (icons or names off, a swing) leaves no gap.
+-- {name} is the spell's name and your pet's mark; {damage} the number (on a miss, "Dodge").
+BT.LINE_FORMAT = "{icon} {name} {damage}"
+local NUMBER_MARK = "\1"
+function BT:LineParts(key, icon, name, pet)
+    local format = self.db[key]
+    if type(format) ~= "string" or not format:find("%S") then format = BT.LINE_FORMAT end
+    local who = ((name or "") .. " " .. (pet or "")):match("^%s*(.-)%s*$")
+    local parts = { icon = (icon:gsub(" $", "")), name = who, damage = NUMBER_MARK, amount = NUMBER_MARK }
+    -- (a "|" typed in it is a "|", never the start of a color or an icon)
+    local text = format:gsub("|", "||"):gsub("{(%a+)}", function(k) return parts[k:lower()] end)
+    if not text:find(NUMBER_MARK, 1, true) then text = text .. " " .. NUMBER_MARK end
+    local before, after = text:match("^(.-)\1(.*)$")
+    after = after:gsub(NUMBER_MARK, "")   -- (the number once only)
+    -- (an empty part leaves no double space, and none at the line's ends)
+    before = before:gsub("%s+", " "):gsub("^ ", "")
+    after = after:gsub("%s+", " "):gsub(" $", "")
+    return before, after
+end
+
 -- Your pet's name, to mark its hits with ("Pet" when it can't be read). UnitName is
 -- SecretWhenUnitNameIdentityRestricted on Forever, so the last name read is kept for the same
 -- pet (Tinter on CurseForge: "add your pet's name instead of just (Pet)").
@@ -493,7 +517,8 @@ function BT:ShowCombat(info)
     local mine = info.fromMe == true
     local pet = not mine and self:IsPetLine(info)
     local petTag = pet and self:PetLabel() or ""
-    local outLabel = icon .. (name and (name .. " ") or "") .. petTag
+    -- Your line: the text before its number and after it, in the order you set
+    local outPre, outPost = self:LineParts(info.kind == "heal" and "healFormat" or "outFormat", icon, name, petTag)
 
     if info.kind == "damage" then
         if not info.amount then return false end
@@ -523,13 +548,13 @@ function BT:ShowCombat(info)
             if rule and rule.hide then return true end
             if self:BigCrit(info.crit, info.amount) and db.soundCrit then self:PlayAlert("crit") end
             local color = (rule and rule.color) or (info.spell and (self:SchoolColor(info.unit) or C.spell)) or C.melee
-            self:Emit(self:Area("OutDamage"), outLabel .. Commas(info.amount) .. Partials(info), color, {
+            self:Emit(self:Area("OutDamage"), outPre .. Commas(info.amount) .. outPost .. Partials(info), color, {
                 crit = info.crit,
                 key = (pet and "pet:" or "") .. (info.periodic and "tick:" or "") .. (info.spellId or info.spell or "melee"),
                 amount = info.amount,
                 window = info.periodic and db.tickMerge or nil,
                 format = function(total, count)
-                    return outLabel .. Commas(total) .. " |cffb0b0b0(x" .. count .. ")|r"
+                    return outPre .. Commas(total) .. outPost .. " |cffb0b0b0(x" .. count .. ")|r"
                 end,
             })
             return true
@@ -553,7 +578,7 @@ function BT:ShowCombat(info)
                 self:Emit(self:HealArea("incoming"), "+" .. Commas(info.amount) .. SpellAfter(icon, name) .. over,
                     healColor, { crit = info.crit, amount = info.amount })
             elseif mine and db.outHeals then
-                self:Emit(self:HealArea("outgoing"), outLabel .. "+" .. Commas(info.amount) .. over, healColor,
+                self:Emit(self:HealArea("outgoing"), outPre .. "+" .. Commas(info.amount) .. outPost .. over, healColor,
                     { crit = info.crit, amount = info.amount })
             end
             return true
@@ -566,7 +591,7 @@ function BT:ShowCombat(info)
             if db.outHeals and not nothing and self:HealShown(info.amount) then
                 -- Who you healed, as on the heals that come without a line (Show who you healed)
                 local who = mine and self:HealedName(self:UnitFromGUID(info.destGUID)) or ""
-                self:Emit(self:HealArea("outgoing"), outLabel .. "+" .. Commas(info.amount) .. who .. over, healColor,
+                self:Emit(self:HealArea("outgoing"), outPre .. "+" .. Commas(info.amount) .. outPost .. who .. over, healColor,
                     { crit = info.crit, amount = info.amount })
             end
             return true
@@ -585,7 +610,7 @@ function BT:ShowCombat(info)
             if mine and (info.melee or self:IsRangedName(info.spell)) and not db.outSwings then return true end
             local rule = self:SpellRule(info.spell)
             if rule and rule.hide then return true end
-            if db.outMisses then self:Emit(self:Area("OutMisses"), outLabel .. word, C.miss) end
+            if db.outMisses then self:Emit(self:Area("OutMisses"), outPre .. word .. outPost, C.miss) end
             return true
         end
     elseif info.kind == "energize" then
