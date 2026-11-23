@@ -90,8 +90,8 @@ local function Partials(info, noBlocked)
     if info.blocked and not noBlocked then parts[#parts + 1] = L["%s blocked"]:format(Commas(info.blocked)) end
     if info.absorbed then parts[#parts + 1] = L["%s absorbed"]:format(Commas(info.absorbed)) end
     if info.resisted then parts[#parts + 1] = L["%s resisted"]:format(Commas(info.resisted)) end
-    if info.glancing then parts[#parts + 1] = L["glancing"] end
-    if info.crushing then parts[#parts + 1] = L["crushing"] end
+    if info.glancing then parts[#parts + 1] = BT:HitNote("glancing") end
+    if info.crushing then parts[#parts + 1] = BT:HitNote("crushing") end
     if #parts == 0 then return "" end
     return " |cffb0b0b0(" .. table.concat(parts, ", ") .. ")|r"
 end
@@ -932,7 +932,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             self:Queue({ blow = true })   -- (a blow that landed: see the hit for nothing, below)
             if self:LogCovers("damage") or not db.inDamage then return end
             -- Partly blocked: the game says so (BLOCK_REDUCED) but not by how much
-            local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(" .. L["blocked"] .. ")|r" or ""
+            local note = (flag == "BLOCK_REDUCED" and db.inBlocked) and " |cffb0b0b0(" .. BT:HitNote("blocked") .. ")|r" or ""
             local color, word = self:IncomingSchool(nil, school)
             color, word = color or C.inDamage, word or ""
             if secret then

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.1
+
+- **Glancing blows and seals in your game's language.** On a German (or other non-English) game, glancing blows said "(glancing)" and paladin seals kept their English names, like "+Seal of Command". Now glancing and crushing blows use the game's own word ("Streifschlag" in German), and seals show the name your game gives them ("Siegel des Befehls"), on the seal notice and on the seal's hits. (Thanks to ogogo1.)
+
 ## 1.40.0
 
 - **Your hits over the enemy's nameplate.** On the Layout tab, "Your hits" (and "Your misses", if you like) can now be set to **Enemy nameplates**. Each number then pops up over the nameplate of the mob you hit and drifts up, instead of scrolling in the Outgoing area. A mob with no nameplate on screen still gets its numbers in Outgoing, so nothing is lost. Two new sliders under it, **Left and right** and **Up and down**, move the numbers to fit custom nameplates from other addons. Off unless you pick it. Turn on enemy nameplates in the game (V) to use it. (Thanks to xSky7 for the idea.)

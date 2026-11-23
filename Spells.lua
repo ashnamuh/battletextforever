@@ -472,7 +472,9 @@ function BT:SealLists()
     end
     self.seals, self.judgement = {}, {}
     for _, e in ipairs(SEAL_SPELLS) do
-        for _, name in ipairs(names(e[1], e[2])) do self.seals[name] = { id = e[1], name = e[2], school = e[3] } end
+        -- (shown by the game's name for it: "Siegel des Befehls" in German, issue #36)
+        local shown = (not english and SpellName(e[1])) or e[2]
+        for _, name in ipairs(names(e[1], e[2])) do self.seals[name] = { id = e[1], name = shown, school = e[3] } end
     end
     for _, name in ipairs(names(JUDGEMENT[1], JUDGEMENT[2])) do self.judgement[name] = true end
     return self.seals, self.judgement

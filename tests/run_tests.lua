@@ -1751,6 +1751,25 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 44, Secret(4))
 assert(isColor(newest(), C.melee), "a hidden school isn't looked at")
 fire("UNIT_COMBAT", "target", "WOUND", "GLANCING", 12, 1)
 assertEq(last("outgoing"), "12 |cffb0b0b0(glancing)|r", "a glancing blow says so")
+-- In another language the game's own word is used (GitHub #36: German "Streifschlag")
+do local glanceWord, crushWord = TEXT_MODE_A_STRING_RESULT_GLANCING, TEXT_MODE_A_STRING_RESULT_CRUSHING
+local function game(key, v) rawset(_G, "TEXT_MODE_A_STRING_RESULT_" .. key, v) end
+STATE.locale = "deDE"
+game("GLANCING", "(Streifschlag)")
+fire("UNIT_COMBAT", "target", "WOUND", "GLANCING", 12, 1)
+assertEq(last("outgoing"), "12 |cffb0b0b0(Streifschlag)|r", "German: a glancing blow in the game's word")
+assertEq(BT:HitNote("glancing"), "Streifschlag", "the note itself")
+game("CRUSHING", "(Schmetternd)")
+assertEq(BT:HitNote("crushing"), "Schmetternd", "a crushing blow too")
+game("GLANCING", Secret("(Streifschlag)"))
+assertEq(BT:HitNote("glancing"), "glancing", "a hidden game word falls back to English")
+game("GLANCING", "")
+assertEq(BT:HitNote("glancing"), "glancing", "and so does an empty one")
+assertEq(BT:HitNote("blocked"), "blocked", "a note the game has no word for stays English")
+STATE.locale = "enUS"
+game("GLANCING", glanceWord)
+game("CRUSHING", crushWord) end
+assertEq(BT:HitNote("glancing"), "glancing", "English: the addon's own lowercase word")
 fire("UNIT_COMBAT", "target", "WOUND", "", Secret(40), 1)
 assertEq(last("outgoing"), "<secret fmt>", "a hidden amount is still shown by the game")
 clear()
@@ -4629,6 +4648,30 @@ wound(6, 2)
 assertEq(table.concat(lines("outgoing"), " / "), "40 / Seal of Fury 6", "its Holy hit beside your swing is named")
 Advance(31)
 SetIcons(false)
+-- A German game (GitHub #36): seals show by the game's name for them, not the English one
+BT.seals = nil
+STATE.locale, STATE.spellNames[20375] = "deDE", "Siegel des Befehls"
+clear()
+cast(20375)
+assertEq(last("notify"), "+Siegel des Befehls", "German: putting a seal on says its German name")
+Advance(1)
+wound(40, 1)
+wound(9, 2)
+assertEq(table.concat(lines("outgoing"), " / "), "40 / Siegel des Befehls 9", "and its hit is named in German")
+BT:LoseSeal(true)
+clear()
+STATE.buffs = { { name = "Siegel des Befehls", spellId = 20375, duration = 30, expirationTime = GetTime() + 20 } }
+fire("UNIT_AURA", "player")
+assertEq(last("notify"), "+Siegel des Befehls", "a German seal seen among your buffs")
+STATE.buffs = {}
+BT:LoseSeal(true)
+BT.db.sealTimes = nil
+STATE.locale, STATE.spellNames[20375] = "enUS", "Seal of Command"
+BT.seals = nil
+clear()
+cast(20375)
+assertEq(last("notify"), "+Seal of Command", "English: still the English name")
+BT:LoseSeal(true)
 STATE.who.target = nil
 clear()
 

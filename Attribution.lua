@@ -2406,7 +2406,7 @@ function BT:ShowUnitHit(h, what, spell, area)
         local color = (rule and rule.color) or MASK_COLORS[mask or 1]
             or ((spellName or (mask and mask ~= 1)) and C.spell) or C.melee
         local note = FLAG_NOTES[h.flag or ""]
-        note = note and (" |cffb0b0b0(" .. note .. ")|r") or ""
+        note = note and (" |cffb0b0b0(" .. self:HitNote(note) .. ")|r") or ""
         if self:BigCrit(h.crit, h.n) and db.soundCrit then self:PlayAlert("crit") end
         local key = spell and (what .. ":" .. tostring(spell.id or spellName)) or nil
         local window = (what == "tick" or area) and db.tickMerge or nil

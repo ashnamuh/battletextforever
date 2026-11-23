@@ -288,6 +288,21 @@ local function IsEnglish()
     return not GetLocale or GetLocale() == "enUS" or GetLocale() == "enGB"
 end
 
+-- The note after a hit ("glancing", "crushing", "blocked"): a translation in Locales wins;
+-- without one, another language takes the game's own word where it has one, like the
+-- German "(Streifschlag)" for a glancing blow (a player's report, issue #36).
+local GAME_NOTES = { glancing = "TEXT_MODE_A_STRING_RESULT_GLANCING", crushing = "TEXT_MODE_A_STRING_RESULT_CRUSHING" }
+function BT:HitNote(english)
+    local words = { glancing = L["glancing"], crushing = L["crushing"], blocked = L["blocked"],
+        absorbed = L["absorbed"], resisted = L["resisted"] }
+    local mine = words[english] or english
+    if mine ~= english or IsEnglish() or not GAME_NOTES[english] then return mine end
+    local game = _G[GAME_NOTES[english]]
+    if type(game) ~= "string" or IsSecret(game) then return mine end
+    game = game:gsub("^%s*%(%s*", ""):gsub("%s*%)%s*$", "")
+    return game ~= "" and game or mine
+end
+
 local function FillDefaults(t, defaults)
     for k, v in pairs(defaults) do
         if t[k] == nil then
