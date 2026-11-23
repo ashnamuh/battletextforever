@@ -446,6 +446,7 @@ function BT:Test()
             self:Emit(self:Area("InDamage"), "-58" .. (school or ""), color or C.inDamage, { crit = true })
         end,
         function() self:Notify(L["+%s XP"]:format("103"), C.xp) end,
+        function() self:Notify(L["+%s %s %s"]:format("|cFFFFD7001" .. L["g"] .. "|r", "|cFFC0C0C025" .. L["s"] .. "|r", "|cFFCD7F3230" .. L["c"] .. "|r"), C.loot) end,
         function() self:ShowCombat({ kind = "damage", fromMe = true, melee = true, amount = 26, unit = "Physical", blocked = 3 }) end,
         function() self:Emit(self:Area("InMisses"), MissText("PARRY"), C.inAvoid) end,
         function() self:Notify(L["Killing blow!"], C.combat, { crit = true }) end,
@@ -776,7 +777,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "CHAT_MSG_LOOT" then
         BT:OnLoot(a1)
     elseif event == "CHAT_MSG_MONEY" then
-        BT:OnChatNotice("nMoney", a1, BT.TEXT_COLORS.notify)
+        BT:OnMoney(a1)
     elseif event == "CHAT_MSG_SKILL" then
         BT:OnChatNotice("nSkill", a1, BT.TEXT_COLORS.power)
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then

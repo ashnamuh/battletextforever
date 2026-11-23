@@ -68,6 +68,47 @@ function BT:OnLoot(message)
     self:Notify(icon .. "+" .. count .. " " .. link, self.TEXT_COLORS.loot)
 end
 
+-- Gold loot notification
+local function MoneyAmountPattern(fmt)
+    if not fmt then return nil end
+
+    local p = fmt:gsub("%%d", "\1")
+    p = p:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+    p = p:gsub("\1", "(%%d+)")
+    return p
+end
+
+function BT:OnMoney(message)
+    message = Str(message)
+    if not message or not self.db.nLoot then return end
+
+    if not self.moneyPatterns then
+        self.moneyPatterns = {
+            gold = MoneyAmountPattern(GOLD_AMOUNT),
+            silver = MoneyAmountPattern(SILVER_AMOUNT),
+            copper = MoneyAmountPattern(COPPER_AMOUNT),
+        }
+    end
+
+    local function ExtractAmount(pattern)
+        if not pattern then return 0 end
+        return tonumber(message:match(pattern)) or 0
+    end
+
+    local gold = ExtractAmount(self.moneyPatterns.gold)
+    local silver = ExtractAmount(self.moneyPatterns.silver)
+    local copper = ExtractAmount(self.moneyPatterns.copper)
+
+    if gold == 0 and silver == 0 and copper == 0 then return end
+
+    local parts = {}
+    if gold > 0 then parts[#parts + 1] = "|cFFFFD700" .. gold .. L["g"] .. "|r" end
+    if silver > 0 then parts[#parts + 1] = "|cFFC0C0C0" .. silver .. L["s"] .. "|r" end
+    if copper > 0 then parts[#parts + 1] = "|cFFCD7F32" .. copper .. L["c"] .. "|r" end
+
+    self:Notify(L["+%s %s %s"]:format(parts[1] or "", parts[2] or "", parts[3] or ""):gsub("%s+$", ""), self.TEXT_COLORS.loot)
+end
+
 -- Professions whose spell has another name than the skill (the rest are found by name)
 local SKILL_SPELLS = { Herbalism = 2366, Mining = 2575, Fishing = 7620 }
 

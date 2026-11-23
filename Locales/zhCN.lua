@@ -109,6 +109,10 @@ L["gear read. Type /btf copy to copy what was found."] = ""
 
 -- Notices.lua
 L["+%s XP"] = ""
+L["g"] = ""
+L["s"] = ""
+L["c"] = ""
+L["+%s %s %s"] = ""
 L["all %d checks passed."] = ""
 L["%d of %d checks found a problem:"] = ""
 L["type /btf copy to copy the full report."] = ""
