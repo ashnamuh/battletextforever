@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.37.2
+
+- **Korean is complete.** The last English line, the paladin seal option, is now in Korean, with Seal of Fury as 분노의 문장. (Thanks to Jaemok.)
+
 ## 1.37.1
 
 - **Simplified Chinese is complete.** The last English line, the paladin seal option, is now in Chinese, with Seal of Fury as 愤怒圣印. (Thanks to Sanchez_3000.)

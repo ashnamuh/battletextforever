@@ -261,7 +261,7 @@ L["Your pet's hits and heals, marked with its name, and a hunter's hawks (Summon
 L["Damage shields"] = "피해 반사 효과"
 L["What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura (named as soon as they hit), and gear that stings back. Off: hidden."] = "가시, 번개 보호막, 응보의 오라 등 공격자에게 피해를 돌려주는 강화 효과와 장비의 반사 피해를 표시합니다. 끄면 숨깁니다."
 L["Name seal hits"] = "문장 공격 이름 표시"
-L["Paladins: the Holy hit of Seal of Righteousness, Seal of Command or Seal of Fury that lands with your swing shows the seal's name and icon. Off: it shows as a plain number."] = ""
+L["Paladins: the Holy hit of Seal of Righteousness, Seal of Command or Seal of Fury that lands with your swing shows the seal's name and icon. Off: it shows as a plain number."] = "성기사: 정의의 문장, 지휘의 문장 또는 분노의 문장이 일반 공격과 함께 입히는 신성 피해에 문장 이름과 아이콘을 표시합니다. 끄면 숫자만 표시합니다."
 L["your hits and misses"] = "내 적중 및 빗나감"
 L["Hide hits below"] = "이 수치 미만 공격 숨기기"
 L["Your hits (and your pet's) for less than this aren't shown. A hit whose number the game hides always shows, unless it's gear that always does the same (Cursed Murloc Eye's 2 Shadow)."] = "내 공격과 소환수 공격 중 이 값보다 작은 피해는 표시하지 않습니다. 게임이 수치를 숨긴 공격은 항상 표시하지만, 항상 같은 피해를 주는 장비 효과(저주받은 멀록의 눈의 암흑 피해 2 등)는 예외입니다."
