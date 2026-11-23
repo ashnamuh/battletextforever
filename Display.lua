@@ -340,6 +340,33 @@ function BT:PlateFor(unit, guid)
     return nil
 end
 
+-- Makes room for a new line at the bottom of its nameplate's column: the lines above move up
+-- just enough that none covers another (all of them drift at one pace, so they stay apart).
+-- More than PLATE_MOST at once: the highest goes, so the column never towers over the screen.
+local PLATE_DRIFT = 30   -- (px a line over a nameplate rises in its time on screen)
+local PLATE_MOST = 6
+function BT:PlateRoom(a, plate, size, now)
+    local column = {}
+    for _, other in ipairs(a.active) do
+        if other.plate == plate and now - other.start < other.duration then
+            other.atY = other.py + PLATE_DRIFT * math.max(0, now - other.start) / other.duration
+            column[#column + 1] = other
+        end
+    end
+    table.sort(column, function(l1, l2) return l1.atY < l2.atY end)
+    local floor, below = 0, size
+    for i, other in ipairs(column) do
+        local need = floor + (below + other.size) / 2 + 2
+        if other.atY < need then
+            other.py = other.py + (need - other.atY)
+            other.atY = need
+        end
+        if i >= PLATE_MOST then other.duration = math.max(0, now - other.start) end   -- (too many: it goes)
+        floor, below = other.atY, other.size
+    end
+    return 0
+end
+
 -- A nameplate is going (its unit is out of sight, or dead): its lines go with it, as the
 -- game hands the nameplate to another unit
 function BT:PlateGone(unit)
@@ -603,14 +630,10 @@ function BT:Emit(areaKey, text, color, opts)
     end
 
     if plate then
-        -- Jumps out just above the nameplate, drifts up and fades. Lines that come at once stack.
-        local stacked = 0
-        for _, other in ipairs(a.active) do
-            if other.plate == plate and now - other.start < 0.35 then stacked = stacked + 1 end
-        end
+        -- Jumps out just above the nameplate, drifts up and fades: one column, the newest at the
+        -- bottom, pushing the ones before it up so none lands on another
         o.style = "plate"
-        o.px = (math.random() - 0.5) * 40
-        o.py = (stacked % 4) * (size + 2)
+        o.px, o.py = 0, self:PlateRoom(a, plate, size, now)
         o.start, o.duration = now, math.max(1.2, self:ScrollTime(a) * 0.6)
     elseif o.sticky then
         o.start, o.duration = now, 1.7
@@ -799,7 +822,7 @@ function BT:Animate(now)
                 local x, y, alpha, scale = 0, 0, 1, 1
                 if o.plate then
                     if t < 0.12 then scale = 1 + 0.5 * (1 - t / 0.12) end
-                    x, y = o.px + (self.db.plateX or 0), o.py + (self.db.plateY or 0) + 30 * p
+                    x, y = o.px + (self.db.plateX or 0), o.py + (self.db.plateY or 0) + PLATE_DRIFT * p
                     if p > 0.6 then alpha = (1 - p) / 0.4 end
                 elseif o.sticky then
                     if a.def.dir == 0 then

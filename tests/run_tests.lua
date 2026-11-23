@@ -8548,8 +8548,35 @@ step("your hits and misses over the enemy's nameplate (Layout tab: Enemy namepla
     wound("nameplate4", 33)
     wound("nameplate4", 34)
     assertEq(#onPlates, 3, "more hits on it: more lines")
-    assert(onPlates[3].py > onPlates[2].py, "one that comes right after another starts above it, so they don't cover each other")
+    assert(onPlates[2].py > onPlates[3].py, "one that comes right after another starts below it and pushes it up, so they don't cover each other")
     assertEq(BT:PlateFor(nil, STATE.unit.plateMob.guid), plate4, "a combat log line's mob (its GUID) finds its nameplate too")
+    clear()
+    -- A fight's worth of hits, a little apart (Tyler's screenshot: "Claw 36" under "Dodge 58"):
+    -- no two lines over one nameplate ever cover each other, while they're on screen
+    local function apart()
+        local list = {}
+        for _, l in ipairs(onPlates) do
+            local t = FAKE_TIME - l.start
+            if t >= 0 and t < l.duration then list[#list + 1] = { y = l.py + 30 * t / l.duration, h = l.size } end
+        end
+        for i = 1, #list do
+            for j = i + 1, #list do
+                if math.abs(list[i].y - list[j].y) < (list[i].h + list[j].h) / 2 then return false end
+            end
+        end
+        return true
+    end
+    for i = 1, 12 do
+        wound("target", 30 + i)
+        assert(apart(), "lines over one nameplate never cover each other (hit " .. i .. ")")
+        Advance(i % 3 == 0 and 0.05 or 0.3)
+        assert(apart(), "nor as they drift (after hit " .. i .. ")")
+    end
+    clear()
+    for i = 1, 9 do wound("target", 40 + i) end
+    Advance(0.05)
+    assertEq(#onPlates, 6, "a burst: six lines at most over one nameplate, the oldest go")
+    assert(apart(), "and still apart")
     clear()
     assertEq(#onPlates, 0, "they fade like other lines")
 

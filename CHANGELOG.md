@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.2
+
+- **Numbers over nameplates no longer pile on top of each other.** In a busy fight, a new number over a nameplate could land right on one still fading out, so "Claw 36" and "Dodge 58" turned into one blur. Now they line up in one column over the nameplate: the newest pops in at the bottom and pushes the others up, so every number stays readable. At most six show over one nameplate at a time; past that the oldest goes.
+
 ## 1.40.1
 
 - **Glancing blows and seals in your game's language.** On a German (or other non-English) game, glancing blows said "(glancing)" and paladin seals kept their English names, like "+Seal of Command". Now glancing and crushing blows use the game's own word ("Streifschlag" in German), and seals show the name your game gives them ("Siegel des Befehls"), on the seal notice and on the seal's hits. (Thanks to ogogo1.)
