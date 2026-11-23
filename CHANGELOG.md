@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.38.3
+
+- **Masque icons are the right size again.** With Masque installed, the spell icons on your text came out much bigger than the text (and stayed big with BattleText's Masque group turned off). Masque sizes a skin once, when the icon is first set up, so it never shrank to your text size. Now the icons are scaled to your text size, skin and all. (Thanks to Oncewasperfect.)
+
 ## 1.38.2
 
 - **Mouseover heals show everywhere, not just in dungeons.** Penance and other heals cast with a mouseover macro on a party member still weren't shown as yours in the open world: the name the game gives for the cast didn't match anyone in the group, so BattleText couldn't tell who it went to. Now a friend under your mouse is who it went to whenever the name doesn't tell, as long as your target isn't another friend. Names with a realm or in another case also match now. (Thanks again to k45tr0spam.)

@@ -7062,7 +7062,11 @@ step("Masque: icons on lines follow the player's Masque skin")
 ;(function()
 clear()
 local added = {}
-local masqueGroup = { AddButton = function(_, b, regions) added[#added + 1] = { b = b, regions = regions } end }
+local addedSize
+local masqueGroup = { AddButton = function(_, b, regions)
+    added[#added + 1] = { b = b, regions = regions }
+    addedSize = b.__size and b.__size[1]
+end }
 local masque = { Group = function(_, addon) masqueGroup.addon = addon return masqueGroup end }
 rawset(_G, "LibStub", function(name, silent) return name == "Masque" and masque or nil end)
 BT.masque = nil
@@ -7072,14 +7076,17 @@ assertEq(masqueGroup.addon, "BattleText Forever", "one Masque group, under Battl
 assertEq(o.text:GetText(), "+250 " .. blank .. " Holy Light", "the icon in the text is a blank of its size")
 assertEq(o.icons[1].Icon.__texture, 135920, "a Masque icon shows the spell's icon instead")
 assertEq(o.icons[1]:IsShown(), true, "and it's shown")
-assertEq(o.icons[1].__pos[1], #"+250 " * 7, "over the blank: as far in as the text before it is wide")
-assertEq(o.icons[1].__size[1], o.fontSize, "as big as the line's font")
+local scale = o.fontSize / 36
+assertEq(o.icons[1].__pos[1], #"+250 " * 7 / scale, "over the blank: as far in as the text before it is wide (in the icon's scale)")
+assertEq(o.icons[1].__size[1], 36, "Masque's own size, when it's added: Masque sizes the skin once, by that")
+assertEq(o.icons[1].__scale, scale, "then scaled to the line's font size, so the skin shrinks with it")
+assert(addedSize == 36, "the icon is 36 before Masque skins it")
 assertEq(#added, 1, "the icon is added to the Masque group")
 assertEq(added[1].regions.Icon, o.icons[1].Icon, "with its icon texture as Masque's Icon")
 local two = BT:Emit("outgoing", "|T135315:0:0:0:0:64:64:5:59:5:59|t 55 / |T135315:0|t Shadowfang 30", { 1, 1, 1 })
 assertEq(two.text:GetText(), blank .. " 55 / " .. blank .. " Shadowfang 30", "every icon in a line, zoomed or not")
 assertEq(two.icons[1].__pos[1], 0, "the first at the start")
-assertEq(two.icons[2].__pos[1], #(blank .. " 55 / ") * 7, "the second after the text before it")
+assertEq(two.icons[2].__pos[1], #(blank .. " 55 / ") * 7 / (two.fontSize / 36), "the second after the text before it")
 clear()
 local plain
 for _ = 1, 4 do plain = BT:Emit("outgoing", "Dodge", { 1, 1, 1 }) end

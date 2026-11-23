@@ -371,11 +371,17 @@ function BT:MasqueGroup()
     return self.masque or nil
 end
 
+-- Masque sizes a skin's pieces once, by the frame's size when it skins it (Core/Core.lua
+-- UpdateFrameSize, Regions/Icon.lua SetSize), and never again when the frame is resized. So an
+-- icon is always Masque's own 36x36 and is scaled to the line's font size instead: sizing the
+-- frame left the skin at 36 (huge next to small text, CurseForge 1.38.0, Oncewasperfect).
+local MASQUE_SIZE = 36
 local function IconButton(o, i, group)
     o.icons = o.icons or {}
     local b = o.icons[i]
     if not b then
         b = CreateFrame("Frame", nil, o)
+        b:SetSize(MASQUE_SIZE, MASQUE_SIZE)
         b.Icon = b:CreateTexture(nil, "ARTWORK")
         b.Icon:SetAllPoints(b)
         b.Normal = b:CreateTexture(nil, "OVERLAY")
@@ -418,9 +424,10 @@ function BT:SkinIcons(o, text)
                 n = n + 1
                 local b = IconButton(o, n, group)
                 b.Icon:SetTexture(tonumber(tex) or tex)
-                b:SetSize(o.fontSize, o.fontSize)
+                local scale = o.fontSize / MASQUE_SIZE
+                b:SetScale(scale)
                 b:ClearAllPoints()
-                b:SetPoint("LEFT", o.text, "LEFT", x, 0)
+                b:SetPoint("LEFT", o.text, "LEFT", x / scale, 0)   -- (a scaled frame's offsets are in its own scale)
                 b:Show()
                 out[#out + 1] = blank
             else
