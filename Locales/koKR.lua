@@ -90,6 +90,7 @@ L["Low mana!"] = "마나 부족!"
 L["%s over"] = "%s 초과"
 L["Unnamed heal"] = "이름 없는 치유"
 L["Killing blow!"] = "결정타!"
+L["Thrill of Adventure"] = ""
 
 -- Alerts.lua
 L["%s ready"] = "%s 준비 완료"

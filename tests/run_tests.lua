@@ -1546,6 +1546,50 @@ Advance(0.3)
 assertEq(#lines("incoming"), 2, "your own heal still shows: it has a name")
 BT.db.inOtherHeals, BT.db.minHeal = true, 0
 clear()
+-- Thrill of Adventure (Tyler's druid logs, 1.40.3): after your killing blow, five unnamed heals on
+-- you 2s apart, the first ~2s after your last hit. The kill can't be read: the last hit of yours
+-- on a mob (NoteFought) and the beat name them. Not in dungeons.
+-- (kept short: the group steps later on lean on spells cast earlier, within 45s)
+do
+local thrillFought = BT.fought
+BT.selfHots, BT.thrill, BT.fought = nil, nil, nil
+BT:NoteFought("Creature-thrill", GetTime())
+Advance(2.03)
+local thrillDebug = BT.db.debug
+BT.db.debug, BT.recorded = true, {}
+fire("UNIT_COMBAT", "player", "HEAL", "", Secret(20), 1)
+Advance(0.3)
+assert(table.concat(BT.recorded, "\n"):find("player heal: named Thrill of Adventure", 1, true), "a hidden one: named too")
+BT.db.debug = thrillDebug
+Advance(1.7)
+for k = 2, 5 do
+    fire("UNIT_COMBAT", "player", "HEAL", "", 20, 1)
+    Advance(0.3)
+    assert(last("incoming"):find("Thrill of Adventure", 1, true), "Thrill of Adventure's heal " .. k)
+    Advance(k == 2 and 1.75 or 1.7)
+end
+fire("UNIT_COMBAT", "player", "HEAL", "", 20, 1)
+Advance(0.3)
+assert(not last("incoming"):find("Thrill", 1, true), "a sixth heal on its beat isn't it")
+Advance(3)
+BT.thrill, BT.fought = nil, nil
+BT:NoteFought("Creature-thrill", GetTime())
+Advance(1)
+fire("UNIT_COMBAT", "player", "HEAL", "", 20, 1)
+Advance(0.3)
+assert(not last("incoming"):find("Thrill", 1, true), "a heal 1s after your last hit isn't it")
+Advance(3)
+BT.thrill, BT.fought = nil, nil
+BT:NoteFought("Creature-thrill", GetTime())
+Advance(2)
+STATE.instance = "party"
+fire("UNIT_COMBAT", "player", "HEAL", "", 20, 1)
+Advance(0.3)
+assert(not last("incoming"):find("Thrill", 1, true), "not in a dungeon")
+STATE.instance = nil
+BT.thrill, BT.fought = nil, thrillFought
+clear()
+end
 BT.selfHots, BT.iconCache = nil, nil
 STATE.spellIcons[774] = nil
 STATE.helpful = nil

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.4
+
+- **Thrill of Adventure's heals are named.** After your killing blow, this talent heals you a little every 2 seconds, five times. Those heals used to show as a bare "+" with no name. Now they show as Thrill of Adventure with its icon. If you'd rather not see them, add "Thrill of Adventure" on the Spells tab and switch Hide on. (Turning off "Unnamed heals on you" no longer hides them, since they have a name now.)
+
 ## 1.40.3
 
 - **Rake's bleed shows as Rake again.** On some games Rake's bleed ticks come without the hidden combat log line the addon used to recognise them, so after the first hit they showed up as plain white hits. Now a physical hit right on Rake's 3 second beat, up to its three ticks, is named Rake. On games that do send those lines, nothing changes.

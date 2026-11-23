@@ -845,6 +845,42 @@ function BT:SelfHotFor(at, school)
     return best
 end
 
+-- Thrill of Adventure (a Forever talent, Tyler's tooltip, 1.40.4): "You gain 2% of your maximum
+-- Health and Mana over 10 sec each time you deliver the killing blow to a non-trivial enemy.
+-- Ineffective in dungeons, raids, and battlegrounds." Its heals come on you with no cast and no
+-- name, 2s apart, five in all, the first about 2s after the kill (Tyler's druid logs, 1.40.3:
+-- Rake killed at 194.23, heals at 196.26, 198.22, 200.27, 202.32, 204.33). The killing blow
+-- can't be read, so the first heal must come THRILL_FIRST after a hit of yours on a mob
+-- (NoteFought), the rest on its beat. Not in dungeons, raids and battlegrounds.
+local THRILL_FIRST_LEAST, THRILL_FIRST_MOST = 1.5, 2.7
+local THRILL_PERIOD, THRILL_SLACK, THRILL_TICKS = 2, 0.35, 5
+function BT:ThrillFor(at, school)
+    if school and school > 1 then return nil end
+    local okIn, inside, kind = pcall(IsInInstance)
+    if okIn and not IsSecret(inside) and inside and (kind == "party" or kind == "raid" or kind == "pvp"
+            or kind == "arena") then
+        return nil
+    end
+    -- (no spell ID known for it yet: the icon is looked up by its English name)
+    local spell = { id = "Thrill of Adventure", name = L["Thrill of Adventure"] }
+    local t = self.thrill
+    if t and t.ticks < THRILL_TICKS then
+        local off = at - t.last - THRILL_PERIOD
+        if math.abs(off) <= THRILL_SLACK then
+            t.ticks, t.last = t.ticks + 1, at
+            return spell
+        end
+    end
+    for _, hitAt in pairs(self.fought or {}) do
+        local since = at - hitAt
+        if since >= THRILL_FIRST_LEAST and since <= THRILL_FIRST_MOST then
+            self.thrill = { ticks = 1, last = at }
+            return spell
+        end
+    end
+    return nil
+end
+
 function BT:TakeHealCast(at)
     local cast = self.healCast
     if cast and math.abs(cast.at - at) <= HEAL_CAST_TIME then
@@ -968,7 +1004,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             -- (Light's Vigil's heal, set off by your Holy Shock: the first heal on you is the Holy Shock's
             -- when you Holy Shocked yourself)
             local cast = BT:GraveHealFor(at) or BT:VigilOnYou(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
-                or BT:SelfAreaFor(at, Num(school))
+                or BT:SelfAreaFor(at, Num(school)) or BT:ThrillFor(at, Num(school))
             if BT.db.debug then BT:Record("  player heal: " .. (cast and ("named " .. tostring(cast.name)) or "no cast of yours with it"), at) end
             local after, color = "", C.heal
             if cast then

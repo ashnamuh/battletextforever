@@ -704,3 +704,6 @@ function WithoutTimers(fn)
     if not ok then error(err, 0) end
 end
 LOADED = true
+
+-- (STATE.instance: "party", "raid", "pvp" or "arena" inside one; nil in the open world)
+function IsInInstance() if STATE.instance then return true, STATE.instance end return false, "none" end

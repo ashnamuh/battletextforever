@@ -90,6 +90,7 @@ L["Low mana!"] = "法力过低！"
 L["%s over"] = "%s 过量"
 L["Unnamed heal"] = "未命名治疗"
 L["Killing blow!"] = "击杀！"
+L["Thrill of Adventure"] = ""
 
 -- Alerts.lua
 L["%s ready"] = "%s 已就绪"

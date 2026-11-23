@@ -90,6 +90,7 @@ L["Low mana!"] = ""
 L["%s over"] = ""
 L["Unnamed heal"] = ""
 L["Killing blow!"] = ""
+L["Thrill of Adventure"] = ""
 
 -- Alerts.lua
 L["%s ready"] = ""
