@@ -354,6 +354,89 @@ local function HiddenLine(fontString, text, secret, after)
     end
 end
 
+-- Masque (optional): with it installed, the icons on lines are its buttons, so they follow
+-- the player's Masque skin (Masque's own options, group "BattleText Forever"). Each icon in
+-- the text gives way to a blank of the same size, and a skinned icon sits over that blank:
+-- it's placed by the width of the text before it, from the left edge of the line's text.
+-- Masque's Interface line lists 16001, and its Group:AddButton takes a plain Frame with its
+-- regions given (Core/Group.lua).
+BT.ICON_BLANK = "Interface\\AddOns\\BattleTextForever\\Media\\Blank"
+function BT:MasqueGroup()
+    if self.masque == nil then
+        local lib = LibStub and LibStub("Masque", true)
+        local ok, group = false, nil
+        if lib and lib.Group then ok, group = pcall(lib.Group, lib, "BattleText Forever") end
+        self.masque = ok and group or false
+    end
+    return self.masque or nil
+end
+
+local function IconButton(o, i, group)
+    o.icons = o.icons or {}
+    local b = o.icons[i]
+    if not b then
+        b = CreateFrame("Frame", nil, o)
+        b.Icon = b:CreateTexture(nil, "ARTWORK")
+        b.Icon:SetAllPoints(b)
+        b.Normal = b:CreateTexture(nil, "OVERLAY")
+        b.Normal:SetAllPoints(b)
+        pcall(group.AddButton, group, b, { Icon = b.Icon, Normal = b.Normal })
+        o.icons[i] = b
+    end
+    return b
+end
+
+-- The line's text with its icons made Masque buttons (as it was, without Masque). Icons after
+-- a hidden amount stay in the text: the width before them can't be read.
+function BT:SkinIcons(o, text)
+    local group = self:MasqueGroup()
+    local n = 0
+    if group and type(text) == "string" and text:find("|T", 1, true) then
+        if not o.measure then
+            o.measure = o:CreateFontString(nil, "BACKGROUND")
+            o.measure:Hide()
+        end
+        if o.measureFont ~= o.fontPath .. o.fontSize .. o.fontFlags then
+            o.measure:SetFont(o.fontPath, o.fontSize, o.fontFlags)
+            o.measureFont = o.fontPath .. o.fontSize .. o.fontFlags
+        end
+        local blank = "|T" .. self.ICON_BLANK .. ":0|t"
+        local out, pos = {}, 1
+        while true do
+            local s, e, spec = text:find("|T([^|]-)|t", pos)
+            if not s then break end
+            out[#out + 1] = text:sub(pos, s - 1)
+            local tex = spec:match("^([^:]+)")
+            if tex then
+                local before = table.concat(out)
+                local x = 0
+                if before ~= "" then
+                    o.measure:SetText(before)
+                    local ok, w = pcall(o.measure.GetStringWidth, o.measure)
+                    x = (ok and type(w) == "number" and not IsSecret(w)) and w or 0
+                end
+                n = n + 1
+                local b = IconButton(o, n, group)
+                b.Icon:SetTexture(tonumber(tex) or tex)
+                b:SetSize(o.fontSize, o.fontSize)
+                b:ClearAllPoints()
+                b:SetPoint("LEFT", o.text, "LEFT", x, 0)
+                b:Show()
+                out[#out + 1] = blank
+            else
+                out[#out + 1] = text:sub(s, e)
+            end
+            pos = e + 1
+        end
+        out[#out + 1] = text:sub(pos)
+        text = table.concat(out)
+    end
+    if o.icons then
+        for i = n + 1, #o.icons do o.icons[i]:Hide() end
+    end
+    return text
+end
+
 -- Puts a line of text into an area.
 --   color = { r, g, b }
 --   opts.crit    bigger, and sticky if that's turned on
@@ -386,11 +469,11 @@ function BT:Emit(areaKey, text, color, opts)
             r.count, r.time = r.count + 1, now
             if hidden then
                 -- (a 0 here leaves the count: blanking the line would lose the hits before it)
-                r.line.text:SetFormattedText("%s%s%s", text, HiddenNumber(opts.secret),
+                r.line.text:SetFormattedText("%s%s%s", self:SkinIcons(r.line, text), HiddenNumber(opts.secret),
                     (opts.after or "") .. " |cffb0b0b0(" .. L["%s hits"]:format(r.count) .. ")|r")
             else
                 r.total = r.total + opts.amount
-                r.line.text:SetText(opts.format(r.total, r.count))
+                r.line.text:SetText(self:SkinIcons(r.line, opts.format(r.total, r.count)))
             end
             return r.line
         end
@@ -425,9 +508,9 @@ function BT:Emit(areaKey, text, color, opts)
         o.text:SetShadowOffset(0, 0)
     end
     if hidden then   -- (never compare a secret, even with nil: that throws)
-        HiddenLine(o.text, text, opts.secret, opts.after or "")
+        HiddenLine(o.text, self:SkinIcons(o, text), opts.secret, opts.after or "")
     else
-        o.text:SetText(text)
+        o.text:SetText(self:SkinIcons(o, text))
     end
     o.text:SetTextColor(color[1], color[2], color[3])
     o.size = size

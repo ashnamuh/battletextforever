@@ -27,6 +27,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 - **Your look**: 23 fonts (plus any your other addons share through LibSharedMedia; on a Russian game, the ones with Russian letters), a separate font for crits if you like, an outline (thin or thick) or a drop shadow, text and crit size, a smallest crit (smaller ones show as normal hits), bigger text for bigger hits, short numbers (12.3k), scroll speed and distance, your own colors, and for each area its own size, opacity and direction (up or down, straight or curved), and left, centered or right text for the side areas.
 - **Your choice of what's shown.** Turn any kind of text off, hide your auto attacks, icons and spell names per area, hide small hits and heals, and hide the game's own numbers so nothing shows twice.
 - **Sounds** if you want them, on your crits and killing blows: pick from 18 of the game's sounds (Crit, Impact, Anvil, Battle horn, Boss defeated, Cheers, Epic loot...), or any your other addons share through LibSharedMedia.
+- **Masque**: if you use it, the spell icons on your text take your Masque skin (group "BattleText Forever" in Masque's options).
 - **Low health and low mana warnings** if you want them: a big "Low health!" or "Low mana!" with a sound as you drop low, so you notice in time. You pick the sound, and how low your mana goes before it warns.
 - **Settings per character** if you want them, starting from a copy of your shared ones, and **share your settings** with a friend as a line of text.
 

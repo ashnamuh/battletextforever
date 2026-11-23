@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.38.0
+
+- **Masque skins BattleText's icons.** If you use Masque, the spell icons on your scrolling text now take your Masque skin, like your action bars. Pick the skin under Masque's options, group "BattleText Forever" (turn the group off there for plain icons). The icons stay where they were on each line. Without Masque nothing changes. (Thanks to the CurseForge player who asked.)
+
 ## 1.37.2
 
 - **Korean is complete.** The last English line, the paladin seal option, is now in Korean, with Seal of Fury as 분노의 문장. (Thanks to Jaemok.)

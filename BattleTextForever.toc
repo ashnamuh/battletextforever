@@ -4,6 +4,7 @@
 ## Author: severd8
 ## Version: @project-version@
 ## IconTexture: Interface\AddOns\BattleTextForever\Media\Icon
+## OptionalDeps: Masque
 ## SavedVariables: BattleTextForeverDB
 ## SavedVariablesPerCharacter: BattleTextForeverCharDB
 ## X-Curse-Project-ID: 1722502

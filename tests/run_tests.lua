@@ -7058,6 +7058,46 @@ end
 rawset(_G, "LibStub", nil)
 BT.sharedFontsHooked = nil
 
+step("Masque: icons on lines follow the player's Masque skin")
+;(function()
+clear()
+local added = {}
+local masqueGroup = { AddButton = function(_, b, regions) added[#added + 1] = { b = b, regions = regions } end }
+local masque = { Group = function(_, addon) masqueGroup.addon = addon return masqueGroup end }
+rawset(_G, "LibStub", function(name, silent) return name == "Masque" and masque or nil end)
+BT.masque = nil
+local blank = "|T" .. BT.ICON_BLANK .. ":0|t"
+local o = BT:Emit("outgoing", "+250 |T135920:0|t Holy Light", { 1, 1, 1 })
+assertEq(masqueGroup.addon, "BattleText Forever", "one Masque group, under BattleText's name")
+assertEq(o.text:GetText(), "+250 " .. blank .. " Holy Light", "the icon in the text is a blank of its size")
+assertEq(o.icons[1].Icon.__texture, 135920, "a Masque icon shows the spell's icon instead")
+assertEq(o.icons[1]:IsShown(), true, "and it's shown")
+assertEq(o.icons[1].__pos[1], #"+250 " * 7, "over the blank: as far in as the text before it is wide")
+assertEq(o.icons[1].__size[1], o.fontSize, "as big as the line's font")
+assertEq(#added, 1, "the icon is added to the Masque group")
+assertEq(added[1].regions.Icon, o.icons[1].Icon, "with its icon texture as Masque's Icon")
+local two = BT:Emit("outgoing", "|T135315:0:0:0:0:64:64:5:59:5:59|t 55 / |T135315:0|t Shadowfang 30", { 1, 1, 1 })
+assertEq(two.text:GetText(), blank .. " 55 / " .. blank .. " Shadowfang 30", "every icon in a line, zoomed or not")
+assertEq(two.icons[1].__pos[1], 0, "the first at the start")
+assertEq(two.icons[2].__pos[1], #(blank .. " 55 / ") * 7, "the second after the text before it")
+clear()
+local plain
+for _ = 1, 4 do plain = BT:Emit("outgoing", "Dodge", { 1, 1, 1 }) end
+for _, line in ipairs(BT.areas.outgoing.active) do
+    for _, b in ipairs(line.icons or {}) do assertEq(b:IsShown(), false, "a line without icons shows none from before") end
+end
+local count = #added
+BT:Emit("outgoing", "|T132140:0|t Claw 51", { 1, 1, 1 })
+assert(#added - count <= 1, "a line from the pool keeps its Masque icons")
+clear()
+rawset(_G, "LibStub", nil)
+BT.masque = nil
+local without = BT:Emit("outgoing", "+250 |T135920:0|t Holy Light", { 1, 1, 1 })
+assertEq(without.text:GetText(), "+250 |T135920:0|t Holy Light", "without Masque, the icon stays in the text")
+clear()
+BT.masque = nil
+end)()
+
 step("Layout: each kind of text in the area you pick")
 clear()
 local wasRoutes = {}
