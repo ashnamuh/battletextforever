@@ -7975,6 +7975,74 @@ step("mouseover heals when the game hides names (GitHub #29: Penance on a party 
     clear()
 end)()
 
+step("mouseover heals when SENT's name matches no one (GitHub #29, open world, Penance 1240720)")
+;(function()   -- (a function: the file is near Lua's limit of locals)
+    clear()
+    local whoWas, unitWas, groupWas = STATE.who, STATE.unit, STATE.group
+    STATE.who = { party1 = "friend", party2 = "buddy" }
+    STATE.unit = { friend = { guid = "Player-5555-0FRIEND1", name = "Friendo" },
+        buddy = { guid = "Player-5555-0BUDDY01", name = "Buddy" } }
+    STATE.group = true
+    STATE.spellNames[1240720], STATE.spellIcons[1240720] = "Penance", 237545
+    STATE.spellNames[1240723], STATE.spellIcons[1240723] = "Penance", 237545
+    STATE.spellNames[9474], STATE.spellIcons[9474] = "Flash Heal", 135907
+    STATE.helpful = STATE.helpful or {}
+    STATE.helpful[9474] = true
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    local function mouse(id) STATE.who.mouseover = id end
+    local function sent(name, id) fire("UNIT_SPELLCAST_SENT", "player", name, "Cast-s" .. id, id) end
+    local function heal(unit, n) fire("UNIT_COMBAT", unit, "HEAL", "", n, 1) end
+    Advance(1)
+    -- The log (528.80): "SENT 1240720 to ? (no name match, mouse on a friend, target not a friend)"
+    mouse("friend")
+    sent("Somethingelse", 1240720)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn1", 1240720)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn2", 1240723)
+    assertEq(BT.sent and BT.sent.unit, "party1", "a name that matches no one: the friend under the mouse")
+    mouse(nil)
+    Advance(0.24)
+    heal("party1", 50)
+    hidden(9)
+    Advance(0.75)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn3", 1240723)
+    Advance(0.26)
+    heal("party1", 51)
+    hidden(7)
+    Advance(0.73)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-pn4", 1240723)
+    Advance(0.3)
+    heal("party1", 52)
+    hidden(7)
+    Advance(0.3)
+    assertEq(table.concat(lines("outgoing"), " / "), "Penance +50 / Penance +51 / Penance +52",
+        "Penance's heals on the friend under the mouse, named")
+    assertEq(#lines("incoming"), 0, "and none on you")
+    clear()
+    -- Flash Heal on yourself (535.92): the heal before the cast, in one frame
+    Advance(2)
+    sent("Somethingelse", 9474)
+    Advance(1.32)
+    heal("player", 300)
+    hidden(14)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-fh1", 9474)
+    Advance(0.3)
+    assertEq(last("incoming"), "+300 Flash Heal", "Flash Heal on yourself, named")
+    clear()
+    -- Names the game might send another way: with the realm, in another case, or as a GUID
+    for _, name in ipairs({ "Buddy-Realm", "buddy", "Player-5555-0BUDDY01" }) do
+        mouse("friend")
+        sent(name, 9474)
+        mouse(nil)
+        assertEq(BT.sent and BT.sent.unit, "party2", "SENT's " .. name .. " is the buddy, not the mouse's friend")
+        Advance(7)
+    end
+    STATE.who, STATE.unit, STATE.group = whoWas, unitWas, groupWas
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
+    clear()
+end)()
+
 step("a font of their own for crits")
 -- CurseForge (beefsupreme3954, a healer): "it would be great to select a separate font for crits"
 ;(function()

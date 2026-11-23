@@ -698,25 +698,40 @@ function BT:OnSpellSent(target, spellId)
     local unit
     local hidden = IsSecret(target)   -- (the game hides the name, or every unit's name it could be)
     local who = Str(target)
+    local shape = hidden and "hidden" or nil   -- (what the name looked like, for the debug log)
     if who then
         if who == "" then return end   -- (a spell with no one to go to: as before)
-        local short = who:match("^([^%-]+)%-") or who
+        local plain = who:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        local short = (plain:match("^([^%-]+)%-") or plain):lower()
+        local isGUID = plain:match("^%a+%-%d+%-") ~= nil
+        shape = isGUID and "a GUID" or (plain:find("-", 1, true) and "a name-realm" or "a name")
         for _, u in ipairs(SENT_UNITS) do
             if Flag(UnitExists, u) then
-                local ok, n = pcall(UnitName, u)
-                if ok and IsSecret(n) then hidden = true end
-                n = ok and Str(n) or nil
-                if n and (n == who or n == short) then unit = u break end
+                if isGUID then
+                    local ok, g = pcall(UnitGUID, u)
+                    if ok and Str(g) == plain then unit = u break end
+                else
+                    local ok, n, realm = pcall(UnitName, u)
+                    if ok and IsSecret(n) then hidden = true end
+                    n = ok and Str(n) or nil
+                    realm = ok and Str(realm) or nil
+                    if n then
+                        local full = (realm and realm ~= "") and (n .. "-" .. realm) or n
+                        local nShort = (n:match("^([^%-]+)%-") or n):lower()
+                        if n == plain or full == plain or nShort == short then unit = u break end
+                    end
+                end
             end
         end
     end
     local mouse = CanHelp("mouseover") and not Flag(UnitIsUnit, "mouseover", "player")
     local friendTargeted = Flag(UnitExists, "target") and CanHelp("target")
-    if not unit and hidden then
-        -- The names can't be matched: in a dungeon the game hides the name SENT gives, or every
-        -- unit's name to match it with (GitHub #29: Penance with a mouseover macro on a party
-        -- member, "SENT to ?", each heal dropped). A friend under the mouse while your target isn't
-        -- one is who a mouseover cast is on. With a friend targeted, it can't be told.
+    if not unit then
+        -- Not known by its name: in a dungeon the game hides the names (GitHub #29, 1.38.1), and in
+        -- the open world a player's SENT names matched no one either (1.38.2: "no name match" on
+        -- every cast, even on themselves). A friend under the mouse while your target isn't one is
+        -- who a mouseover cast is on ([@mouseover,help] comes first in such a macro). With a friend
+        -- targeted, it can't be told: your target, as before.
         if mouse and not friendTargeted then unit = "mouseover" end
     end
     if self.db.debug then
@@ -726,7 +741,8 @@ function BT:OnSpellSent(target, spellId)
                 .. (mouse and "on a friend" or "not on a friend") .. ", target "
                 .. (friendTargeted and "a friend" or "not a friend") .. ")"
         end
-        self:Record("SENT " .. tostring(id) .. " to " .. tostring(unit or "?") .. why)
+        self:Record("SENT " .. tostring(id) .. " to " .. tostring(unit or "?") .. why
+            .. (shape and (" [sent " .. shape .. "]") or ""))
     end
     if not unit then return end
     local ok, guid = pcall(UnitGUID, unit)
@@ -927,6 +943,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
             -- when you Holy Shocked yourself)
             local cast = BT:GraveHealFor(at) or BT:VigilOnYou(at) or BT:TakeHealCast(at) or BT:SelfHotFor(at, Num(school))
                 or BT:SelfAreaFor(at, Num(school))
+            if BT.db.debug then BT:Record("  player heal: " .. (cast and ("named " .. tostring(cast.name)) or "no cast of yours with it"), at) end
             local after, color = "", C.heal
             if cast then
                 local rule = BT:SpellRule(cast.name)

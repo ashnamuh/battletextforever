@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.38.2
+
+- **Mouseover heals show everywhere, not just in dungeons.** Penance and other heals cast with a mouseover macro on a party member still weren't shown as yours in the open world: the name the game gives for the cast didn't match anyone in the group, so BattleText couldn't tell who it went to. Now a friend under your mouse is who it went to whenever the name doesn't tell, as long as your target isn't another friend. Names with a realm or in another case also match now. (Thanks again to k45tr0spam.)
+
 ## 1.38.1
 
 - **Mouseover heals show in dungeons.** Heals cast with a mouseover macro (or a click on a party frame) on a party member, like Penance, weren't shown as yours in a dungeon, because the game hides everyone's names there and BattleText couldn't tell who the cast went to. Now a friend under your mouse is who it went to, as long as your target isn't another friend. (Thanks to k45tr0spam for the log.)
