@@ -2033,6 +2033,30 @@ function BT:ResolveFrame(seq, first, last)
             end
         end
     end
+    -- No line to go by and no hit after the cast: the cast's hit is the one just ahead of it (Tyler's
+    -- log, 1.40.4: Ravage from Prowl, its one hit ahead of its CAST with no line, showed as a white
+    -- hit with the swing icon). Of the spell's school (Physical when not known), not a tick.
+    local castBefore
+    if cast and castAt and not byLine then
+        local after = false
+        for i = castAt + 1, last do
+            if seq[i].hit and not seq[i].splash then after = true break end
+        end
+        local info = periodic[cast.name or ""]
+        if not after and not (info and not info.direct) and not castFlight then
+            local expect = schoolOf(cast) or 1
+            for i = castAt - 1, first, -1 do
+                local h = seq[i]
+                if h.hit and not h.splash and (h.kind == "damage" or h.kind == "miss") then
+                    local mask = Num(h.school)
+                    if (h.kind == "miss" or mask == nil or mask == expect) and not self:TickFor(h) then
+                        castBefore = i
+                    end
+                    break
+                end
+            end
+        end
+    end
     -- An attack on your next swing (Maul, Heroic Strike...) replaces the swing, yet the game can
     -- send two physical hits on the mob with it: the attack, and a part for nothing whose amount
     -- it hides (and draws as "0"). On each mob, every such hit but the attack's is that part.
@@ -2096,7 +2120,7 @@ function BT:ResolveFrame(seq, first, last)
                 what, spell = "cast", second
             -- Without a line to go by, the cast's hit comes after the cast (a hit ahead of it in
             -- the frame is something else)
-            elseif cast and ((byLine and byLine[i]) or (not byLine and i > castAt)) then
+            elseif cast and ((byLine and byLine[i]) or (not byLine and (i > castAt or i == castBefore))) then
                 local info = periodic[cast.name or ""]
                 if h.kind ~= "damage" then
                     if not (castFlight and h.kind == "miss" and not flightMiss(h)) then spell = cast end

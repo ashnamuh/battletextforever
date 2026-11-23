@@ -1554,7 +1554,7 @@ do
 local thrillFought = BT.fought
 BT.selfHots, BT.thrill, BT.fought = nil, nil, nil
 BT:NoteFought("Creature-thrill", GetTime())
-Advance(2.03)
+Advance(1.06)   -- (the first heal 1.06s after the killing hit, Tyler's second log)
 local thrillDebug = BT.db.debug
 BT.db.debug, BT.recorded = true, {}
 fire("UNIT_COMBAT", "player", "HEAL", "", Secret(20), 1)
@@ -1574,10 +1574,10 @@ assert(not last("incoming"):find("Thrill", 1, true), "a sixth heal on its beat i
 Advance(3)
 BT.thrill, BT.fought = nil, nil
 BT:NoteFought("Creature-thrill", GetTime())
-Advance(1)
+Advance(0.5)
 fire("UNIT_COMBAT", "player", "HEAL", "", 20, 1)
 Advance(0.3)
-assert(not last("incoming"):find("Thrill", 1, true), "a heal 1s after your last hit isn't it")
+assert(not last("incoming"):find("Thrill", 1, true), "a heal 0.5s after your last hit isn't it")
 Advance(3)
 BT.thrill, BT.fought = nil, nil
 BT:NoteFought("Creature-thrill", GetTime())
@@ -3426,6 +3426,26 @@ log("|Ky2|k")
 fire("UNIT_COMBAT", "target", "DODGE", "", 0, 1)
 fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-t", 5221)
 assertEq(table.concat(lines("outgoing"), " / "), "Shred Dodge", "a dodged Shred says so")
+-- Ravage from Prowl with no line (Tyler's log, 1.40.4, 737.03): SWING, its one hit, then its CAST,
+-- all in one frame while the lines flow. The hit ahead of the cast is Ravage's, not a white hit
+freshFight()
+STATE.who.target = "mobA"
+log("|Ky3|k")   -- (lines arriving lately: Thrill of Adventure's)
+Advance(1.6)
+fire("PLAYER_SWING", 1.5, 0)
+fire("UNIT_COMBAT", "target", "WOUND", "", 140, 1)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-rv", 6785)
+assertEq(table.concat(lines("outgoing"), " / "), "Ravage 140", "the one hit ahead of the cast is Ravage's")
+-- With a hit after the cast too, that one is the cast's, as before
+freshFight()
+STATE.who.target = "mobA"
+log("|Ky4|k")
+Advance(1.6)
+fire("PLAYER_SWING", 1.5, 0)
+fire("UNIT_COMBAT", "target", "WOUND", "", 30, 1)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-3-cl", 1082)
+fire("UNIT_COMBAT", "target", "WOUND", "", 60, 1)
+assertEq(table.concat(lines("outgoing"), " / "), "30 / Claw 60", "a hit after the cast is the cast's")
 -- A spell's school takes two frames to learn, and two frames to unlearn (BT-006)
 do
     local function clawFrame(school)

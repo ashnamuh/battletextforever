@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.40.5
+
+- **Ravage keeps its name and icon.** Opening from Prowl with Ravage could show its hit as a plain white hit with your auto attack icon. The game sends Ravage's hit just before the cast itself, and sometimes without the hidden line that used to tell them apart. Now when a cast has no hit after it, the hit right before it is the cast's.
+- **Thrill of Adventure's first heal is caught sooner.** The first heal can come as early as one second after your killing blow, not two, so it's named from the first tick now.
+
 ## 1.40.4
 
 - **Thrill of Adventure's heals are named.** After your killing blow, this talent heals you a little every 2 seconds, five times. Those heals used to show as a bare "+" with no name. Now they show as Thrill of Adventure with its icon. If you'd rather not see them, add "Thrill of Adventure" on the Spells tab and switch Hide on. (Turning off "Unnamed heals on you" no longer hides them, since they have a name now.)

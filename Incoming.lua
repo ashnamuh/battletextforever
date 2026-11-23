@@ -849,10 +849,11 @@ end
 -- Health and Mana over 10 sec each time you deliver the killing blow to a non-trivial enemy.
 -- Ineffective in dungeons, raids, and battlegrounds." Its heals come on you with no cast and no
 -- name, 2s apart, five in all, the first about 2s after the kill (Tyler's druid logs, 1.40.3:
--- Rake killed at 194.23, heals at 196.26, 198.22, 200.27, 202.32, 204.33). The killing blow
+-- Rake killed at 194.23, heals at 196.26, 198.22, 200.27, 202.32, 204.33; 1.40.4: the first 1.06s
+-- and 1.25s after the killing hit, so it's 0.8s at the least). The killing blow
 -- can't be read, so the first heal must come THRILL_FIRST after a hit of yours on a mob
 -- (NoteFought), the rest on its beat. Not in dungeons, raids and battlegrounds.
-local THRILL_FIRST_LEAST, THRILL_FIRST_MOST = 1.5, 2.7
+local THRILL_FIRST_LEAST, THRILL_FIRST_MOST = 0.8, 2.7
 local THRILL_PERIOD, THRILL_SLACK, THRILL_TICKS = 2, 0.35, 5
 function BT:ThrillFor(at, school)
     if school and school > 1 then return nil end
