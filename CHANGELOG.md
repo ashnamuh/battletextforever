@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.41.0
+
+- **`/btf report`: send one report instead of many logs.** `/btf debug` now keeps a whole play session (it used to keep only the last fight or so). Play for a while, then type `/btf report`: it shows only the lines that look wrong, each kind counted with one example. That covers casts whose hit showed with no name, heals on you with no source, and hits that went unclaimed. Copy it into one bug report, and everything in it can be fixed together. `/btf copy` still shows everything. The recording ends when you log out or reload.
+
 ## 1.40.5
 
 - **Ravage keeps its name and icon.** Opening from Prowl with Ravage could show its hit as a plain white hit with your auto attack icon. The game sends Ravage's hit just before the cast itself, and sometimes without the hidden line that used to tell them apart. Now when a cast has no hit after it, the hit right before it is the cast's.

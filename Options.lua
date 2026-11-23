@@ -931,6 +931,122 @@ function BT:OpenCopyWindow()
     self:ShowTextWindow(L["Combat lines: press Ctrl+C to copy, then paste into your report"], text, count)
 end
 
+-- /btf report: from what /btf debug recorded, only the lines that look wrong, each kind with how
+-- many times it happened and one example (the lines around it). One report covers a whole play
+-- session, so many problems can be fixed in one go instead of one log each. In English, like
+-- the rest of the debug output.
+local REPORT_AROUND = 1.5   -- seconds of lines kept around an example
+local REPORT_KINDS = {
+    { key = "castPlain", title = "Casts of yours whose hit was shown with no name" },
+    { key = "noSource", title = "Heals on you with no source" },
+    { key = "waited", title = "Hits that waited for a seal, shield or gear, and nothing came" },
+    { key = "noLine", title = "Hits turned away for want of a line of yours" },
+}
+local function ReportLine(line)
+    local t = tonumber(line:sub(1, 7))
+    return t, line:sub(10)
+end
+-- Lines from i outwards, while within REPORT_AROUND of line i's time (times wrap at 1000)
+local function Around(list, i)
+    local t0 = ReportLine(list[i]) or 0
+    local function near(j)
+        local t = ReportLine(list[j])
+        if not t then return false end
+        local d = math.abs(t - t0)
+        return math.min(d, 1000 - d) <= REPORT_AROUND
+    end
+    local a, b = i, i
+    while a > 1 and near(a - 1) and i - a < 20 do a = a - 1 end
+    while b < #list and near(b + 1) and b - i < 20 do b = b + 1 end
+    local out = {}
+    for j = a, b do out[#out + 1] = list[j] end
+    return out
+end
+function BT:BuildReport(list)
+    list = list or self.recorded or {}
+    local found = {}
+    local function add(key, i, what)
+        local f = found[key]
+        if not f then
+            f = { count = 0, what = {}, order = {} }
+            found[key] = f
+        end
+        f.count = f.count + 1
+        if not f.example then f.example = i end
+        if what then
+            if not f.what[what] then f.what[what] = 0 f.order[#f.order + 1] = what end
+            f.what[what] = f.what[what] + 1
+        end
+    end
+    for i, line in ipairs(list) do
+        local t, text = ReportLine(line)
+        if t and text then
+            if text:find("player heal: no cast of yours with it", 1, true) then
+                add("noSource", i)
+            elseif text:find(": nothing came for it: shown$") then
+                add("waited", i)
+            elseif text:find(": no line of yours with it$") or text:find(": no heal of yours with it$") then
+                add("noLine", i)
+            else
+                local name = text:match("^CAST %d+ (.+)$")
+                if name then
+                    -- A hit at the same moment shown plain, and nothing named after the cast nearby
+                    local plain, named = false, false
+                    for _, other in ipairs(Around(list, i)) do
+                        local ot, otext = ReportLine(other)
+                        if ot and otext:find("^  %S+ .-: cast of " .. name:gsub("%p", "%%%0") .. "$") then named = true end
+                        if ot and math.abs(ot - t) < 0.02 and otext:find("^  %S+ .-: shown$") then plain = true end
+                    end
+                    if plain and not named then add("castPlain", i, name) end
+                end
+            end
+        end
+    end
+    local first, lastT = list[1] and ReportLine(list[1]), list[#list] and ReportLine(list[#list])
+    local out = {}
+    local get = C_AddOns and C_AddOns.GetAddOnMetadata
+    local okV, v = pcall(function() return get and get(ADDON, "Version") end)
+    out[#out + 1] = ("BattleText report%s: %d lines recorded"):format(
+        (okV and type(v) == "string" and not v:find("@", 1, true)) and (" " .. v) or "", #list)
+    if first and lastT then
+        local span = lastT - first
+        if span < 0 then span = span + 1000 end
+        out[#out + 1] = ("(over %d seconds or more)"):format(math.floor(span + 0.5))
+    end
+    local any = false
+    for _, kind in ipairs(REPORT_KINDS) do
+        local f = found[kind.key]
+        if f then
+            any = true
+            out[#out + 1] = ""
+            out[#out + 1] = ("== %s: %d =="):format(kind.title, f.count)
+            if #f.order > 0 then
+                local names = {}
+                for _, what in ipairs(f.order) do names[#names + 1] = ("%s x%d"):format(what, f.what[what]) end
+                out[#out + 1] = table.concat(names, ", ")
+            end
+            out[#out + 1] = "Example:"
+            for _, line in ipairs(Around(list, f.example)) do out[#out + 1] = line end
+        end
+    end
+    if not any then
+        out[#out + 1] = ""
+        out[#out + 1] = "Nothing that looks wrong."
+    end
+    return out
+end
+
+function BT:OpenReport()
+    if not (self.recorded and #self.recorded > 0) then
+        self:OpenCopyWindow()   -- (says how to record first)
+        return
+    end
+    local lines = self:BuildReport()
+    for i, line in ipairs(lines) do lines[i] = self.Str(line) or "(a line with a hidden value)" end
+    self:ShowTextWindow(L["Report: press Ctrl+C to copy, then paste into your report"],
+        (table.concat(lines, "\n"):gsub("|", "||")), #lines)
+end
+
 -- mode: "export" (your settings, to copy) or "import" (paste, then click Import)
 function BT:OpenShareWindow(mode)
     if mode == "export" then

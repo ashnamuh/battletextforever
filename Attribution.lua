@@ -2637,15 +2637,22 @@ function BT:OnCombatLogMessage(message, _, _, _, order)
 end
 
 -- Debug (/btf debug, then /btf copy): what the game sent, exactly, with the time
--- it arrived. Kept only while debug is on, and only the last 300.
+-- it arrived. Kept only while debug is on, and only the last RECORD_MOST: enough for a whole play
+-- session, so /btf report can sum it up (until 1.41.0 it kept 300, about one fight).
 -- A hidden value in the text would make the whole line secret, and /btf copy couldn't
 -- show it, so such a line is kept as a note instead.
+local RECORD_MOST = 5000
 function BT:Record(text, time)
     self.recorded = self.recorded or {}
     local list = self.recorded
     text = Str(text) or "(a line with a hidden value)"
     list[#list + 1] = ("%7.2f  %s"):format((Num(time) or GetTime()) % 1000, text)
-    if #list > 300 then table.remove(list, 1) end
+    -- (trimmed 500 at a time: one at a time would move 5000 lines for each new one)
+    if #list > RECORD_MOST + 500 then
+        local kept = {}
+        for i = #list - RECORD_MOST + 1, #list do kept[#kept + 1] = list[i] end
+        self.recorded = kept
+    end
 end
 
 -- Shared with the files loaded after this one

@@ -548,6 +548,7 @@ local function Help()
     print("  |cffffd100/btf resetall|r  " .. L["put every setting back to how it started"])
     print("  |cffffd100/btf on|r, |cffffd100/btf off|r  " .. L["turn the text on or off"])
     print("  |cffffd100/btf debug|r  " .. L["record the combat lines the game sends; |cffffd100/btf copy|r shows them (for bug reports)"])
+    print("  |cffffd100/btf report|r  " .. L["after a while with debug on: only what looks wrong, to send in one go"])
     print("  |cffffd100/btf last|r  " .. L["your last fight, spell by spell"])
     print("  |cffffd100/btf check|r  " .. L["check the spells, texts and icons BattleText uses against this game"])
     print("  |cffffd100/btf gear|r  " .. L["show what BattleText read from your gear (then /btf copy)"])
@@ -582,9 +583,11 @@ SlashCmdList.BATTLETEXTFOREVER = function(msg)
     elseif cmd == "debug" then
         BT.db.debug = not BT.db.debug
         if BT.db.debug then BT.recorded = {} end
-        Print(BT.db.debug and L["debug on. Fight for a moment, then type /btf copy to see what the game sent."] or L["debug off."])
+        Print(BT.db.debug and L["debug on. Play for a while, then type /btf report to see what looked wrong (or /btf copy for everything)."] or L["debug off."])
     elseif cmd == "copy" then
         BT:OpenCopyWindow()
+    elseif cmd == "report" then
+        BT:OpenReport()
     elseif cmd == "check" then
         BT:CheckGameData()
     elseif cmd == "gear" then

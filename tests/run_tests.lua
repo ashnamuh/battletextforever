@@ -3913,10 +3913,52 @@ local recordedSoFar = #BT.recorded
 log(real("spell"))
 fire("UNIT_COMBAT", "player", "WOUND", "", 5, 1)
 assertEq(#BT.recorded, recordedSoFar, "nothing is recorded once debug is off")
-for i = 1, 400 do BT:Record("line " .. i) end
-assertEq(#BT.recorded, 300, "only the last 300 are kept")
-assertEq(BT.recorded[300]:match("line %d+"), "line 400", "the newest ones")
 BT.recorded = {}
+for i = 1, 5501 do BT:Record("line " .. i) end
+assertEq(#BT.recorded, 5000, "only the last 5000 are kept: a whole play session")
+assertEq(BT.recorded[5000]:match("line %d+"), "line 5501", "the newest ones")
+BT.recorded = {}
+-- /btf report: only what looks wrong, by kind, with a count and an example (Tyler's logs, 1.40.5)
+do
+    local list = {
+        " 727.35  UNIT_COMBAT player HEAL  (hidden amount) school 1",
+        " 727.35    player heal: no cast of yours with it",
+        " 729.43    player heal: no cast of yours with it",
+        " 737.03  SENT 6785 to target [sent a name]",
+        " 737.03  SWING 0",
+        " 737.03  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1",
+        " 737.03  CAST 6785 Ravage",
+        " 737.03    nameplate1 (hidden amount): shown",
+        " 738.45  CAST 1823 Rake",
+        " 738.45  UNIT_COMBAT nameplate1 WOUND BLOCK_REDUCED (hidden amount) school 1",
+        " 738.45    nameplate1 (hidden amount): cast of Rake",
+        " 738.98    nameplate1 (hidden amount): shown",
+        " 740.00  CAST 5215 Prowl",
+        " 742.78  CAST 3029 Claw",
+        " 742.78    nameplate1 (hidden amount): shown",
+        " 742.78    nameplate1 (hidden amount): cast of Claw",
+        " 745.10    nameplate1 (hidden amount): nothing came for it: shown",
+        " 746.00    party1 120: no heal of yours with it",
+    }
+    local report = table.concat(BT:BuildReport(list), "\n")
+    assert(report:find("== Casts of yours whose hit was shown with no name: 1 ==", 1, true), "Ravage's plain hit is found")
+    assert(report:find("Ravage x1", 1, true), "by name")
+    assert(not report:find("Rake x", 1, true), "Rake's hit was named: not in it")
+    assert(not report:find("Prowl", 1, true), "a cast that hits nothing isn't in it")
+    assert(not report:find("Claw x", 1, true), "a swing beside a named Claw isn't in it")
+    assert(report:find("== Heals on you with no source: 2 ==", 1, true), "the heals with no source, counted")
+    assert(report:find("== Hits that waited for a seal, shield or gear, and nothing came: 1 ==", 1, true), "the hit nothing came for")
+    assert(report:find("== Hits turned away for want of a line of yours: 1 ==", 1, true), "the heal turned away")
+    assert(report:find("737.03  SWING 0", 1, true), "with the lines around an example")
+    assert(not report:find("746.00", 1, true) or report:find("746.00    party1", 1, true), "examples are whole lines")
+    local clean = table.concat(BT:BuildReport({ " 738.45  CAST 1823 Rake", " 738.45    nameplate1 30: cast of Rake" }), "\n")
+    assert(clean:find("Nothing that looks wrong.", 1, true), "a clean log says so")
+    BT.recorded = list
+    SlashCmdList.BATTLETEXTFOREVER("report")
+    assert(BT.copyWindow:IsShown(), "/btf report opens it to copy")
+    BT.copyWindow:Hide()
+    BT.recorded = {}
+end
 BT.copyWindow:Hide()
 clear()
 

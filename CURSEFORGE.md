@@ -45,7 +45,7 @@ Install it with the CurseForge app, or download the file and unzip it into your 
 | `/btf unlock` · `/btf lock` | Move or lock the text areas |
 | `/btf reset` | Put the text areas back |
 | `/btf last` | Your last fight, spell by spell |
-| `/btf debug` · `/btf copy` | Record combat lines for a bug report, then copy them |
+| `/btf debug` · `/btf report` · `/btf copy` | Record combat lines for a bug report, then copy what looked wrong (or everything) |
 
 ## Good to know
 
@@ -60,7 +60,7 @@ WoW: Forever doesn't let addons read the combat log, so BattleText reads what ha
 - **No numbers for your hits**: target what you're hitting, or turn on enemy nameplates.
 - **Numbers show twice**: turn on **Hide the game's own numbers** in the options.
 - **Start BattleText does nothing**: a chat addon like Chattynator hides the Combat Log tab it needs. Your hits still show; right-click the button to hide it.
-- **Something's missing or wrong**: type `/btf debug`, fight for a moment, then `/btf copy` and add the lines to a bug report.
+- **Something's missing or wrong**: type `/btf debug`, play for a while, then `/btf report` and add it to a bug report.
 
 ## Feedback and bug reports
 

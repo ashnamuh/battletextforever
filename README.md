@@ -84,6 +84,7 @@ Go to **Options → Keybindings → BattleText Forever**:
 | `/btf on` · `/btf off` | Turn the text on or off |
 | `/btf debug` | Start or stop recording the combat lines the game sends (for bug reports; it turns itself off when you log in) |
 | `/btf copy` | Show the recorded lines in a box you can copy from |
+| `/btf report` | After playing a while with debug on: only the lines that look wrong, each kind counted with one example |
 | `/btf last` | Your last fight, spell by spell |
 | `/btf check` | Check the spells, texts and icons BattleText uses against your game, and report anything missing |
 | `/btf gear` | Show what BattleText read from the gear you're wearing (then `/btf copy`) |
@@ -126,7 +127,7 @@ WoW: Forever doesn't let addons read the combat log. The game tells an addon **w
 - **Start BattleText does nothing.** A chat addon that replaces the game's chat window (like Chattynator) hides the game's Combat Log tab, which the button opens, and there's no real way around that. Your hits still show without it, but other people's hits on your target may show as yours, and bleed ticks have no name. Right-click the button to hide it. The button also goes away by itself if the combat lines start some other way.
 - **Other people's hits show as mine.** Click **Start BattleText** if it shows, and keep the Combat Log's filter on **My actions**. Alone, a mob your pet is fighting still shows every hit on it.
 - **Numbers show twice.** Turn on **Hide the game's own numbers** in the options.
-- **Something isn't shown.** Type `/btf debug`, fight for a moment, then type `/btf copy` and copy the lines into a bug report. Type `/btf debug` again to stop.
+- **Something isn't shown, or has the wrong name.** Type `/btf debug` and play as usual for a while (it keeps a whole session, until you log out or reload). Then type `/btf report` and copy it into a bug report: it lists only what looks wrong. `/btf copy` shows everything recorded. Type `/btf debug` again to stop.
 - **A spell or icon looks wrong.** Type `/btf check`, then `/btf copy`, and add the report to a bug report.
 - **Your gear's hits have no name** (a cloak or ring that hits back, a weapon's "Chance on hit", a poison), or the wrong one. Type `/btf gear` out of combat, then `/btf copy`, and add it to a bug report. This helps most when your game isn't in English.
 - **The text is in the wrong place.** Type `/btf unlock` and drag the boxes, or `/btf reset`.
