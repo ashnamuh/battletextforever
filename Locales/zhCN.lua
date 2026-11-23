@@ -261,7 +261,7 @@ L["Your pet's hits and heals, marked with its name, and a hunter's hawks (Summon
 L["Damage shields"] = "伤害护盾"
 L["What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura (named as soon as they hit), and gear that stings back. Off: hidden."] = "你的伤害护盾对攻击你的人生效时的效果：荆棘术、闪电之盾、惩戒光环这类增益（命中时即标出名称），以及会反弹伤害的装备。关闭：隐藏。"
 L["Name seal hits"] = "圣印命中显示名称"
-L["Paladins: the Holy hit of Seal of Righteousness, Seal of Command or Seal of Fury that lands with your swing shows the seal's name and icon. Off: it shows as a plain number."] = ""
+L["Paladins: the Holy hit of Seal of Righteousness, Seal of Command or Seal of Fury that lands with your swing shows the seal's name and icon. Off: it shows as a plain number."] = "圣骑士：与你的挥击同时落下的正义圣印、命令圣印或愤怒圣印的神圣伤害，会显示圣印的名称和图标。关闭：只显示为普通数字。"
 L["your hits and misses"] = "你的命中和未命中"
 L["Hide hits below"] = "隐藏低于"
 L["Your hits (and your pet's) for less than this aren't shown. A hit whose number the game hides always shows, unless it's gear that always does the same (Cursed Murloc Eye's 2 Shadow)."] = "低于该数值的命中（含你宠物的）不显示。游戏隐藏数值的命中始终显示，除非那是数值恒定的装备（被诅咒的鱼人眼球固定 2 点暗影伤害）。"

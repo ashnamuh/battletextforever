@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.37.1
+
+- **Simplified Chinese is complete.** The last English line, the paladin seal option, is now in Chinese, with Seal of Fury as 愤怒圣印. (Thanks to Sanchez_3000.)
+
 ## 1.37.0
 
 - **BattleText speaks Simplified Chinese.** On a Simplified Chinese game the options window, on-screen words, chat messages and the fight summary are now in Chinese. (Thanks to Sanchez_3000 for the translation.)
