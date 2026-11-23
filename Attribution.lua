@@ -864,7 +864,7 @@ function BT:OnSpellcast(spellId)
         self.dots = self.dots or {}
         self.dots[key] = self.dots[key] or {}
         self.dots[key][name] = { id = id, name = name, at = GetTime(), period = dot.period, school = dot.school,
-            heal = dot.heal, wrack = dot.wrack, flies = dot.flies, noLine = dot.noLine }
+            heal = dot.heal, wrack = dot.wrack, flies = dot.flies, noLine = dot.noLine, lineUnsure = dot.lineUnsure }
     end
     if shields[name] then
         self.buffShields = self.buffShields or {}
@@ -1366,6 +1366,14 @@ function BT:SilentTick(h)
     if mask ~= nil and mask ~= 1 then return nil end
     local dot = self:TickFor(h, true, true)
     if not dot or h.time - dot.at > dot.noLine + TICK_SLACK then return nil end
+    -- (its ticks came with their lines on this game: a hit on its beat without one isn't a tick)
+    if dot.lineUnsure then
+        if self.tickLines and (self.tickLines[dot.name] or 0) >= 2 then return nil end
+        -- (and only right on its beat, its first tick too: a swing 0.22s ahead of a Rake tick with
+        -- its line was taken for the tick, real_fight2.txt)
+        local since = h.time - (dot.last or dot.at)
+        if math.abs(since - math.floor(since / dot.period + 0.5) * dot.period) > TICK_CLOSE then return nil end
+    end
     if (dot.silent or 0) >= math.floor(dot.noLine / dot.period + 0.5) then return nil end
     return dot
 end
@@ -2145,11 +2153,15 @@ function BT:ResolveFrame(seq, first, last)
                 claimed = true
             end
             -- A tick of yours the game sends no line for (Rip), right on its beat, before a swing can
-            -- take it. Not when a line comes right behind the hit: that's a tick with its line.
+            -- take it. Not when a line comes right behind the hit: that's a tick with its line. Nor
+            -- with a line just ahead of it in the frame (a swing landing with its line first).
             if not spell and linesFlow and h.kind == "damage" then
                 local lineBehind = false
-                for j = i + 1, last do
-                    if seq[j].line and not seq[j].used then lineBehind = true break end
+                for j = first, last do
+                    if j ~= i and seq[j].line and not seq[j].used and (j > i or seq[j].time == h.time) then
+                        lineBehind = true
+                        break
+                    end
                 end
                 local silent = not lineBehind and self:SilentTick(h)
                 if silent then
@@ -2210,6 +2222,11 @@ function BT:ResolveFrame(seq, first, last)
                     end
                     if vouched then
                         what, spell = "tick", dot
+                        if linesFlow and dot.lineUnsure then
+                            -- (SilentTick: this game sends its ticks' lines)
+                            self.tickLines = self.tickLines or {}
+                            self.tickLines[dot.name] = (self.tickLines[dot.name] or 0) + 1
+                        end
                         dot.tick = h.n or dot.tick   -- what its ticks hit for (see the spells on their way, above)
                         dot.last = h.time   -- its beat from now on (and it won't tick again on this one)
                     end
@@ -2391,7 +2408,9 @@ function BT:ShowUnitHit(h, what, spell, area)
         return "DoT and area spell ticks are turned off"
     end
     local rule = self:SpellRule(spellName)
-    if rule and rule.hide then return "hidden on the Spells tab" end
+    -- (named: one blow's two Nature hits are Thorns and Spiked Shell Band, and the log has to
+    -- say which of the two was hidden)
+    if rule and rule.hide then return "hidden on the Spells tab (" .. rule.name .. ")" end
     local name
     icon, name = self:SpellParts(h.kind == "heal" and "heal" or "out", icon, spellName)
     -- The text before the number and after it, in the order you set (Line order)

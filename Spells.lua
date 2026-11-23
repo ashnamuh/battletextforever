@@ -57,7 +57,11 @@ local FLYING_DOTS = { [1978] = true }
 -- how long it lasts. Rip (GitHub, a ptBR druid's /btf debug: each Rake tick has its hidden line
 -- right behind it, Rip's six ticks have none) went unnamed as "no line of yours with it". Its beat
 -- vouches for it instead, as many ticks as it has (lasts / period), only within that time.
-local NO_LINE_DOTS = { [1079] = 12 }
+-- Rake (Tyler's druid log, 1.40.2: its three ticks, 3s apart, came with no line while Thorns'
+-- lines kept coming, and showed as plain white hits) is on the list too: on a game where its
+-- ticks do have their lines, two ticks named by their lines take it off (BT.tickLines).
+local NO_LINE_DOTS = { [1079] = 12, [1822] = 9 }
+local LINE_UNSURE_DOTS = { [1822] = true }
 local STING_FLIGHT = 1.5
 -- Attacks on your next swing, which replace it: { first rank's ID, English name }
 local NEXT_SWING_SPELLS = {
@@ -244,7 +248,8 @@ function BT:SpellLists()
     for _, e in ipairs(PERIODIC_SPELLS) do
         for _, name in ipairs(names(e)) do
             self.periodic[name] = { period = e[3], school = e[4], direct = e[5] or false, heal = e[6] or false,
-                wrack = WRACK_SPEEDS[e[1]] or nil, flies = FLYING_DOTS[e[1]] or nil, noLine = NO_LINE_DOTS[e[1]] }
+                wrack = WRACK_SPEEDS[e[1]] or nil, flies = FLYING_DOTS[e[1]] or nil, noLine = NO_LINE_DOTS[e[1]],
+                lineUnsure = LINE_UNSURE_DOTS[e[1]] }
         end
     end
     for _, e in ipairs(SHIELD_SPELLS) do

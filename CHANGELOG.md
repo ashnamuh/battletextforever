@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.40.3
+
+- **Rake's bleed shows as Rake again.** On some games Rake's bleed ticks come without the hidden combat log line the addon used to recognise them, so after the first hit they showed up as plain white hits. Now a physical hit right on Rake's 3 second beat, up to its three ticks, is named Rake. On games that do send those lines, nothing changes.
+- **The Spells tab row is tidier.** "Usual color" no longer runs under the Remove button.
+- **Clearer `/btf debug`.** When a hit is hidden on the Spells tab, the log now says which spell it was, like "hidden on the Spells tab (Spiked Shell Band)". With Thorns and a Spiked Shell Band, each blow on you makes two Nature hits: Thorns' is shown, the ring's is hidden, and now the log says so.
+
 ## 1.40.2
 
 - **Numbers over nameplates no longer pile on top of each other.** In a busy fight, a new number over a nameplate could land right on one still fading out, so "Claw 36" and "Dodge 58" turned into one blur. Now they line up in one column over the nameplate: the newest pops in at the bottom and pushes the others up, so every number stays readable. At most six show over one nameplate at a time; past that the oldest goes.

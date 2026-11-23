@@ -2401,6 +2401,45 @@ do
 end
 BT.dots = nil
 clear()
+-- Tyler's druid log (1.40.2): Rake's three ticks came with no line, 3s apart from the cast, while
+-- Thorns' lines kept coming. They showed as plain white hits; its beat names them now, no more
+-- than three, and not past its 9 seconds
+BT.dots, BT.swings, BT.swungAt, BT.tickLines = nil, nil, nil, nil
+hidden(70)
+cast(1822) wound(30)   -- (the cast's own hit)
+for k = 1, 3 do
+    Advance(k == 1 and 3.03 or 3)
+    BT.hiddenAt = GetTime()   -- (Thorns' lines still arriving)
+    wound(10 + k, 1, k == 3 and "CRITICAL" or nil)
+    assertEq(last("outgoing"), "Rake " .. (10 + k), "Rake's tick " .. k .. " with no line: named by its beat")
+end
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(19)
+assert(last("outgoing") ~= "Rake 19", "a fourth hit on the beat, past its 9 seconds: not Rake")
+BT.dots = nil
+clear()
+-- On a game that sends Rake's ticks their lines (the ptBR log), two ticks named by their lines
+-- stop its beat alone from naming a hit: a swing on the beat with no line behind stays a swing
+BT.dots, BT.swings, BT.swungAt, BT.tickLines = nil, nil, nil, nil
+cast(1822) hidden(71) wound(35)
+Advance(3)
+wound(14) hidden(72)
+assertEq(last("outgoing"), "Rake 14", "a tick with its line")
+Advance(3)
+wound(15) hidden(73)
+assertEq(last("outgoing"), "Rake 15", "and another")
+cast(1822) hidden(74) wound(35)
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(27)
+Advance(1.5)
+do
+    local out = table.concat(lines("outgoing"), " / ")
+    assert(not out:find("Rake 27", 1, true), "then a hit on the beat with no line isn't Rake's (" .. out .. ")")
+end
+BT.dots, BT.tickLines = nil, nil
+clear()
 -- Without the lines, a bleed's tick can't be told from a swing; another school's can
 BT.hiddenSeen, BT.hiddenAt = nil, nil
 cast(1822)
@@ -2827,6 +2866,26 @@ do
     Advance(0.6) blow() Advance(1.5)
     local shown = table.concat(lines("outgoing"), " / ")
     assert(shown:find("Spiked Shell Band 2", 1, true) and shown:find("Thorns 9", 1, true), "readable: each by its amount (" .. shown .. ")")
+    -- Tyler's druid log (1.40.2): the ring hidden on the Spells tab. Each blow's two hidden Nature
+    -- hits: Thorns' is shown, the ring's hidden, and the debug log says which one was hidden
+    BT.db.shieldAmounts = {}
+    BT:AddSpellRule("Spiked Shell Band")
+    BT:SetSpellRule(BT:SpellRule("Spiked Shell Band"), "hide", true)
+    clear()
+    BT.recorded = {}
+    Advance(2)
+    wound(Secret(9), 8) wound(Secret(2), 8)
+    Advance(0.39) blow() Advance(1.5)
+    do
+        local rec = table.concat(BT.recorded, "\n")
+        assert(rec:find(": shield of Thorns", 1, true), "Thorns' hit is named and shown")
+        assert(rec:find(": hidden on the Spells tab (Spiked Shell Band)", 1, true),
+            "the ring's is the one hidden, and the log names it")
+        assertEq(#lines("outgoing"), 1, "one of the two on screen")
+    end
+    for j, r in ipairs(BT.db.spellRules) do
+        if r.name == "Spiked Shell Band" then BT:RemoveSpellRule(j) break end
+    end
     STATE.equipped[11] = nil
     fire("PLAYER_EQUIPMENT_CHANGED", 11, false)
     BT.db.shieldAmounts = {}
@@ -6596,6 +6655,9 @@ do
     assertEq(win.spellBox:GetText(), "", "the box empties")
     local row = win.spellRows[1]
     assertEq(row.name:GetText(), "Rake", "on the list")
+    -- (Tyler's screenshot, 1.40.2: "Usual color" ran under Remove; it stops short of it now)
+    assertEq(row.swatch.label.__point == "RIGHT" and row.swatch.label.__rel == row.remove, true,
+        "the color label ends at Remove")
     assertEq(row.hide:IsOn(), false, "not hidden yet")
     row.hide.__scripts.OnClick(row.hide)
     assertEq(BT.db.spellRules[1].hide, true, "Hide switched on")
