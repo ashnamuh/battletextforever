@@ -317,7 +317,7 @@ end
 local function BuildText(p, refs)
     local card = Card(p, L["Font and outline"], 0, 0, PAGE_W, 154)
     local fontKeys, outlineKeys, outlineNames = {}, {}, {}
-    for _, f in ipairs(BT.FONTS) do fontKeys[#fontKeys + 1] = f.name end
+    for _, name in ipairs(BT:FontNames()) do fontKeys[#fontKeys + 1] = name end
     for _, o in ipairs(BT.OUTLINES) do
         outlineKeys[#outlineKeys + 1] = o.flags
         outlineNames[o.flags] = o.name
@@ -327,9 +327,10 @@ local function BuildText(p, refs)
         .. "Picking one shows a sample line."]
 
     T.RowLabel(card, L["Font"], 12, -30)
-    refs.fontDropdown = Dropdown(card, DROP_X, -30, 220, fontKeys, function(k) return k == "Default" and L["Default"] or k end, "font",
+    refs.fontDropdown = Dropdown(card, DROP_X, -30, 220, fontKeys, function(k) k = BT:FontShown(k) return k == "Default" and L["Default"] or k end, "font",
         function(name) BT:SetFont(name) end, L["The letters of every line. Picking one shows a sample line in it. "
-        .. "Fonts your other addons share (through LibSharedMedia, like many UI packs) are at the end of the list."])
+        .. "Fonts your other addons share (through LibSharedMedia, like many UI packs) are at the end of the list. "
+        .. "On a Russian, Korean or Chinese game, only the fonts that have its letters are listed."])
     refs.fontDropdown.menuScroll = 20 * 12   -- twelve rows, then it scrolls
     T.RowLabel(card, L["Outline"], 12, -60)
     refs.outlineDropdown = Dropdown(card, DROP_X, -60, 220, outlineKeys, outlineName, "outline",
@@ -339,6 +340,7 @@ local function BuildText(p, refs)
     for _, k in ipairs(fontKeys) do critFontKeys[#critFontKeys + 1] = k end
     refs.critFontDropdown = Dropdown(card, DROP_X, -90, 220, critFontKeys, function(k)
             if k == "" then return L["Same as other lines"] end
+            k = BT:FontShown(k)
             return k == "Default" and L["Default"] or k
         end, "critFont", function(name) BT:SetCritFont(name) end,
         L["A font of their own for crits, so they stand out from the rest. Picking one shows a crit in it."])
@@ -407,7 +409,7 @@ local function BuildOutgoing(p)
         L["What your damage shields do to whoever hits you: buffs like Thorns, Lightning Shield and Retribution Aura "
         .. "(named as soon as they hit), and gear that stings back. Off: hidden."], damage)
     Setting(card, L["Name seal hits"], COL2, -82, "outSeals",
-        L["Paladins: the Holy hit of Seal of Righteousness or Seal of Command that lands with your swing shows the "
+        L["Paladins: the Holy hit of Seal of Righteousness, Seal of Command or Seal of Fury that lands with your swing shows the "
         .. "seal's name and icon. Off: it shows as a plain number."], damage)
     IconsAndNames(card, -108, "out", L["your hits and misses"], Either("outDamage", "outMisses"))
     Slider(card, L["Hide hits below"], 12, -142, "minDamage", { step = 5, zero = L["Off"], enabledIf = damage,

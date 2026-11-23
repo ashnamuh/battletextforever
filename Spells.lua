@@ -75,6 +75,9 @@ local SEAL_SPELLS = {
     { 21084, "Seal of Righteousness", 2 }, { 20375, "Seal of Command", 2 },
     { 21082, "Seal of the Crusader" }, { 20164, "Seal of Justice" }, { 20165, "Seal of Light" },
     { 20166, "Seal of Wisdom" },
+    -- Forever's Seal of Fury (Wowhead Forever 1311649, rank 1 at level 10): Holy damage on each
+    -- swing, like Seal of Righteousness. Its hits had no name (CurseForge).
+    { 1311649, "Seal of Fury", 2 },
 }
 local JUDGEMENT = { 20271, "Judgement" }
 -- Forever's Retribution talent: your swings store your seal, and a swing under another seal
@@ -152,6 +155,9 @@ local AREA_SPELLS = {
     { 16914, "Hurricane", 8, 10, "channel" }, { 1510, "Volley", 64, 6, "channel" },
     { 1949, "Hellfire", 4, 15, "channel" }, { 740, "Tranquility", 8, 10, "heal" },
     { 1316697, "Wrack", 32, 6, "single" },
+    -- A Night Elf priest's Starshards (Wowhead Forever 10797: Arcane, channeled on your target
+    -- for 6 seconds); its ticks had no name (CurseForge)
+    { 10797, "Starshards", 64, 6, "single" },
     -- Forever's Penance (issue #29: cast as 402174 and 402289 together, its first heal 0.3s later)
     { 402174, "Penance", 2, 3, "either" },
     { 26573, "Consecration", 2, 8 }, { 2120, "Flamestrike", 4, 8 },

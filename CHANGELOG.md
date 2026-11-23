@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.35.0
+
+- **Russian names show in every font you can pick.** Most of BattleText's fonts have no Russian letters, so on a Russian game spell and player names in those fonts came out blank. Now a Russian game only lists the fonts that have Russian letters: Default, Friz Quadrata, Arial Narrow, Morpheus, Skurri, Fira Sans, Lato, Press Start 2P, PT Sans Narrow, Russo One and Ubuntu. Friz Quadrata, Morpheus and Skurri now use the game's own Russian versions. If you'd already picked a font without Russian letters, your text uses Default until you choose another. On Korean and Chinese games, where none of the fonts have the letters, Default is used. Fonts shared by your other addons are always listed. (Thanks to Barmy for asking.)
+- **Starshards is named.** A Night Elf priest's Starshards showed as plain numbers. Its damage now shows "Starshards" with its icon. (Thanks to user_mh4740vmz90ckp8o.)
+- **Seal of Fury is named.** Forever's new paladin seal adds Holy damage to your swings, and that damage showed as plain numbers. It now shows the seal's name and icon, like Seal of Righteousness and Seal of Command.
+- **Shield Specialization's mana is named.** Paladins with Shield Specialization get mana back when they block. That mana now shows as "+X Mana Shield Specialization" with its icon, instead of plain "+X Mana". Mana only shows with "Power gains" turned on (Incoming tab), which starts off. (Thanks to user_5rhd3cwqzdc4rhle for asking.)
+
 ## 1.34.2
 
 - **Heroic Strike is named every time.** The game sends Heroic Strike as two hits: an empty one, then the real attack. Usually they arrive together, but sometimes the real attack comes a split second later. When it did, BattleText showed it as a plain white swing and put the Heroic Strike name on the empty part. Now it waits that split second, names the real attack, and leaves the empty part out. Maul, Cleave and Raptor Strike work the same way.

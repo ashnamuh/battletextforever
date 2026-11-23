@@ -804,6 +804,29 @@ end
 -- names. Used for whatever the combat log isn't delivering.
 -- (Not for a druid: UNIT_COMBAT doesn't say which power, and a druid's changes with the
 -- form: mana gained in cat form was called energy.)
+-- A Protection paladin's Shield Specialization (Wowhead Forever 20150, 1.60.1): a block gives back
+-- 4% of your mana, at most once every 3 seconds. The game sends the mana with no spell, a moment
+-- before or after the block, so with the talent a mana gain waits SHIELD_SPEC_WAIT to see a block
+-- within SHIELD_SPEC_NEAR of it. (CurseForge: "mana on block?")
+local SHIELD_SPEC = { 20150, "Shield Specialization" }
+local SHIELD_SPEC_WAIT, SHIELD_SPEC_NEAR, SHIELD_SPEC_EVERY = 0.2, 0.3, 2.9
+
+function BT:HasShieldSpec()
+    local okClass, _, class = pcall(UnitClass, "player")
+    if not okClass or Str(class) ~= "PALADIN" then return false end
+    return self.KnowsSpell and self:KnowsSpell(SHIELD_SPEC[1]) or false
+end
+
+-- Whether mana that came at `at` was Shield Specialization's: a block of yours close to it, and
+-- not within 3 seconds of the last one it gave
+function BT:ShieldSpecFor(at)
+    local block = self.lastBlock
+    if not block or math.abs(block - at) > SHIELD_SPEC_NEAR then return false end
+    if self.shieldSpecAt and at - self.shieldSpecAt < SHIELD_SPEC_EVERY then return false end
+    self.shieldSpecAt = at
+    return true
+end
+
 local function PowerName()
     if not UnitPowerType then return nil end
     local okClass, _, class = pcall(UnitClass, "player")
@@ -842,6 +865,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
     -- partly blocked too
     local avoid = action == "WOUND" and flag or action
     if avoid == "DODGE" or avoid == "PARRY" or avoid == "BLOCK" or avoid == "BLOCK_REDUCED" then
+        if avoid == "BLOCK" or avoid == "BLOCK_REDUCED" then self.lastBlock = GetTime() end
         self:React("avoided")
         if avoid == "PARRY" then self:React("parried") end
     end
@@ -916,11 +940,33 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
         if self:LogCovers("power") or not db.inPower then return end
         local power = PowerName()
         power = power and (" " .. power) or ""
-        if secret then
-            -- The amount goes last, so the game can fill it in
-            self:Emit(self:Area("InPower"), "+", C.power, { secret = amount, after = power })
-        elseif n and n > 0 then
-            self:Emit(self:Area("InPower"), "+" .. Commas(n) .. power, C.power)
+        local at = GetTime()
+        local function show()
+            local after = power
+            if self:ShieldSpecFor(at) then
+                local name
+                if C_Spell and C_Spell.GetSpellName then
+                    local ok, n = pcall(C_Spell.GetSpellName, SHIELD_SPEC[1])
+                    name = ok and Str(n) or nil
+                end
+                name = name or SHIELD_SPEC[2]
+                local rule = self:SpellRule(name)
+                if rule and rule.hide then return end
+                local icon, shown = self:SpellParts("in", self:IconText(SHIELD_SPEC[1]), name)
+                after = power .. SpellAfter(icon, shown)
+            end
+            if secret then
+                -- The amount goes last, so the game can fill it in
+                self:Emit(self:Area("InPower"), "+", C.power, { secret = amount, after = after })
+            elseif n and n > 0 then
+                self:Emit(self:Area("InPower"), "+" .. Commas(n) .. after, C.power)
+            end
+        end
+        -- (the block can come just after the mana: wait a moment, only with the talent)
+        if self:HasShieldSpec() and C_Timer and C_Timer.After then
+            C_Timer.After(SHIELD_SPEC_WAIT, show)
+        else
+            show()
         end
     elseif MISS_TEXT[action] then
         if self:LogCovers("miss") or not db.inMisses then return end

@@ -60,20 +60,62 @@ function BT:AddSharedSounds(lib)
     end
 end
 
--- The file for a line's font. crit: a crit's, which can have a font of its own (db.critFont)
+-- Which letters the game's language needs: "russian", "cjk" (Korean and Chinese) or "roman"
+local ALPHABETS = { ruRU = "russian", koKR = "cjk", zhCN = "cjk", zhTW = "cjk" }
+function BT:Alphabet()
+    local locale = GetLocale and GetLocale()
+    return ALPHABETS[locale] or "roman"
+end
+
+-- Whether a font (an entry of BT.FONTS) can show the game's language. Fonts other addons
+-- share can't be checked, so they're always offered (UI packs share fonts for their language).
+function BT:FontFits(f)
+    if not f then return false end
+    if f.name == "Default" or f.shared then return true end
+    local alphabet = self:Alphabet()
+    if alphabet == "russian" then return (f.cyr or f.cyrPath) and true or false end
+    return alphabet == "roman"
+end
+
+-- The fonts the options offer: the ones that can show the game's language
+function BT:FontNames()
+    local names = {}
+    for _, f in ipairs(self.FONTS) do
+        if self:FontFits(f) then names[#names + 1] = f.name end
+    end
+    return names
+end
+
+-- A saved font's name as the options show it: one that can't show the game's language is
+-- Default (the lines use Default then; the setting is kept, in case the language changes back)
+function BT:FontShown(name)
+    for _, f in ipairs(self.FONTS) do
+        if f.name == name then return self:FontFits(f) and name or "Default" end
+    end
+    return name
+end
+
+-- The file for a line's font. crit: a crit's, which can have a font of its own (db.critFont).
+-- A font that can't show the game's language gives Default's file; on a Russian game, a font
+-- of the game's with a Cyrillic copy gives the copy.
 function BT:FontPath(crit)
     local name = self.db.font
     if crit and type(self.db.critFont) == "string" and self.db.critFont ~= "" then name = self.db.critFont end
     -- (kept by name until the list changes: every new line asks)
     local cache = self.fontPathCache
-    if not cache or cache.count ~= #self.FONTS then
-        cache = { count = #self.FONTS, paths = {} }
+    local alphabet = self:Alphabet()
+    if not cache or cache.count ~= #self.FONTS or cache.alphabet ~= alphabet then
+        cache = { count = #self.FONTS, alphabet = alphabet, paths = {} }
         self.fontPathCache = cache
     end
     local path = cache.paths[name]
     if path then return path end
+    local russian = alphabet == "russian"
     for _, f in ipairs(self.FONTS) do
-        if f.name == name and f.path then path = f.path break end
+        if f.name == name and f.path then
+            if self:FontFits(f) then path = (russian and f.cyrPath) or f.path end
+            break
+        end
     end
     path = path or Str(STANDARD_TEXT_FONT) or "Fonts\\FRIZQT__.TTF"
     cache.paths[name] = path

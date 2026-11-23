@@ -1250,6 +1250,64 @@ assertEq(last("incoming"), "+10", "a druid's power gain: no word, the game doesn
 STATE.class = "WARRIOR"
 fire("UNIT_COMBAT", "player", "ENERGIZE", "", 10, 1)
 assertEq(last("incoming"), "+10 Rage", "a warrior's says what it is")
+-- Shield Specialization (1.35.0, CurseForge): a paladin with the talent gets 4% mana back on a
+-- block, once every 3 seconds. The mana comes with no spell; next to a block it's named.
+do
+    local GAME = getmetatable(_G).__index
+    local powerType = GAME.UnitPowerType
+    GAME.UnitPowerType = function() return 0, "MANA" end
+    STATE.class = "PALADIN"
+    STATE.spellNames[20150] = "Shield Specialization"
+    STATE.spellIcons[20150] = 134952
+    BT.lastBlock, BT.shieldSpecAt = nil, nil
+    local function lastMana()
+        local l = lines("incoming")
+        for i = #l, 1, -1 do
+            if l[i]:find("Mana", 1, true) or l[i]:find("<secret", 1, true) then return l[i] end
+        end
+    end
+    Advance(5)
+    clear()
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 40, 1)
+    assertEq(lastMana(), "+40 Mana", "without the talent, mana is plain mana")
+    STATE.knownSpells[20150] = true
+    fire("UNIT_COMBAT", "player", "BLOCK", "", 0, 1)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 40, 1)
+    Advance(0.3)
+    assertEq(lastMana(), "+40 Mana Shield Specialization", "mana with a block: Shield Specialization's")
+    Advance(4)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 41, 1)
+    Advance(0.1)
+    fire("UNIT_COMBAT", "player", "WOUND", "BLOCK_REDUCED", 20, 1)
+    Advance(0.2)
+    assertEq(lastMana(), "+41 Mana Shield Specialization", "the block can come just after the mana")
+    Advance(1)
+    fire("UNIT_COMBAT", "player", "BLOCK", "", 0, 1)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 42, 1)
+    Advance(0.3)
+    assertEq(lastMana(), "+42 Mana", "within 3 seconds of the last one: something else")
+    Advance(4)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 43, 1)
+    Advance(0.3)
+    assertEq(lastMana(), "+43 Mana", "no block: plain mana")
+    fire("UNIT_COMBAT", "player", "BLOCK", "", 0, 1)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", Secret(44), 1)
+    Advance(0.3)
+    assertEq(lastMana(), "<secret fmt>", "a hidden amount is named too")
+    SetIcons(true)
+    Advance(4)
+    fire("UNIT_COMBAT", "player", "BLOCK", "", 0, 1)
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 45, 1)
+    Advance(0.3)
+    assertEq(lastMana(), "+45 Mana |T134952:0|t Shield Specialization", "with its icon when icons are on")
+    SetIcons(false)
+    STATE.knownSpells[20150] = nil
+    GAME.UnitPowerType = powerType
+    BT.lastBlock, BT.shieldSpecAt = nil, nil
+    clear()
+    STATE.class = "WARRIOR"
+    fire("UNIT_COMBAT", "player", "ENERGIZE", "", 10, 1)   -- (the line the next part expects)
+end
 STATE.class = "DRUID"
 BT.db.inPower = false
 BT.db.inMisses = false
@@ -4537,6 +4595,17 @@ assertEq(last("notify"), "-Seal of Command", "then runs out")
 STATE.buffsHidden = false
 STATE.buffs = {}
 BT.db.sealTimes = nil
+-- Forever's Seal of Fury (1.35.0, CurseForge): Holy damage with each swing, named like the others
+STATE.spellNames[1311649] = "Seal of Fury"
+BT.periodic = nil
+clear()
+cast(1311649)
+assertEq(last("notify"), "+Seal of Fury", "putting Seal of Fury on says so")
+Advance(1)
+wound(40, 1)
+wound(6, 2)
+assertEq(table.concat(lines("outgoing"), " / "), "40 / Seal of Fury 6", "its Holy hit beside your swing is named")
+Advance(31)
 SetIcons(false)
 STATE.who.target = nil
 clear()
@@ -4949,6 +5018,19 @@ on("nameplate1", 22, 64)
 assertEq(last("outgoing"), "Arcane Missiles 22", "even once you've moved your target")
 STATE.who.target = "mobA"
 stop(5143)
+clear()
+-- Starshards (a Night Elf priest's, 1.35.0, CurseForge): Arcane ticks on the mob you channel at
+STATE.spellNames[10797] = "Starshards"
+channel(10797)
+Advance(2)
+on("target", 34, 64)
+assertEq(last("outgoing"), "Starshards 34", "a Starshards tick is named")
+on("nameplate2", 19, 64)
+assertEq(last("outgoing"), "19", "an arcane hit on another mob isn't Starshards")
+stop(10797)
+Advance(1.1)
+on("target", 35, 64)
+assertEq(last("outgoing"), "35", "after the channel: not Starshards")
 clear()
 -- Wrack (Forever's Affliction talent): a channel on the mob you aim it at, Shadow every second,
 -- with its icon. While it lasts your Corruption there ticks twice as fast (every 1.5s).
@@ -8016,6 +8098,54 @@ step("a hit for nothing never shows as \"Heroic Strike 0\" (Tyler, in game)")
     assertEq(last("outgoing"), "Heroic Strike 12", "a real hit is a hit")
     SetIcons(true)
     STATE.who.target = nil
+    clear()
+end)()
+
+-- Fonts and the game's language (1.35.0, CurseForge, Barmy): most of the bundled fonts have no
+-- Russian letters, so Russian names showed blank. A Russian game is offered only the fonts that
+-- have them, the game's fonts switch to their Cyrillic copies, and Korean and Chinese games get Default.
+;(function()
+    local dropdown = BT.config.fontDropdown
+    local function has(list, name)
+        for _, n in ipairs(list) do if n == name then return true end end
+        return false
+    end
+    BT.fontPathCache = nil
+    STATE.locale = "enUS"
+    assertEq(#BT:FontNames(), #BT.FONTS, "an English game is offered every font")
+    STATE.locale = "ruRU"
+    local names = BT:FontNames()
+    assertEq(table.concat(names, ", "), "Default, Friz Quadrata, Arial Narrow, Morpheus, Skurri, Fira Sans, Lato, "
+        .. "Press Start 2P, PT Sans Narrow, Russo One, Ubuntu", "a Russian game: only the fonts with Russian letters")
+    BT.db.font = "Friz Quadrata"
+    assertEq(BT:FontPath(), "Fonts\\FRIZQT___CYR.TTF", "the game's Friz Quadrata is its Cyrillic copy")
+    BT.db.font = "Skurri"
+    assertEq(BT:FontPath(), "Fonts\\SKURRI_CYR.TTF", "Skurri too")
+    BT.db.font = "Lato"
+    assertEq(BT:FontPath(), "Interface\\AddOns\\BattleTextForever\\Fonts\\Lato-Bold.ttf", "a bundled font with the letters is itself")
+    BT.db.font = "Bangers"
+    assertEq(BT:FontPath(), STANDARD_TEXT_FONT, "one without them draws in the game's font")
+    BT:RefreshConfig()
+    assertEq(dropdown:GetText(), "Default", "and the options say Default")
+    assertEq(BT.db.font, "Bangers", "the setting itself is kept")
+    BT.db.critFont = "Anton"
+    assertEq(BT:FontPath(true), STANDARD_TEXT_FONT, "the crit font too")
+    BT:RefreshConfig()
+    assertEq(BT.config.critFontDropdown:GetText(), "Default", "and its option says Default")
+    STATE.locale = "koKR"
+    assertEq(table.concat(BT:FontNames(), ", "), "Default", "a Korean game: none of the fonts have its letters")
+    BT.db.font = "Lato"
+    assertEq(BT:FontPath(), STANDARD_TEXT_FONT, "so lines are in the game's font")
+    STATE.locale = "zhCN"
+    assertEq(has(BT:FontNames(), "Friz Quadrata"), false, "Chinese the same")
+    BT.FONTS[#BT.FONTS + 1] = { name = "A shared font", path = "Interface\\AddOns\\Pack\\Font.ttf", shared = true }
+    assertEq(has(BT:FontNames(), "A shared font"), true, "fonts other addons share are always offered")
+    table.remove(BT.FONTS)
+    STATE.locale = "enUS"
+    BT.db.font = "Friz Quadrata"
+    assertEq(BT:FontPath(), "Fonts\\FRIZQT__.TTF", "an English game keeps the usual file")
+    BT.db.font, BT.db.critFont = "Default", ""
+    BT:RefreshConfig()
     clear()
 end)()
 

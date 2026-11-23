@@ -169,31 +169,37 @@ BT.DEFAULTS = DEFAULTS
 -- "Default" is the game's own font for your language. The next four come with
 -- the game; the rest are in this addon's Fonts folder (each under its own
 -- open licence, in Fonts/Licenses).
+-- cyr: the font has Russian (Cyrillic) letters. cyrPath: the game's own Cyrillic copy of
+-- that font (every client has them: Blizzard_Fonts_Shared's "russian" members). A font
+-- without the letters shows Russian names blank, so on a Russian game only the fonts that
+-- have them are offered; on Korean and Chinese games, only Default (none of these have the
+-- letters). Checked with fontTools (2026-11-23): 64 of 64 Cyrillic capitals and small
+-- letters, or none.
 local FONT_DIR = "Interface\\AddOns\\BattleTextForever\\Fonts\\"
 BT.FONTS = {
     { name = "Default" },
-    { name = "Friz Quadrata", path = "Fonts\\FRIZQT__.TTF" },
-    { name = "Arial Narrow", path = "Fonts\\ARIALN.TTF" },
-    { name = "Morpheus", path = "Fonts\\MORPHEUS.TTF" },
-    { name = "Skurri", path = "Fonts\\SKURRI.TTF" },
+    { name = "Friz Quadrata", path = "Fonts\\FRIZQT__.TTF", cyrPath = "Fonts\\FRIZQT___CYR.TTF" },
+    { name = "Arial Narrow", path = "Fonts\\ARIALN.TTF", cyr = true },
+    { name = "Morpheus", path = "Fonts\\MORPHEUS.TTF", cyrPath = "Fonts\\MORPHEUS_CYR.TTF" },
+    { name = "Skurri", path = "Fonts\\SKURRI.TTF", cyrPath = "Fonts\\SKURRI_CYR.TTF" },
     { name = "Anton", path = FONT_DIR .. "Anton-Regular.ttf" },
     { name = "Archivo Black", path = FONT_DIR .. "ArchivoBlack-Regular.ttf" },
     { name = "Bangers", path = FONT_DIR .. "Bangers-Regular.ttf" },
     { name = "Barlow Condensed", path = FONT_DIR .. "BarlowCondensed-Bold.ttf" },
     { name = "Bebas Neue", path = FONT_DIR .. "BebasNeue-Regular.ttf" },
     { name = "Cinzel Decorative", path = FONT_DIR .. "CinzelDecorative-Bold.ttf" },
-    { name = "Fira Sans", path = FONT_DIR .. "FiraSans-Bold.ttf" },
-    { name = "Lato", path = FONT_DIR .. "Lato-Bold.ttf" },
+    { name = "Fira Sans", path = FONT_DIR .. "FiraSans-Bold.ttf", cyr = true },
+    { name = "Lato", path = FONT_DIR .. "Lato-Bold.ttf", cyr = true },
     { name = "Luckiest Guy", path = FONT_DIR .. "LuckiestGuy-Regular.ttf" },
     { name = "Metamorphous", path = FONT_DIR .. "Metamorphous-Regular.ttf" },
     { name = "New Rocker", path = FONT_DIR .. "NewRocker-Regular.ttf" },
     { name = "Permanent Marker", path = FONT_DIR .. "PermanentMarker-Regular.ttf" },
     { name = "Poppins", path = FONT_DIR .. "Poppins-Bold.ttf" },
-    { name = "Press Start 2P", path = FONT_DIR .. "PressStart2P-Regular.ttf" },
-    { name = "PT Sans Narrow", path = FONT_DIR .. "PTSansNarrow-Bold.ttf" },
+    { name = "Press Start 2P", path = FONT_DIR .. "PressStart2P-Regular.ttf", cyr = true },
+    { name = "PT Sans Narrow", path = FONT_DIR .. "PTSansNarrow-Bold.ttf", cyr = true },
     { name = "Rajdhani", path = FONT_DIR .. "Rajdhani-Bold.ttf" },
-    { name = "Russo One", path = FONT_DIR .. "RussoOne-Regular.ttf" },
-    { name = "Ubuntu", path = FONT_DIR .. "Ubuntu-Bold.ttf" },
+    { name = "Russo One", path = FONT_DIR .. "RussoOne-Regular.ttf", cyr = true },
+    { name = "Ubuntu", path = FONT_DIR .. "Ubuntu-Bold.ttf", cyr = true },
 }
 
 -- How thick the outline round the letters is: the game's font flags
