@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.36.0
+
+- **BattleText speaks Korean.** On a Korean game the options window, on-screen words, chat messages and the fight summary are now in Korean. (Thanks to Jaemok for the whole translation.)
+- **Money you loot is short and coloured.** With "Money" turned on (Notifications tab), looted money now shows as "+1g 25s 30c" in gold, silver and copper colours, instead of the game's whole sentence. It reads the game's own words for gold, silver and copper, so it works in every language. Money still starts off. (Thanks to Jaemok.)
+
 ## 1.35.0
 
 - **Russian names show in every font you can pick.** Most of BattleText's fonts have no Russian letters, so on a Russian game spell and player names in those fonts came out blank. Now a Russian game only lists the fonts that have Russian letters: Default, Friz Quadrata, Arial Narrow, Morpheus, Skurri, Fira Sans, Lato, Press Start 2P, PT Sans Narrow, Russo One and Ubuntu. Friz Quadrata, Morpheus and Skurri now use the game's own Russian versions. If you'd already picked a font without Russian letters, your text uses Default until you choose another. On Korean and Chinese games, where none of the fonts have the letters, Default is used. Fonts shared by your other addons are always listed. (Thanks to Barmy for asking.)

@@ -3613,6 +3613,28 @@ for i = 1, 6 do fire("CHAT_MSG_LOOT", "You receive loot: |cffffffff|Hitem:" .. i
 closest = spacing("notify")
 assert(closest >= 1.9, "a pile of loot doesn't land on one spot (gap " .. closest .. ")")
 clear()
+-- Money you loot: off by default (its own Money setting), "+1g 25s 30c" when on, in any language
+SetGameText("GOLD_AMOUNT", "%d Gold"); SetGameText("SILVER_AMOUNT", "%d Silver"); SetGameText("COPPER_AMOUNT", "%d Copper")
+BT.moneyPatterns = nil
+BT.db.nMoney = false
+fire("CHAT_MSG_MONEY", "You loot 1 Gold, 25 Silver, 30 Copper")
+assertEq(#lines("notify"), 0, "money is off unless its setting is on (not the Loot setting)")
+BT.db.nMoney = true
+fire("CHAT_MSG_MONEY", "You loot 1 Gold, 25 Silver, 30 Copper")
+assertEq(last("notify"), "+|cFFFFD7001g|r |cFFC0C0C025s|r |cFFCD7F3230c|r", "money looted, gold silver and copper")
+fire("CHAT_MSG_MONEY", "Your share of the loot is 12 Silver.")
+assertEq(last("notify"), "+|cFFC0C0C012s|r", "a share of money, silver only")
+fire("CHAT_MSG_MONEY", "You loot something odd.")
+assertEq(last("notify"), "You loot something odd", "a money line it can't read shows as the game wrote it")
+fire("CHAT_MSG_MONEY", Secret("You loot 5 Copper"))
+assertEq(last("notify"), "You loot something odd", "a hidden money line is skipped")
+SetGameText("GOLD_AMOUNT", "%d골드"); SetGameText("SILVER_AMOUNT", "%d실버"); SetGameText("COPPER_AMOUNT", "%d코퍼")
+BT.moneyPatterns = nil
+fire("CHAT_MSG_MONEY", "전리품 획득: 2골드 3실버 4코퍼")
+assertEq(last("notify"), "+|cFFFFD7002g|r |cFFC0C0C03s|r |cFFCD7F324c|r", "Korean money text")
+SetGameText("GOLD_AMOUNT", nil); SetGameText("SILVER_AMOUNT", nil); SetGameText("COPPER_AMOUNT", nil)
+BT.moneyPatterns, BT.db.nMoney = nil, false
+clear()
 fire("CHAT_MSG_COMBAT_FACTION_CHANGE", "Your reputation with Stormwind has increased by 25.")
 assertEq(last("notify"), "Your reputation with Stormwind has increased by 25", "reputation")
 fire("CHAT_MSG_SKILL", Secret("Your skill in Swords has increased to 12."))

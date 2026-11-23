@@ -68,7 +68,9 @@ function BT:OnLoot(message)
     self:Notify(icon .. "+" .. count .. " " .. link, self.TEXT_COLORS.loot)
 end
 
--- Gold loot notification
+-- Money you loot: "+1g 25s 30c", read with the game's own words for gold, silver
+-- and copper (GOLD_AMOUNT etc.), so it works in any language. A line it can't
+-- read shows as the game wrote it.
 local function MoneyAmountPattern(fmt)
     if not fmt then return nil end
 
@@ -80,7 +82,7 @@ end
 
 function BT:OnMoney(message)
     message = Str(message)
-    if not message or not self.db.nLoot then return end
+    if not message or not self.db.nMoney then return end
 
     if not self.moneyPatterns then
         self.moneyPatterns = {
@@ -99,7 +101,9 @@ function BT:OnMoney(message)
     local silver = ExtractAmount(self.moneyPatterns.silver)
     local copper = ExtractAmount(self.moneyPatterns.copper)
 
-    if gold == 0 and silver == 0 and copper == 0 then return end
+    if gold == 0 and silver == 0 and copper == 0 then
+        return self:OnChatNotice("nMoney", message, self.TEXT_COLORS.notify)
+    end
 
     local parts = {}
     if gold > 0 then parts[#parts + 1] = "|cFFFFD700" .. gold .. L["g"] .. "|r" end
