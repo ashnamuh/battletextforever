@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.37.0
+
+- **BattleText speaks Simplified Chinese.** On a Simplified Chinese game the options window, on-screen words, chat messages and the fight summary are now in Chinese. (Thanks to Sanchez_3000 for the translation.)
+- **Clearer Korean combat text.** On a Korean game, entering and leaving a fight now shows "전투 시작" and "전투 종료" (combat start and combat end) instead of "+전투" and "-전투". (Thanks to Jaemok.)
+
 ## 1.36.0
 
 - **BattleText speaks Korean.** On a Korean game the options window, on-screen words, chat messages and the fight summary are now in Korean. (Thanks to Jaemok for the whole translation.)
