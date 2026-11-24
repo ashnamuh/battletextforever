@@ -3663,6 +3663,98 @@ STATE.who = {}
 clear()
 end
 
+step("an eighth real fight: a paladin's blocks give Shield Specialization's mana")
+-- tests/real_fight8.txt (1.41.0, Tyler's Protection paladin, every amount hidden): six blocks
+-- (901.84, 902.10, 903.82, 904.16, 908.16, 920.18) and not one mana line from the game, no
+-- UNIT_COMBAT ENERGIZE and no combat log line near any of them. Until 1.41.1 the talent's mana
+-- waited for an ENERGIZE, so it never showed. The talent gives mana at most once every 3 seconds:
+-- the blocks at 901.84, 908.16 and 920.18.
+do
+local GAME = getmetatable(_G).__index
+local powerType = GAME.UnitPowerType
+GAME.UnitPowerType = function() return 0, "MANA" end
+STATE.class = "PALADIN"
+STATE.spellNames[20150] = "Shield Specialization"
+STATE.spellNames[20925], STATE.spellNames[1292851] = "Holy Shield", "Lightning Bolt"
+STATE.knownSpells[20150] = true
+BT.db.inPower = true
+local mana = {}
+local realEmit = BT.Emit
+BT.Emit = function(self, area, text, ...)
+    if type(text) == "string" and text:find("Mana", 1, true) then mana[#mana + 1] = text end
+    return realEmit(self, area, text, ...)
+end
+local function fight()
+    freshFight()
+    BT.lastBlock, BT.shieldSpecAt, BT.energizeAt, BT.manaRise = nil, nil, nil, nil
+    mana = {}
+    replay("real_fight8.txt")
+    return mana
+end
+-- Forever hides your mana, and the most you can have too: the talent's 4%
+STATE.mana, STATE.manaMax, STATE.manaHidden, STATE.manaMaxHidden = 600, 1000, true, true
+local got = fight()
+assertEq(#got, 3, "one Shield Specialization per 3 seconds of blocks: " .. table.concat(got, " | "))
+assertEq(got[1], "+4% Mana Shield Specialization", "both hidden: it says 4%")
+-- Only your mana hidden: 4% of the most
+STATE.manaMaxHidden = nil
+got = fight()
+assertEq(#got, 3, "the same three blocks")
+assertEq(got[1], "+40 Mana Shield Specialization", "4% of 1000 mana")
+-- Your mana can be read, and the bar didn't move (full, or rank 1's chance missed): nothing
+STATE.manaHidden = nil
+got = fight()
+assertEq(#got, 0, "no rise, no mana shown: " .. table.concat(got, " | "))
+-- The bar rose at the block: that rise
+local blocks, gaveAt = 0, nil
+local onCombat = BT.OnUnitCombat
+BT.OnUnitCombat = function(self, unit, action, ...)
+    local r = onCombat(self, unit, action, ...)
+    if unit == "player" and action == "BLOCK" then
+        blocks = blocks + 1
+        if not gaveAt or GetTime() - gaveAt >= 3 then   -- (the game's own 3 seconds)
+            gaveAt = GetTime()
+            STATE.mana = STATE.mana + 37
+            BT:OnMana()
+        end
+    end
+    return r
+end
+STATE.mana = 500
+BT.manaSeen = 500
+got = fight()
+BT.OnUnitCombat = onCombat
+assertEq(blocks, 6, "six blocks")
+assertEq(got[1], "+37 Mana Shield Specialization", "the bar's own rise")
+assertEq(#got, 3, "still once per 3 seconds")
+-- Without the talent, a block gives nothing
+STATE.knownSpells[20150] = nil
+STATE.manaHidden = true
+got = fight()
+assertEq(#got, 0, "no talent, no mana")
+-- The game's own ENERGIZE beside a block is shown once, not twice
+STATE.knownSpells[20150] = true
+clear()
+BT.lastBlock, BT.shieldSpecAt, BT.energizeAt, mana = nil, nil, nil, {}
+Advance(5)
+fire("UNIT_COMBAT", "player", "BLOCK", "", 0, 1)
+Advance(0.1)
+fire("UNIT_COMBAT", "player", "ENERGIZE", "", 40, 1)
+Advance(0.6)
+assertEq(#mana, 1, "one line: " .. table.concat(mana, " | "))
+assertEq(mana[1], "+40 Mana Shield Specialization", "the game's own amount")
+BT.Emit = realEmit
+STATE.knownSpells[20150] = nil
+STATE.manaHidden, STATE.manaMaxHidden, BT.manaSeen = nil, nil, nil
+STATE.mana, STATE.manaMax = 1000, 1000
+GAME.UnitPowerType = powerType
+BT.db.inPower = false
+BT.lastBlock, BT.shieldSpecAt, BT.energizeAt, BT.manaRise = nil, nil, nil, nil
+STATE.class = "DRUID"
+STATE.who = {}
+clear()
+end
+
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
 log(hit("Bite", 17253, 60))

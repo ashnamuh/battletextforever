@@ -899,8 +899,12 @@ end
 -- 4% of your mana, at most once every 3 seconds. The game sends the mana with no spell, a moment
 -- before or after the block, so with the talent a mana gain waits SHIELD_SPEC_WAIT to see a block
 -- within SHIELD_SPEC_NEAR of it. (CurseForge: "mana on block?")
+-- On Forever the game sends nothing at all for this mana (Tyler's paladin log, 1.41.0: blocks, no
+-- UNIT_COMBAT ENERGIZE and no combat log line near any of them), so the block itself shows it,
+-- SHIELD_SPEC_LOOK after it (ShieldSpecBlock).
 local SHIELD_SPEC = { 20150, "Shield Specialization" }
 local SHIELD_SPEC_WAIT, SHIELD_SPEC_NEAR, SHIELD_SPEC_EVERY = 0.2, 0.3, 2.9
+local SHIELD_SPEC_LOOK, SHIELD_SPEC_SHARE = 0.4, 0.04
 
 function BT:HasShieldSpec()
     local okClass, _, class = pcall(UnitClass, "player")
@@ -925,6 +929,66 @@ local function PowerName()
     local ok, _, token = pcall(UnitPowerType, "player")
     token = ok and Str(token) or nil
     return token and Str(_G[token]) or nil
+end
+
+-- " <icon> Shield Specialization" after a mana gain, or nil when a spell rule hides it
+function BT:ShieldSpecAfter()
+    local name
+    if C_Spell and C_Spell.GetSpellName then
+        local ok, n = pcall(C_Spell.GetSpellName, SHIELD_SPEC[1])
+        name = ok and Str(n) or nil
+    end
+    name = name or SHIELD_SPEC[2]
+    local rule = self:SpellRule(name)
+    if rule and rule.hide then return nil end
+    return SpellAfter(self:SpellParts("in", self:IconText(SHIELD_SPEC[1]), name))
+end
+
+-- A block of yours, with the talent: the mana it gave. The bar's rise when your mana can be read
+-- (nothing when it didn't rise: it was full, or rank 1's 50% chance missed). When the game hides
+-- your mana, 4% of your most mana, or "+4%" when that's hidden too. The game's own line for it
+-- (UNIT_COMBAT ENERGIZE, OnUnitCombat) shows it instead, if one ever comes.
+function BT:ShieldSpecBlock(at)
+    if not self:HasShieldSpec() then return end
+    local ManaNow = S.ManaNow
+    local before, most
+    if ManaNow then before, most = ManaNow() end
+    local recent = self.shieldSpecAt and at - self.shieldSpecAt < SHIELD_SPEC_EVERY
+    if self.db.debug then
+        self:Record("SHIELD SPEC block: mana " .. (before and (before .. "/" .. tostring(most)) or "hidden")
+            .. (recent and " (within 3s of the last)" or ""))
+    end
+    if recent or not (C_Timer and C_Timer.After) then return end
+    C_Timer.After(SHIELD_SPEC_LOOK, function()
+        local sent = BT.energizeAt and math.abs(BT.energizeAt - at) <= SHIELD_SPEC_NEAR
+        if sent or (BT.shieldSpecAt and at - BT.shieldSpecAt < SHIELD_SPEC_EVERY) then return end
+        local now, top
+        if ManaNow then now, top = ManaNow() end
+        local gain
+        if before and now then
+            gain = now - before
+            -- (the bar can rise a moment before the block's event)
+            local rise = BT.manaRise
+            if gain <= 0 and rise and rise.at <= at and at - rise.at <= SHIELD_SPEC_NEAR then gain = rise.amount end
+            if gain <= 0 then
+                if BT.db.debug then BT:Record("SHIELD SPEC: no mana came (full, or the chance missed)", at) end
+                return
+            end
+        end
+        BT.shieldSpecAt = at
+        local gave = gain or ((top or most) and math.floor((top or most) * SHIELD_SPEC_SHARE))
+        if BT.db.debug then
+            BT:Record("SHIELD SPEC: +" .. (gave and tostring(gave) or "4%")
+                .. (gain and " (the bar rose)" or " (mana hidden: 4% of the most)"), at)
+        end
+        if not BT.db.inPower or BT:LogCovers("power") then return end
+        local after = BT:ShieldSpecAfter()
+        if not after then return end
+        local power = PowerName()
+        power = power and (" " .. power) or ""
+        local text = gave and gave > 0 and ("+" .. Commas(gave)) or "+4%"
+        BT:Emit(BT:Area("InPower"), text .. power .. after, BT.TEXT_COLORS.power)
+    end)
 end
 
 function BT:OnUnitCombat(unit, action, flag, amount, school)
@@ -956,7 +1020,10 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
     -- partly blocked too
     local avoid = action == "WOUND" and flag or action
     if avoid == "DODGE" or avoid == "PARRY" or avoid == "BLOCK" or avoid == "BLOCK_REDUCED" then
-        if avoid == "BLOCK" or avoid == "BLOCK_REDUCED" then self.lastBlock = GetTime() end
+        if avoid == "BLOCK" or avoid == "BLOCK_REDUCED" then
+            self.lastBlock = GetTime()
+            self:ShieldSpecBlock(GetTime())
+        end
         self:React("avoided")
         if avoid == "PARRY" then self:React("parried") end
     end
@@ -1029,6 +1096,7 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
         if C_Timer and C_Timer.After then C_Timer.After(0.25, show) else show() end
     elseif action == "ENERGIZE" then
         self:LifeTapLogged()
+        self.energizeAt = GetTime()   -- (a block's Shield Specialization mana is this, then)
         if self:LogCovers("power") or not db.inPower then return end
         local power = PowerName()
         power = power and (" " .. power) or ""
@@ -1036,16 +1104,9 @@ function BT:OnUnitCombat(unit, action, flag, amount, school)
         local function show()
             local after = power
             if self:ShieldSpecFor(at) then
-                local name
-                if C_Spell and C_Spell.GetSpellName then
-                    local ok, n = pcall(C_Spell.GetSpellName, SHIELD_SPEC[1])
-                    name = ok and Str(n) or nil
-                end
-                name = name or SHIELD_SPEC[2]
-                local rule = self:SpellRule(name)
-                if rule and rule.hide then return end
-                local icon, shown = self:SpellParts("in", self:IconText(SHIELD_SPEC[1]), name)
-                after = power .. SpellAfter(icon, shown)
+                local spec = self:ShieldSpecAfter()
+                if not spec then return end
+                after = power .. spec
             end
             if secret then
                 -- The amount goes last, so the game can fill it in

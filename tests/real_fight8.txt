@@ -1,0 +1,346 @@
+ 894.08  CAST 1292851 Lightning Bolt
+ 894.08  SWING 0
+ 894.08  hidden |Ky129|k
+ 894.08  hidden |Ky130|k
+ 894.08  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 894.08  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 894.08    nameplate2 (hidden amount): cast of Lightning Bolt
+ 894.10  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 893.61    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 894.19  hidden |Ky124|k
+ 894.19  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 894.19  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 894.19    nameplate2 (hidden amount): tick of Consecration
+ 894.63  hidden |Ky125|k
+ 894.63  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 894.63  hidden |Ky126|k
+ 894.63  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 894.63  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 894.63    nameplate1 (hidden amount): tick of Consecration
+ 894.63    nameplate2 (hidden amount): tick of Consecration
+ 894.65  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 894.65  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 894.65    nameplate2 (hidden amount): shown
+ 895.30  hidden |Ky131|k
+ 895.30  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 895.30  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 895.30  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 895.30  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 895.30    nameplate2 (hidden amount): proc of Electrocutioner Leg
+ 895.30    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 895.64  hidden |Ky132|k
+ 895.64  hidden |Ky125|k
+ 895.64  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 895.64  hidden |Ky133|k
+ 895.64  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 895.64  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 895.64  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 895.64  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 895.64    nameplate1 (hidden amount): tick of Consecration
+ 895.64    nameplate2 (hidden amount): tick of Consecration
+ 895.64    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 895.64    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 895.79  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 895.30    nameplate2 (hidden amount): shield of Spiked Shell Band
+ 895.64    nameplate1 (hidden amount): shield of Sporid Cape
+ 895.86  SWING 0
+ 895.86  hidden |Ky134|k
+ 895.86  hidden |Ky124|k
+ 895.86  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 895.86  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 895.86    nameplate2 (hidden amount): tick of Consecration
+ 896.15  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 895.64    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 896.28  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 896.28  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 896.28    nameplate2 (hidden amount): shown
+ 896.63  hidden |Ky125|k
+ 896.63  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 896.63  hidden |Ky126|k
+ 896.63  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 896.63  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 896.63    nameplate1 (hidden amount): tick of Consecration
+ 896.63    nameplate2 (hidden amount): seal of Seal of Fury
+ 897.33  hidden |Ky135|k
+ 897.33  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 897.33  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 897.33  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 897.33  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 897.33    nameplate2 (hidden amount): proc of Electrocutioner Leg
+ 897.33    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 897.49  SWING 0
+ 897.49  hidden |Ky136|k
+ 897.60  hidden |Ky124|k
+ 897.60  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 897.60  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 897.60  hidden |Ky125|k
+ 897.60  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 897.60  hidden |Ky126|k
+ 897.60  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 897.60  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 897.60  hidden |Ky137|k
+ 897.60    nameplate2 (hidden amount): tick of Consecration
+ 897.60    nameplate1 (hidden amount): tick of Consecration
+ 897.60    nameplate2 (hidden amount): tick of Consecration
+ 897.68  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 897.68  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 897.68    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 897.68    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 897.82  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 897.33    nameplate2 (hidden amount): shield of Spiked Shell Band
+ 897.68    nameplate1 (hidden amount): shield of Sporid Cape
+ 898.09  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 897.68    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 898.47  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 898.47  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 898.47    nameplate2 (hidden amount): shown
+ 898.64  hidden |Ky125|k
+ 898.64  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 898.64  hidden |Ky126|k
+ 898.64  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 898.64  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 898.64    nameplate1 (hidden amount): tick of Consecration
+ 898.64    nameplate2 (hidden amount): seal of Seal of Fury
+ 899.26  SWING 0
+ 899.26  hidden |Ky138|k
+ 899.26  hidden |Ky124|k
+ 899.26  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 899.26  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 899.26    nameplate2 (hidden amount): tick of Consecration
+ 899.62  hidden |Ky139|k
+ 899.62  hidden |Ky133|k
+ 899.62  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 899.62  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 899.62  hidden |Ky125|k
+ 899.62  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 899.62  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 899.62  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 899.62    nameplate2 (hidden amount): tick of Consecration
+ 899.62    nameplate1 (hidden amount): tick of Consecration
+ 899.62    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 899.62    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 899.69  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 899.69  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 899.69    nameplate2 (hidden amount): shown
+ 899.87  UNIT_COMBAT player PARRY (hidden amount) school 1
+ 899.96    SENT 20925 to ? (no name match, mouse not on a friend, target not a friend)
+ 899.96  CAST 20925 Holy Shield
+ 900.11  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 899.62    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 899.62    nameplate1 (hidden amount): shield of Sporid Cape
+ 900.25  SWING 0
+ 900.25  hidden |Ky140|k
+ 900.25  hidden |Ky124|k
+ 900.25  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 900.25  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 900.25    nameplate2 (hidden amount): tick of Consecration
+ 900.69  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 900.69  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 900.69    nameplate2 (hidden amount): shown
+ 901.36  hidden |Ky141|k
+ 901.36  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 901.36  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 901.36    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 901.60  hidden |Ky142|k
+ 901.60  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 901.60    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 901.84  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 902.00  SWING 0
+ 902.00  hidden |Ky117|k
+ 902.00  hidden |Ky124|k
+ 902.00  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 902.00  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 902.00    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 902.10  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 902.42  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 902.42  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 901.36    nameplate2 (hidden amount): seal of Seal of Fury
+ 902.00    nameplate2 (hidden amount): seal of Seal of Fury
+ 902.42    nameplate2 (hidden amount): shown
+ 901.60    nameplate1 (hidden amount): nothing came for it: shown
+ 903.32  hidden |Ky141|k
+ 903.32  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 903.32  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 903.32    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 903.66  hidden |Ky143|k
+ 903.66  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 903.66  SWING 0
+ 903.66  hidden |Ky144|k
+ 903.66  hidden |Ky124|k
+ 903.66  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 903.66  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 903.66    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 903.66    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 903.82  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 904.08  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 904.08  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 903.32    nameplate2 (hidden amount): seal of Seal of Fury
+ 903.66    nameplate2 (hidden amount): seal of Seal of Fury
+ 904.08    nameplate2 (hidden amount): shown
+ 904.16  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 903.66    nameplate1 (hidden amount): nothing came for it: shown
+ 905.34  hidden |Ky145|k
+ 905.34  SWING 0
+ 905.34  hidden |Ky146|k
+ 905.34  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 905.34  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 905.34  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 905.34  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 905.34  CAST 1292851 Lightning Bolt
+ 905.34    nameplate2 (hidden amount): cast of Lightning Bolt
+ 905.34    nameplate2 (hidden amount): cast of Lightning Bolt
+ 905.44  hidden |Ky124|k
+ 905.44  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 2
+ 905.44  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 905.44  hidden |Ky147|k
+ 905.44  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 905.44  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 905.44    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 905.44    nameplate2 (hidden amount): proc of Electrocutioner Leg
+ 905.66  hidden |Ky148|k
+ 905.66  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 905.66  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 905.66    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 905.66    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 905.84  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 905.66    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 905.66    nameplate1 (hidden amount): shield of Sporid Cape
+ 906.16  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 906.34  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 1
+ 906.34  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 905.44    nameplate2 (hidden amount): seal of Seal of Fury
+ 906.34    nameplate2 (hidden amount): shown
+ 907.37  CAST 1292851 Lightning Bolt
+ 907.37  SWING 0
+ 907.37  hidden |Ky149|k
+ 907.37  hidden |Ky150|k
+ 907.37  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 907.37  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 907.37  UNIT_COMBAT softenemy WOUND (hidden amount) school 8: same hit, under another name
+ 907.37  hidden |Ky115|k
+ 907.37  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 907.37  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 907.37  UNIT_COMBAT softenemy WOUND (hidden amount) school 2: same hit, under another name
+ 907.37    nameplate1 (hidden amount): cast of Lightning Bolt
+ 907.37    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 907.92  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 907.92  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 907.37    nameplate1 (hidden amount): seal of Seal of Fury
+ 907.92    nameplate1 (hidden amount): shown
+ 908.16  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 909.03  SWING 0
+ 909.03  hidden |Ky151|k
+ 909.03  hidden |Ky115|k
+ 909.03  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 909.03  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 909.03  SWING 0
+ 909.03  hidden |Ky152|k
+ 909.03    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 909.14  hidden |Ky115|k
+ 909.14  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 909.14  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 909.14    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 909.58  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 909.58  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 909.03    nameplate1 (hidden amount): seal of Seal of Fury
+ 909.14    nameplate1 (hidden amount): seal of Seal of Fury
+ 909.58    nameplate1 (hidden amount): shown
+ 909.66  hidden |Ky148|k
+ 909.66  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 909.66  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 909.66  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 909.66  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 909.66    nameplate1 (hidden amount): proc of Electrocutioner Leg
+ 909.66    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 910.15  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 909.66    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 910.35    SENT 20925 to ? (no name match, mouse not on a friend, target not a friend)
+ 910.35  CAST 20925 Holy Shield
+ 910.72  SWING 0
+ 910.72  hidden |Ky153|k
+ 910.72  hidden |Ky115|k
+ 910.72  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 910.72  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 910.72    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 911.02  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 911.02  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 910.72    nameplate1 (hidden amount): seal of Seal of Fury
+ 911.02    nameplate1 (hidden amount): shown
+ 911.58  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 911.58  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 911.59  hidden |Ky154|k
+ 911.59  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 911.59  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 911.59  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 911.59  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 911.58    nameplate1 (hidden amount): shown
+ 911.59    nameplate1 (hidden amount): proc of Electrocutioner Leg
+ 911.59    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 912.09  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 911.59    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 912.50  SWING 0
+ 912.50  hidden |Ky113|k
+ 912.93  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 912.93  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 912.93    nameplate1 (hidden amount): shown
+ 913.58  hidden |Ky127|k
+ 913.69  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 913.69  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 913.69  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 913.69  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 913.69    nameplate1 (hidden amount): proc of Electrocutioner Leg
+ 913.69    nameplate1 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 914.08  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 913.69    nameplate1 (hidden amount): shield of Spiked Shell Band
+ 914.12  SWING 0
+ 914.12  hidden |Ky155|k
+ 914.68  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 914.68  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 914.68    nameplate1 (hidden amount): shown
+ 915.83  CAST 1292851 Lightning Bolt
+ 915.83  SWING 0
+ 915.83  hidden |Ky153|k
+ 915.83  hidden |Ky114|k
+ 915.83  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 915.83  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 915.83    nameplate1 (hidden amount): cast of Lightning Bolt
+ 916.17  UNIT_COMBAT player PARRY (hidden amount) school 1
+ 916.38  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 916.38  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 916.38    nameplate1 (hidden amount): shown
+ 917.61  SWING 0
+ 917.61  hidden |Ky113|k
+ 917.61  hidden |Ky156|k
+ 917.72  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 917.72  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 917.72  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 8
+ 917.72  UNIT_COMBAT target WOUND (hidden amount) school 8: same hit, under another name
+ 917.72    nameplate1 (hidden amount): proc of Electrocutioner Leg
+ 917.72    nameplate1 (hidden amount): proc of Electrocutioner Leg
+ 918.03  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 918.03  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 918.03    nameplate1 (hidden amount): shown
+ 918.10  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 919.33  SWING 0
+ 919.33  hidden |Ky157|k
+ 919.69  hidden |Ky142|k
+ 919.69  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 2
+ 919.69  UNIT_COMBAT target WOUND (hidden amount) school 2: same hit, under another name
+ 919.69    nameplate1 (hidden amount): shown
+ 919.89  UNIT_COMBAT nameplate1 WOUND (hidden amount) school 1
+ 919.89  UNIT_COMBAT target WOUND (hidden amount) school 1: same hit, under another name
+ 919.89    nameplate1 (hidden amount): shown
+ 920.18  UNIT_COMBAT player BLOCK BLOCK (hidden amount) school 1
+ 920.99  SWING 0
+ 920.99  hidden |Ky158|k
+ 921.42  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 921.42  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 921.42    nameplate1 (hidden amount): shown
+ 926.94  hidden |Ky159|k
+ 926.94  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 926.94  UNIT_COMBAT nameplate2 WOUND (hidden amount) school 8
+ 926.94    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 926.94    nameplate2 (hidden amount): waiting: your seal's, your shield's or your gear's?
+ 927.44  UNIT_COMBAT player WOUND (hidden amount) school 1
+ 926.94    nameplate2 (hidden amount): shield of Spiked Shell Band
+ 926.94    nameplate2 (hidden amount): shield of Sporid Cape

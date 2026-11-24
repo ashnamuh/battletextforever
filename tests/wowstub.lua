@@ -348,6 +348,7 @@ function IsInRaid() return false end
 function UnitPowerType() return 1, "RAGE" end
 -- Combo points (power type 4) are STATE.combo, out of 5; STATE.comboHidden hides them
 -- Mana (power type 0) is STATE.mana out of STATE.manaMax (0: you have none); STATE.manaHidden hides it
+-- (STATE.manaMaxHidden hides the most too)
 function UnitPower(unit, kind)
     if unit ~= "player" then return 0 end
     if kind == 4 then return STATE.comboHidden and Secret(STATE.combo) or STATE.combo end
@@ -355,7 +356,7 @@ function UnitPower(unit, kind)
     return 50
 end
 function UnitPowerMax(unit, kind)
-    if kind == 0 then return STATE.manaMax end
+    if kind == 0 then return STATE.manaMaxHidden and Secret(STATE.manaMax) or STATE.manaMax end
     return kind == 4 and 5 or 100
 end
 -- Your health, out of STATE.healthMax. Forever always hides it from addons (SecretReturns),

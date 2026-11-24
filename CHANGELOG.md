@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.41.1
+
+- **Shield Specialization's mana shows now.** A Protection paladin's blocks give mana back, but on Forever the game sends no mana line for it at all, so it never showed. Now the block itself shows it: "+X Mana Shield Specialization", at most once every 3 seconds like the talent. If the game lets BattleText read your mana bar, X is what the bar actually went up (and nothing shows when your mana was full). If your mana is hidden, it shows 4% of your most mana, or "+4% Mana" when that's hidden too. Mana only shows with "Power gains" turned on (Incoming tab).
+
 ## 1.41.0
 
 - **`/btf report`: send one report instead of many logs.** `/btf debug` now keeps a whole play session (it used to keep only the last fight or so). Play for a while, then type `/btf report`: it shows only the lines that look wrong, each kind counted with one example. That covers casts whose hit showed with no name, heals on you with no source, and hits that went unclaimed. Copy it into one bug report, and everything in it can be fixed together. `/btf copy` still shows everything. The recording ends when you log out or reload.
