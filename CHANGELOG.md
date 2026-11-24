@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.42.0
+
+- **BattleText speaks German.** On a German game the options window, on-screen words, chat messages and the fight summary are now in German. (Thanks to ogogo1 for the whole translation.) A few longer German words may not fit their buttons yet; that's being looked at.
+- Also in this version: Shield Specialization's mana (see 1.41.1 below).
+
 ## 1.41.1
 
 - **Shield Specialization's mana shows now.** A Protection paladin's blocks give mana back, but on Forever the game sends no mana line for it at all, so it never showed. Now the block itself shows it: "+X Mana Shield Specialization", at most once every 3 seconds like the talent. If the game lets BattleText read your mana bar, X is what the bar actually went up (and nothing shows when your mana was full). If your mana is hidden, it shows 4% of your most mana, or "+4% Mana" when that's hidden too. Mana only shows with "Power gains" turned on (Incoming tab).
