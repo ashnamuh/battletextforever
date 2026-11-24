@@ -11,7 +11,35 @@ local ADDON, ns = ...
 local BT = ns.BT
 local T = ns.Theme
 local L = ns.L
-local C, Text, FlatButton, Card = T.C, T.Text, T.FlatButton, T.Card
+local C, Text, Card = T.C, T.Text, T.Card
+
+-- A button grows to fit its text (other languages' words are often longer than the
+-- English), never shrinks below the width it was given
+local function FitButton(b, width)
+    local w = b.GetTextWidth and b:GetTextWidth()
+    w = type(w) == "number" and math.ceil(w) + 16 or 0
+    b:SetWidth(math.max(width, w))
+end
+local function FlatButton(parent, text, width, height)
+    local b = T.FlatButton(parent, text, width, height)
+    FitButton(b, width or 100)
+    return b
+end
+
+-- Where the control after the label of a switch at swX goes: at x (its usual place),
+-- or later when the label is longer, keeping the same right edge (right). The label
+-- is cut short only if the control would get narrower than least.
+local function AfterLabel(sw, swX, x, right, least)
+    local w = sw.label.GetStringWidth and sw.label:GetStringWidth()
+    local labelLeft = swX + 38   -- (the switch is 30 wide, its label 8 after it)
+    local at = math.max(x, labelLeft + math.ceil(type(w) == "number" and w or 0) + 8)
+    if right - at < least then
+        at = right - least
+        sw.label:SetWidth(at - 8 - labelLeft)
+        sw.label:SetWordWrap(false)
+    end
+    return at, right - at
+end
 
 local PAGE_W = T.WINDOW.PAGE_W
 local COL2 = 270     -- the second column of a card
@@ -28,6 +56,12 @@ local function DependsOn(widget, enabledIf)
 end
 
 -- A note at the bottom of a card, full width
+-- How tall a wrapped text is (0 when the game can't say yet)
+local function TextHeight(fs)
+    local h = fs.GetStringHeight and fs:GetStringHeight()
+    return type(h) == "number" and math.ceil(h) or 0
+end
+
 local function CardNote(card, text, y)
     return T.Note(card, text, 12, y, PAGE_W - 24)
 end
@@ -262,6 +296,7 @@ function BT:Confirm(text, yesLabel, onYes)
     end
     f.text:SetText(text)
     f.yes:SetText(yesLabel)
+    FitButton(f.yes, 120)
     f.yes:SetScript("OnClick", function()
         f:Hide()
         onYes()
@@ -340,15 +375,29 @@ local function BuildGeneral(p, refs)
     text:SetWordWrap(true)
     text:SetJustifyH("LEFT")
 
-    local share = Card(p, L["Share settings"], 0, -320, PAGE_W, 90)
+    -- Longer text (other languages) makes the card taller, and the next one moves down
+    local knowH = math.max(124, 34 + TextHeight(text) + 10)
+    know:SetHeight(knowH)
+    local share = Card(p, L["Share settings"], 0, -(196 + knowH), PAGE_W, 90)
     local export = FlatButton(share, L["Export"], 90)
     export:SetPoint("TOPLEFT", 12, -28)
     export:SetScript("OnClick", function() BT:OpenShareWindow("export") end)
     local import = FlatButton(share, L["Import"], 90)
     import:SetPoint("LEFT", export, "RIGHT", 8, 0)
     import:SetScript("OnClick", function() BT:OpenShareWindow("import") end)
-    CardNote(share, L["Export: your settings as a line of text to copy. Import: paste someone else's to use them "
-        .. "(your text areas stay where they are unless you choose)."], -58)
+    local shareText = L["Export: your settings as a line of text to copy. Import: paste someone else's to use them "
+        .. "(your text areas stay where they are unless you choose)."]
+    local note = CardNote(share, shareText, -58)
+    local shareH = math.max(90, 58 + TextHeight(note) + 8)
+    if 196 + knowH + shareH > T.WINDOW.BODY_H then
+        -- No room left on the page: the note goes on the buttons' tooltips instead
+        note:Hide()
+        shareH = 64
+        T.Tooltip(export, nil, shareText)
+        T.Tooltip(import, nil, shareText)
+    end
+    share:SetHeight(shareH)
+    refs.shareCard, refs.shareNote, refs.knowCard = share, note, know
     refs.exportButton, refs.importButton = export, import
 end
 
@@ -490,22 +539,24 @@ local function BuildIncoming(p, refs)
         .. "purple), so you know when to use a Shadow Ward or a resistance potion. Physical hits stay in the "
         .. "damage color."], function() return BT.db.inDamage end)
     local warn = Card(p, L["Warnings"], 0, -152, PAGE_W, 106)
-    Setting(warn, L["Low health"], 12, -32, "warnHealth",
+    local lowHealth = Setting(warn, L["Low health"], 12, -32, "warnHealth",
         L["\"Low health!\" and a sound when your health drops to 35%. It warns again once you've healed back up. "
         .. "The game hides your health from addons, so this goes by its own warning, the red screen edges: it can't "
         .. "warn if you've turned those off in the game's options, or while the map is open in a fight. "
         .. "Pick the sound in the list beside it."])
-    refs.lowHealthDropdown = Dropdown(warn, 130, -30, 126, SoundKeys(), SoundName, "lowHealthSound",
+    local dx, dw = AfterLabel(lowHealth, 12, 130, 256, 80)
+    refs.lowHealthDropdown = Dropdown(warn, dx, -30, dw, SoundKeys(), SoundName, "lowHealthSound",
         function(k) BT:SetAlertSound("lowHealth", k) end, PICK_TIP, function() return BT.db.warnHealth end)
-    Setting(warn, L["Low mana"], COL2, -32, "warnMana",
+    local lowMana = Setting(warn, L["Low mana"], COL2, -32, "warnMana",
         L["\"Low mana!\" and a sound when your mana drops to the line below. It warns again once your mana is 10% "
         .. "above it. Pick the sound in the list beside it. If the game hides your mana from addons (it does for "
         .. "some players), BattleText can't tell when it drops, so instead a steady \"Low mana\" shows above the "
         .. "notifications while you're under the line, with no sound."])
-    refs.lowManaDropdown = Dropdown(warn, COL2 + 118, -30, 126, SoundKeys(), SoundName, "lowManaSound",
+    dx, dw = AfterLabel(lowMana, COL2, COL2 + 118, COL2 + 244, 80)
+    refs.lowManaDropdown = Dropdown(warn, dx, -30, dw, SoundKeys(), SoundName, "lowManaSound",
         function(k) BT:SetAlertSound("lowMana", k) end, PICK_TIP, function() return BT.db.warnMana end)
     refs.lowHealthDropdown.menuScroll, refs.lowManaDropdown.menuScroll = 20 * 12, 20 * 12
-    T.Note(warn, L["Low health goes by the game's red screen edges, at 35% health."], 12, -70, COL2 - 36)
+    T.Note(warn, L["Low health goes by the game's red screen edges, at 35% health."], 12, -62, COL2 - 36)
     Slider(warn, L["Low mana at"], COL2, -66, "lowManaAt", { suffix = "%", step = 5,
         enabledIf = function() return BT.db.warnMana end,
         tip = L["How low your mana goes before \"Low mana!\"."] })
@@ -586,13 +637,15 @@ local function BuildNotifications(p, refs)
         L["Shows the icon beside loot, skill ups, seals, buffs, ability alerts, cooldowns, interrupts and dispels."],
         Either("nLoot", "nSkill", "nSeals", "nBuffs", "nAlerts", "nDispels", "nCooldowns", "nInterrupts"))
     local soundKeys, soundName, pickTip = SoundKeys(), SoundName, PICK_TIP
-    Setting(extras, L["Crit sound"], 12, -238, "soundCrit", L["A sound when you crit. Pick it in the list beside it."])
-    refs.critSoundDropdown = Dropdown(extras, 130, -236, 126, soundKeys, soundName, "critSound",
+    local critSound = Setting(extras, L["Crit sound"], 12, -238, "soundCrit", L["A sound when you crit. Pick it in the list beside it."])
+    local dx, dw = AfterLabel(critSound, 12, 130, 256, 80)
+    refs.critSoundDropdown = Dropdown(extras, dx, -236, dw, soundKeys, soundName, "critSound",
         function(k) BT:SetAlertSound("crit", k) end, pickTip)
-    Setting(extras, L["Kill sound"], COL2, -238, "soundKill",
+    local killSound = Setting(extras, L["Kill sound"], COL2, -238, "soundKill",
         L["A sound on your killing blows (only when the game lets BattleText read its combat lines). "
         .. "Pick it in the list beside it."])
-    refs.killSoundDropdown = Dropdown(extras, COL2 + 118, -236, 126, soundKeys, soundName, "killSound",
+    dx, dw = AfterLabel(killSound, COL2, COL2 + 118, COL2 + 244, 80)
+    refs.killSoundDropdown = Dropdown(extras, dx, -236, dw, soundKeys, soundName, "killSound",
         function(k) BT:SetAlertSound("kill", k) end, pickTip)
     refs.critSoundDropdown.menuScroll, refs.killSoundDropdown.menuScroll = 20 * 12, 20 * 12
     AreaLook(p, -294, "n", false, function() return BT:AreaUsed("notify") end, L["Nothing shows here (Layout tab)"])
@@ -698,7 +751,7 @@ local function BuildSpells(p, refs)
         T.Tooltip(row.hide, L["Hide"], L["Its hits, heals and misses aren't shown. They still count in the fight summary."])
         local sw = CreateFrame("Button", nil, row)
         sw:SetSize(30, 16)
-        sw:SetPoint("LEFT", 270, 0)
+        sw:SetPoint("LEFT", (AfterLabel(row.hide, 180, 270, 330, 0)), 0)
         sw.fill = T.Fill(sw, { 1, 1, 1, 1 }, "ARTWORK")
         T.Border(sw, C.edge)
         sw.label = Text(row, L["Color"], "GameFontHighlight")

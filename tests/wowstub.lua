@@ -172,6 +172,8 @@ function Methods:GetName() return self.__name end
 function Methods:GetFrameLevel() return 1 end
 function Methods:SetFrameLevel(l) self.__frameLevel = l end
 function Methods:SetSize(w, h) protectedCheck(self, "SetSize") self.__size = { w, h } end
+function Methods:SetWidth(w) protectedCheck(self, "SetWidth") self.__size = { w, self.__size and self.__size[2] or 0 } end
+function Methods:SetHeight(h) protectedCheck(self, "SetHeight") self.__size = { self.__size and self.__size[1] or 0, h } end
 function Methods:SetValue(v) self.__value = v if self.__scripts.OnValueChanged then self.__scripts.OnValueChanged(self, issecretvalue(v) and 0 or v) end end
 function Methods:SetMinMaxValues(a, b) self.__min, self.__max = a, b end
 function Methods:RegisterEvent(e)
@@ -642,6 +644,7 @@ function Methods:SetShadowOffset(x, y) self.__shadow = { x, y } end
 function Methods:SetHitRectInsets(l, r, t, b) self.__hitRect = { l, r, t, b } end
 -- (about 7 pixels a letter: close enough to place things by)
 function Methods:GetStringWidth() return #tostring(self.__text or "") * 7 end
+function Methods:GetTextWidth() return #tostring(self.__text or "") * 7 end
 
 -- Sounds the addon played, by sound kit number
 -- (STATE.missingSounds[kit]: a sound this client doesn't have, which doesn't play)

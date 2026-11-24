@@ -8453,6 +8453,52 @@ step("translations: the addon's own text in the player's language")
     clear()
 end)()
 
+step("German fits the options window (buttons grow, controls make room for long labels)")
+;(function()
+    -- The German file, read into L for a second options window
+    local found = {}
+    local chunk = assert(loadstring(read_file(ADDON_DIR .. "/Locales/deDE.lua")))
+    setfenv(chunk, setmetatable({ GetLocale = function() return "deDE" end }, { __index = _G }))
+    chunk(ADDON, { L = setmetatable({}, { __newindex = function(_, k, v) found[k] = v end }) })
+    local L = ns.L
+    for k, v in pairs(found) do L[k] = v end
+    local english = BT.config
+    BT.config = nil
+    BT:BuildConfig()
+    local win = BT.config
+    -- Buttons are as wide as their text, never narrower than in English
+    for _, name in ipairs({ "sampleButton", "resetButton", "resetAllButton", "exportButton", "importButton" }) do
+        local b = win[name]
+        assert(b.__size[1] >= b:GetTextWidth() + 16, name .. " fits " .. tostring(b.__text))
+    end
+    assertEq(win.resetButton.__text, "Positionen zurücksetzen", "(in German)")
+    assert(win.resetButton.__size[1] > 120, "so it grew")
+    assertEq(english.exportButton.__size[1], 90, "a short word keeps the usual width (English)")
+    -- A sound list starts after its switch's label, keeping its right edge
+    local function after(d, swX, label)
+        local labelRight = swX + 38 + #label * 7
+        assert(d.__pos[1] >= labelRight + 8, label .. ": the list starts after it (" .. tostring(d.__pos[1]) .. ")")
+        assertEq(d.__pos[1] + d.__size[1], swX + 244, label .. ": and ends where it always does")
+    end
+    after(win.lowHealthDropdown, 12, "Wenig Gesundheit")
+    after(win.killSoundDropdown, 270, "Todesstoß-Sound")
+    assertEq(win.lowManaDropdown.__pos[1], 270 + 118, "a short label keeps the list in its place")
+    BT.config = nil
+    -- With long notes that run off the page, the share note goes on the buttons' tooltips
+    local heightWas = STUB_METHODS.GetStringHeight
+    STUB_METHODS.GetStringHeight = function() return 90 end
+    BT:BuildConfig()
+    STUB_METHODS.GetStringHeight = heightWas
+    local share = BT.config.shareCard
+    assertEq(BT.config.knowCard.__size[2], 134, "Good to know grows with its text")
+    assertEq(BT.config.shareNote:IsShown(), false, "the share note is left out")
+    assert(-share.__pos[2] + share.__size[2] <= ns.Theme.WINDOW.BODY_H, "so the page still fits")
+    -- Back to English
+    for k in pairs(found) do rawset(L, k, nil) end
+    BT.config = english
+    clear()
+end)()
+
 step("spell lists made again once in another language, if a name was missing at login (review L6)")
 ;(function()
     local names = STATE.spellNames

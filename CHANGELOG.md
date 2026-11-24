@@ -2,7 +2,8 @@
 
 ## 1.42.0
 
-- **BattleText speaks German.** On a German game the options window, on-screen words, chat messages and the fight summary are now in German. (Thanks to ogogo1 for the whole translation.) A few longer German words may not fit their buttons yet; that's being looked at.
+- **BattleText speaks German.** On a German game the options window, on-screen words, chat messages and the fight summary are now in German. (Thanks to ogogo1 for the whole translation.)
+- **Longer words fit the options window.** Buttons now grow to fit their text, and the sound lists beside "Low health", "Low mana", "Crit sound" and "Kill sound" (and the color beside "Hide" on the Spells tab) move over when the label is longer, so German and other languages aren't cut off. The "Good to know" box grows with its text; if the General page runs out of room, the Share settings note moves into the Export and Import tooltips.
 - Also in this version: Shield Specialization's mana (see 1.41.1 below).
 
 ## 1.41.1
