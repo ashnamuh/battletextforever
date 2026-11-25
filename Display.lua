@@ -159,6 +159,10 @@ function BT:BuildAreas()
             a:StopMovingOrSizing()
             BT:SaveAreaPosition(a)
         end)
+        -- A click picks the box: the arrow keys then nudge it (SelectArea). Its gold edge says so.
+        mover.selected = T.Border(mover, T.C.gold)
+        for _, edge in ipairs(mover.selected) do edge:Hide() end
+        mover:SetScript("OnMouseDown", function() BT:SelectArea(a) end)
         mover:Hide()
         a.mover = mover
         self.areas[key] = a
@@ -202,6 +206,19 @@ function BT:AreaJustify(a)
     return a.def.justify
 end
 
+-- How wide an area's box is
+function BT:AreaWidth(a)
+    return a.def.dir == 0 and 220 or 150
+end
+
+-- Where in its box an area's lines start, across from the box's middle: Left lines up on the
+-- box's left edge, Right on its right edge. Until 1.43.0 every line started at the middle, so
+-- Left text sat in the box's right half and ran out of it (a player: "Pop Left shows on the right").
+function BT:AreaEdge(a, justify)
+    local half = self:AreaWidth(a) / 2
+    return (justify == "LEFT" and -half) or (justify == "RIGHT" and half) or 0
+end
+
 function BT:AlignName(key)
     for _, al in ipairs(self.ALIGNS) do
         if al.key == key then return al.name end
@@ -235,12 +252,53 @@ function BT:ApplyAreas()
     if not self.areas then return end
     for key, a in pairs(self.areas) do
         local pos = self.db.areas[key]
-        a:SetSize(a.def.dir == 0 and 220 or 150, self:AreaHeight(a))
+        a:SetSize(self:AreaWidth(a), self:AreaHeight(a))
         a:ClearAllPoints()
         a:SetPoint("CENTER", UIParent, "CENTER", pos.x, pos.y)
         a.mover:SetShown(not self.db.locked)
     end
+    if self.db.locked and self.selectedArea then self:SelectArea(nil) end
     if self.manaSign then self:CheckLowMana() end   -- (the line, the area or the switch may have changed)
+end
+
+-- Unlocked, a box you click is picked, and the arrow keys move it one pixel at a time (Shift: 10),
+-- for an exact place (a player's ask, 1.43.0). Only out of a fight: the keys are taken from the
+-- game only while a box is picked (other keys go on to the game as usual), and given back when
+-- the areas lock, a fight starts, or the box is clicked again.
+local NUDGE = { UP = { 0, 1 }, DOWN = { 0, -1 }, LEFT = { -1, 0 }, RIGHT = { 1, 0 } }
+function BT:SelectArea(a)
+    local was = self.selectedArea
+    if a and a == was then a = nil end   -- (a second click lets it go)
+    if a and (self.db.locked or InCombatLockdown()) then a = nil end
+    if was then for _, edge in ipairs(was.mover.selected) do edge:Hide() end end
+    self.selectedArea = a
+    local keys = self.nudgeKeys
+    if a and not keys then
+        keys = CreateFrame("Frame", "BattleTextForeverNudge", UIParent)
+        keys:SetScript("OnKeyDown", function(f, key) BT:NudgeKey(f, key) end)
+        -- (its own event, so it lets go even with BattleText turned off: a fight starts just after)
+        keys:RegisterEvent("PLAYER_REGEN_DISABLED")
+        keys:SetScript("OnEvent", function() if BT.selectedArea then BT:SelectArea(nil) end end)
+        self.nudgeKeys = keys
+    end
+    if a then for _, edge in ipairs(a.mover.selected) do edge:Show() end end
+    if keys and not InCombatLockdown() then
+        if keys.SetPropagateKeyboardInput then pcall(keys.SetPropagateKeyboardInput, keys, true) end
+        keys:EnableKeyboard(a ~= nil)
+    end
+end
+
+function BT:NudgeKey(f, key)
+    local a, d = self.selectedArea, NUDGE[key]
+    local use = d and a and not self.db.locked and not InCombatLockdown()
+    -- (an arrow is kept from the game while a box is picked; every other key goes on to it)
+    if f.SetPropagateKeyboardInput and not InCombatLockdown() then pcall(f.SetPropagateKeyboardInput, f, not use) end
+    if not use then return end
+    local step = (IsShiftKeyDown and IsShiftKeyDown()) and 10 or 1
+    local pos = self.db.areas[a.key]
+    pos.x, pos.y = pos.x + d[1] * step, pos.y + d[2] * step
+    a:ClearAllPoints()
+    a:SetPoint("CENTER", UIParent, "CENTER", pos.x, pos.y)
 end
 
 function BT:SaveAreaPosition(a)
@@ -618,6 +676,8 @@ function BT:Emit(areaKey, text, color, opts)
     -- Scrolling lines grow away from the middle of the screen. A crit that holds
     -- grows the other way, so it never sits on top of them.
     local justify = plate and "CENTER" or self:AreaJustify(a)
+    o.edgeX = plate and 0 or self:AreaEdge(a, justify)
+    o.inward = (justify == "LEFT" and 1) or (justify == "RIGHT" and -1) or 0
     local anchor = justify
     if o.sticky and a.def.dir ~= 0 then
         anchor = (justify == "LEFT" and "RIGHT") or (justify == "RIGHT" and "LEFT") or "CENTER"
@@ -667,7 +727,9 @@ function BT:Emit(areaKey, text, color, opts)
         o.side = a.def.dir ~= 0 and a.def.dir or (count % 2 == 0 and 1 or -1)
         if style == "pop" then
             duration = math.max(1.2, duration * 0.6)
-            o.px = (math.random() - 0.5) * (a.def.dir == 0 and 120 or 50)
+            -- (from a side edge: into the box, never out of it)
+            local spread = a.def.dir == 0 and 120 or 50
+            o.px = o.inward == 0 and (math.random() - 0.5) * spread or o.inward * math.random() * spread
             o.py = -h * (0.25 + math.random() * 0.45)
             o.boxW = self:LineWidth(o, size)
             if self.db.popApart then o.px, o.py = self:FreeSpot(a, o, now) end
@@ -767,13 +829,15 @@ function BT:FreeSpot(a, o, now)
     -- The grid of places is made once for the area (and its height), and reused: it used to be
     -- about 900 new tables and a new sort function for each line that needed a place
     local wide = a.def.dir == 0 and 60 or 25
+    -- (lined up on a side edge, Pop's band is beside that edge, inside the box)
+    local shift = (o.inward or 0) * wide
     local grid = a.spotGrid
-    if not grid or grid.h ~= h then
-        grid = { h = h, xs = {}, ys = {}, out = {}, cost = {}, order = {} }
+    if not grid or grid.h ~= h or grid.shift ~= shift then
+        grid = { h = h, shift = shift, xs = {}, ys = {}, out = {}, cost = {}, order = {} }
         for y = -h * 0.05, -h * 0.95, -6 do
             for x = -(wide + 60), wide + 60, 10 do
                 local n = #grid.xs + 1
-                grid.xs[n], grid.ys[n] = x, y
+                grid.xs[n], grid.ys[n] = x + shift, y
                 grid.out[n] = (y > -h * 0.25 or y < -h * 0.70 or math.abs(x) > wide) and 1e6 or 0
             end
         end
@@ -861,7 +925,7 @@ function BT:Animate(now)
                     o.curScale = scale
                     o:SetScale(scale)
                 end
-                o:SetPoint(o.anchor, o.plate or a, "TOP", x / scale, y / scale)
+                o:SetPoint(o.anchor, o.plate or a, "TOP", (x + (o.edgeX or 0)) / scale, y / scale)
                 alpha = alpha * fade
                 if o.curAlpha ~= alpha then
                     o.curAlpha = alpha

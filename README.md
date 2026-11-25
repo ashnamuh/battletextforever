@@ -41,7 +41,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 
 - **Your hits show as soon as you log in**: on your target, and on the mobs attacking you or your pet.
 - **BattleText starts by itself.** When you log in, it turns on the game's combat lines, which let it name the ticks of your bleeds and tell your hits from everyone else's (see Good to know). If a fight ends and no line came (a chat addon can get in the way), a **Start BattleText** button shows at the top of the screen and a line in chat says so (turn off **Remind me to click Start** in the options to stop that line). Click it once and you're set until you log out. You can bind a key to it, or put `/click BattleTextForeverStart` at the top of a macro you press anyway; once started, that does nothing. Right-click the button to hide it until you log in again.
-- **Move the text.** Turn on **Move the text areas** in the options (or type `/btf unlock`) and drag the four boxes where you want them. Closing the options locks them again.
+- **Move the text.** Turn on **Move the text areas** in the options (or type `/btf unlock`) and drag the four boxes where you want them. For an exact spot, click a box and nudge it with the arrow keys (Shift moves 10 pixels). Closing the options locks them again.
 - **See it without fighting.** Type `/btf test`, or right-click the minimap button.
 - **Open the options.** Type `/btf`, or left-click the minimap button.
 
@@ -52,7 +52,7 @@ The options have the same look as TauntMaster Forever, ToppedOff Forever and Out
 
 | Tab | What's there |
 |---|---|
-| **General** | Show BattleText, move the text areas, hide the game's own numbers, minimap button, remind me to click Start, login message, settings for this character only, show sample text, reset positions, reset all, share settings (export and import) |
+| **General** | Show BattleText, move the text areas, hide the game's own numbers, minimap button, remind me to click Start, login message, settings for this character only, share settings (export and import). On every tab, beside Close: show sample text, reset positions, reset all |
 | **Text** | Font (a list of 23, plus fonts other addons share through LibSharedMedia), crit font, outline and crit outline (none, thin, thick or shadow), text size, crit size, short numbers (12.3k), size by hit, icon zoom, smallest crit |
 | **Motion** | Crits stay in place, add up rapid hits, time on screen, area height, how long ticks and area hits add up |
 | **Outgoing** | Damage, misses, auto attacks, pet, damage shields, name seal hits, icons, names, hide hits below a number, DoTs and area spells, line order; Appearance: size, opacity, movement, alignment, scroll upward and curved scrolling |

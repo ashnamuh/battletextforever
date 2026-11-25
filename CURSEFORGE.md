@@ -32,7 +32,7 @@ Install it with the CurseForge app, or download the file and unzip it into your 
 ## Getting started
 
 - **It starts by itself** when you log in. If a **Start BattleText** button ever shows at the top of the screen, click it once.
-- **Move the text**: type `/btf unlock` and drag the boxes.
+- **Move the text**: type `/btf unlock` and drag the boxes. For an exact spot, click a box and nudge it with the arrow keys.
 - **Try it out**: type `/btf test`, or right-click the minimap button.
 - **Options**: type `/btf`, or left-click the minimap button. Point at any setting to see what it does.
 

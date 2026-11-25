@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.43.0
+
+- **Left and Right alignment work the right way round.** Lines used to start from the middle of their window, so "Left" text sat in the right half of the box (and "Pop Left" popped on the right). Now Left lines up with the window's left edge and Right with its right edge. Your windows shift over once by half their width when you update, so your text stays exactly where it was on screen.
+- **Move windows one pixel at a time.** While the text areas are unlocked, click a window to pick it (it gets a gold edge), then use the arrow keys to nudge it 1 pixel at a time, or 10 with Shift. Click it again to let go. Locking the windows or starting a fight lets go too, so your arrow keys are never stuck.
+- **Sample text and the reset buttons are in the bottom bar.** "Show sample text", "Reset positions" and "Reset all" sit next to Close now, so you can test the look from any tab. Close looks different from them, since it only shuts the window.
+- **No more small hitches when you loot.** Every looted item made BattleText re-read all your gear's tooltips. Now it only re-reads them when something you wear actually changes, like new gear or a new poison.
+- **Consecration ticks keep their name with Retribution Aura on.** A Consecration tick that came without its combat line, often when the mob died, could show as a bare number. It's named Consecration now.
+- **Hunters: your shots stop going to your pet** (GitHub #41). With your pet on the same mob, the pet's next blow after your shot often took the shot's name ("Auto Shot Dodge", "Aimed Shot Parry"), and then the real shot showed up as your pet's. Now only a hit that comes with your own combat line is named as your shot. If your pet and a hawk are both on the same mob, their hits still both show as your pet's, because the game doesn't say which one hit.
+- **Wanding doesn't show your melee weapon** (GitHub #40). A wand miss or resist, or a swing the game counted along with your wand shot, could show your main hand weapon's icon. That doesn't happen anymore.
+
 ## 1.42.0
 
 - **BattleText speaks German.** On a German game the options window, on-screen words, chat messages and the fight summary are now in German. (Thanks to ogogo1 for the whole translation.)

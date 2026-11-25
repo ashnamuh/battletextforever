@@ -118,7 +118,7 @@ end
 -- learned in fights or where this character's areas are unlocked.
 ---------------------------------------------------------------------------
 local SHARE_PREFIX = "BTF1:"
-local NOT_SHARED = { enabled = true, locked = true, debug = true, minimap = true, minimapAngle = true,
+local NOT_SHARED = { enabled = true, locked = true, debug = true, minimap = true, minimapAngle = true, edgeAlign = true,
     startReminder = true, loginMessage = true, shieldAmounts = true }
 
 local function Serialize(v)

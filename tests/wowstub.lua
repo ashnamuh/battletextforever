@@ -165,7 +165,17 @@ function Methods:SetPoint(p, rel, rp, x, y)
     if type(rel) == "table" then self.__pos = { x or 0, y or 0 } else self.__pos = { rel or 0, rp or 0 } end
     self.__rel = type(rel) == "table" and rel or nil
 end
-function Methods:GetWidth() return 140 end
+-- Keyboard: EnableKeyboard is protected and SetPropagateKeyboardInput restricted in a fight
+function Methods:EnableKeyboard(on)
+    if COMBAT then BLOCKED[#BLOCKED + 1] = (self.__name or self.__kind) .. ":EnableKeyboard" end
+    self.__keyboard = on and true or false
+end
+function Methods:SetPropagateKeyboardInput(on)
+    if COMBAT then BLOCKED[#BLOCKED + 1] = (self.__name or self.__kind) .. ":SetPropagateKeyboardInput" end
+    self.__propagate = on and true or false
+end
+function IsShiftKeyDown() return STATE.shift == true end
+function Methods:GetWidth() return self.__size and self.__size[1] or 140 end
 function Methods:GetCenter() return 0, 0 end
 function Methods:GetEffectiveScale() return 1 end
 function Methods:GetName() return self.__name end
@@ -187,7 +197,7 @@ function Methods:RegisterEvent(e)
 end
 function Methods:RegisterUnitEvent(e) self.__events = self.__events or {} self.__events[e] = true end
 function Methods:SetAlpha(a) self.__alpha = a end
-function Methods:GetFontString() return nil end
+function Methods:GetFontString() return self.__fontString end
 function Methods:SetEnabled(v) self.__enabled = v end
 function Methods:SetDesaturated(v) self.__desat = v end
 function Methods:SetTexture(t) self.__texture = t end
@@ -530,6 +540,11 @@ function UnitAttackSpeed(unit) return 2.0, STATE.offSpeed end
 function GetInventoryItemTexture(unit, slot) return STATE.equipped[slot] and STATE.equipped[slot].icon end
 -- (STATE.equipped[slot].id: the item's ID)
 function GetInventoryItemID(unit, slot) return STATE.equipped[slot] and STATE.equipped[slot].id end
+function GetInventoryItemLink(unit, slot)
+    local e = STATE.equipped[slot]
+    if not e then return nil end
+    return ("|cffffffff|Hitem:%s::::::::|h[%s]|h|r"):format(tostring(e.id or 0), tostring(e.name))
+end
 -- Your shapeshift form: STATE.form = { icon =, spellId = } (none: no form)
 function GetShapeshiftForm() return STATE.form and 1 or 0 end
 function GetShapeshiftFormInfo(i)

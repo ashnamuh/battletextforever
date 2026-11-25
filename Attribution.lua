@@ -145,7 +145,7 @@ function BT:WaitForSwing(h)
     -- Every shield you're known to wear has answered the blows just before: this hit is
     -- something else's, shown as it is. Until 1.28.4 it was named after the first shield again
     -- (GitHub #25: Sporid Cape, unknown on a Russian client, named Lightning Shield).
-    if blowNear then return false end
+    if blowNear then return self:AreaInstead(h) end
     if not seal and not shield and not every then return false end
     self.sealWait = self.sealWait or {}
     local entry = { h = h, seal = seal and { id = seal.id, name = seal.name }, shield = shield, shields = shields,
@@ -156,6 +156,7 @@ function BT:WaitForSwing(h)
             if e == entry then
                 if BT:WholeShieldSet(entry) then return end
                 table.remove(BT.sealWait, i)
+                if BT:AreaInstead(h) then return end
                 local why = BT:ShowUnitHit(h, "hit", nil)
                 if BT.db.debug then
                     BT:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount), why or "nothing came for it: shown"), h.time)
@@ -165,6 +166,22 @@ function BT:WaitForSwing(h)
         end
     end
     if C_Timer and C_Timer.After then C_Timer.After(SEAL_SWING_TIME, over) else over() end
+    return true
+end
+
+-- A hit that waited as your shield's (or your seal's) and nothing came for it, while a spell of
+-- yours of its school still burns there (Consecration with Retribution Aura on): it's that
+-- spell's tick, its line lost (the mob dying in that moment). Until 1.43.0 it showed with no name
+-- (a player's screenshot: a bare "6" under "7 Retribution Aura"). Returns true if it named it.
+function BT:AreaInstead(h)
+    if h.kind ~= "damage" then return false end
+    local area = self:AreaFor(h)
+    if not area then return false end
+    local why = self:ShowUnitHit(h, "tick", area)
+    if self.db.debug then
+        self:Record(("  %s %s: %s"):format(h.unit, AmountText(h.amount),
+            why or ("tick of " .. tostring(area.name) .. " (nothing else came for it)")), h.time)
+    end
     return true
 end
 
@@ -576,15 +593,31 @@ function BT:OnSwing(duration, swingType)
     self.swungAt = now
     self.actedInFight = true
     self:NoteAction(now)
-    -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept.
+    -- Which hand (issue #15: off hand swings showed the main hand's icon). Ranged swings aren't kept,
+    -- nor a swing that comes with a ranged attack's cast (a wand's Shoot, Auto Shot) whatever hand
+    -- it says (GitHub #40: wanding, your melee weapon's icon showed up)
     local hand = Num(swingType)
+    if self.rangedCastAt == now then hand = 2 end
     if hand == 0 or hand == 1 then
         local hands = self.hands or {}
         self.hands = hands
         while hands[1] and (now - hands[1].at > CREDIT_TIME or #hands >= 6) do table.remove(hands, 1) end
         hands[#hands + 1] = { at = now, hand = hand }
+        if self.meleeAt ~= now then self.meleeBefore = self.meleeAt end
         self.meleeAt = now
         if hand == 1 then self.dualWield = true end
+    end
+end
+
+-- A ranged attack of yours was cast (Shoot, Auto Shot): a swing in the same moment is that shot,
+-- not a melee swing, even if the game said it was (OnSwing). One that came just before is undone.
+function BT:RangedCast()
+    local now = GetTime()
+    self.rangedCastAt = now
+    local hands = self.hands
+    if hands and hands[#hands] and hands[#hands].at == now then
+        table.remove(hands)
+        if self.meleeAt == now then self.meleeAt = self.meleeBefore end
     end
 end
 
@@ -832,6 +865,7 @@ function BT:OnSpellcast(spellId)
     local periodic, shields = self:SpellLists()
     -- A spell that flies is on its way to your target: its hit comes later (FlightFor)
     local flight = self.flights[name] or self:RangedSpell(id)
+    if self:RangedSpell(id) then self:RangedCast() end
     local flightKey = flight and UnitKey("target")
     if flightKey then
         self:ForgetOldFlights()
@@ -966,6 +1000,39 @@ end
 -- The event also comes a moment before the tooltip has the new poison's line (TheFarbod's
 -- tests): the read waits GEAR_SCAN_WAIT after the latest one.
 local GEAR_SCAN_WAIT = 0.3
+-- What you wear, in a few cheap calls: each slot's item link (its enchant is in it) and each
+-- weapon's temporary enchant (a poison, an oil). Looting fires UNIT_INVENTORY_CHANGED too, and
+-- every loot read every piece of gear's tooltip again: a small hitch with each item looted (a
+-- player's report, 1.43.0). Now the tooltips are read only when this changed.
+local function WeaponEnchantPrint(slot)
+    if not (C_Item and C_Item.GetWeaponEnchantInfo) then return "" end
+    local ok, enchants = pcall(C_Item.GetWeaponEnchantInfo, slot)
+    if not ok or IsSecret(enchants) or type(enchants) ~= "table" then return "?" end
+    local parts = {}
+    for _, e in pairs(enchants) do
+        if type(e) == "table" and not IsSecret(e) then
+            -- (not its time or charges left: those change on their own, the tooltip's effect doesn't)
+            for k, v in pairs(e) do
+                if type(k) == "string" and not k:find("xpir") and not k:find("harge") and not k:find("ime")
+                        and not IsSecret(v) and (type(v) == "number" or type(v) == "boolean" or type(v) == "string") then
+                    parts[#parts + 1] = k .. "=" .. tostring(v)
+                end
+            end
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ",")
+end
+function BT:GearPrint()
+    local parts = {}
+    for slot = 1, 19 do
+        local ok, link = pcall(GetInventoryItemLink or function() end, "player", slot)
+        parts[slot] = ok and Str(link) or (ok and link == nil and "" or "?")
+    end
+    parts[20], parts[21] = WeaponEnchantPrint(0), WeaponEnchantPrint(1)
+    return table.concat(parts, "\n")
+end
+
 function BT:RescanGearSoon()
     self.gearScanAt = GetTime() + GEAR_SCAN_WAIT
     if self.gearScanPending then return end
@@ -975,6 +1042,10 @@ function BT:RescanGearSoon()
         local left = (self.gearScanAt or 0) - GetTime()
         if left > 0.01 then C_Timer.After(left, check) return end
         self.gearScanPending = nil
+        -- (nothing you wear changed: a looted item, a potion drunk. A print it couldn't read in
+        -- full, "?", always reads the gear)
+        local gearNow = self:GearPrint()
+        if gearNow == self.gearPrint and not gearNow:find("?", 1, true) then return end
         self:ScanItemShields()
     end
     C_Timer.After(GEAR_SCAN_WAIT, check)
@@ -1078,6 +1149,7 @@ function BT:ScanItemShields(report)
     if InCombatLockdown() then return end
     local english = IsEnglish()
     local found, procs = {}, {}
+    local complete = true
     local function note(text) if report then report[#report + 1] = "    " .. text end end
     for slot = 1, 19 do
         local ok, data = pcall(C_TooltipInfo.GetInventoryItem, "player", slot)
@@ -1180,6 +1252,7 @@ function BT:ScanItemShields(report)
                 end
             end
         end
+        if itemID and not name then complete = false end
         -- (not read from the tooltip: known by its ID, in any language)
         local known = itemID and EVERY_ITEMS[itemID]
         if known and not everyRead then
@@ -1192,6 +1265,9 @@ function BT:ScanItemShields(report)
     end
     self.itemShields = found
     self.itemProcs = procs
+    -- What was read, so a loot that changes none of it doesn't read it all again (RescanGearSoon).
+    -- Not when an item's tooltip was still empty (its data not loaded yet): the next change reads it.
+    self.gearPrint = complete and self:GearPrint() or nil
 end
 
 -- /btf gear: what BattleText read from each item you wear, for a player to paste in a bug report
@@ -1439,13 +1515,28 @@ end
 -- at it in the last FLIGHT_TIME seconds, before this frame, of the hit's school. A miss
 -- is one only if it's of the spell's school or a way only spells miss (resisted, immune).
 -- Returns the flight and where it is in self.flying.
+-- A line of yours just ahead of this moment (or with it)
+function BT:LineJustBefore(at)
+    for _, c in ipairs(self.credits or {}) do
+        if c <= at and at - c <= LINE_WITH_HIT then return true end
+    end
+    return false
+end
+
 function BT:FlightFor(h)
     local list = self.flying
     if not list or not h.key or (h.kind ~= "damage" and h.kind ~= "miss") then return nil end
     local mask = Num(h.school)
     local how = h.action == "WOUND" and h.flag or h.action
+    -- A physical shot (Auto Shot, Aimed Shot, a hawk's dive) at a mob your pet is on: the pet's
+    -- blows are physical too, and the first one after your shot took the shot's name (GitHub #41,
+    -- a hunter's log: the pet's dodge named Auto Shot, its parry Aimed Shot, and the shot itself
+    -- landed after as the pet's). Once the lines are arriving, your shot's hit comes with its
+    -- line and the pet's don't: only a hit with a line of yours just ahead of it is the shot's.
+    local petsToo = self.hiddenSeen and PetOn(h.unit)
     for i, f in ipairs(list) do
-        if f.key == h.key and h.time > f.at and h.time - f.at <= FLIGHT_TIME then
+        if f.key == h.key and h.time > f.at and h.time - f.at <= FLIGHT_TIME
+                and not (petsToo and not f.wand and f.school == 1 and not self:LineJustBefore(h.time)) then
             if h.kind == "damage" then
                 -- (what a damage shield of yours does is the shield's)
                 local least = self.flightLeast and self.flightLeast[f.id]
@@ -2405,7 +2496,11 @@ function BT:ShowUnitHit(h, what, spell, area)
     end
     if icon == "" and spell and spell.poison then icon = self:IconText(spell.name) end
     -- Nothing to name it by: a swing (a physical hit, or a plain miss)
-    local swing = what == "hit" and not spell and (h.kind == "miss" or (h.kind == "damage" and Num(h.school) == 1))
+    -- (a miss of a magic school isn't a swing either: a wand's bolt that missed or was resisted
+    -- showed your melee weapon's icon, GitHub #40)
+    local mask = Num(h.school)
+    local swing = what == "hit" and not spell
+        and ((h.kind == "miss" and (mask == nil or mask == 1)) or (h.kind == "damage" and mask == 1))
     local petSwing
     if swing then
         local hand = self:SwingHand(h)

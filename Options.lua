@@ -62,6 +62,12 @@ local function TextHeight(fs)
     return type(h) == "number" and math.ceil(h) or 0
 end
 
+-- How wide a line of text is (0 when the game can't say yet)
+local function TextWidth(fs)
+    local w = fs.GetStringWidth and fs:GetStringWidth()
+    return type(w) == "number" and math.ceil(w) or 0
+end
+
 local function CardNote(card, text, y)
     return T.Note(card, text, 12, y, PAGE_W - 24)
 end
@@ -320,12 +326,13 @@ end
 -- The pages. refs collects the widgets the window keeps a name for.
 ---------------------------------------------------------------------------
 local function BuildGeneral(p, refs)
-    local card = Card(p, L["Basics"], 0, 0, PAGE_W, 176)
+    local card = Card(p, L["Basics"], 0, 0, PAGE_W, 140)
     Setting(card, L["Show BattleText"], 12, -30, "enabled",
         L["Turns all of BattleText's text on or off (also /btf on and /btf off)."])
     Setting(card, L["Move the text areas"], COL2, -30, "locked",
         L["Shows a box for each text area. Drag the boxes where you want them, then turn this off. "
-        .. "Closing the options locks them again."])
+        .. "Closing the options locks them again."] .. " "
+        .. L["Click a box to pick it: the arrow keys then move it one pixel at a time (Shift: 10). Click it again to let go."])
     Setting(card, L["Hide the game's own numbers"], 12, -56, "hideBlizzard",
         L["Turns off the game's floating combat text so numbers aren't shown twice (and its \"+XP\" while Experience "
         .. "is on in Notifications: the game has no setting for that alone, so all of its pop-up text in the world "
@@ -347,24 +354,8 @@ local function BuildGeneral(p, refs)
         .. "Off: it uses the settings every character shares, and keeps its own for when you turn this back on."])
     AddRefresher(function() own:SetOn(BT:OwnSettings()) end)
     refs.ownSwitch = own
-    local sample = FlatButton(card, L["Show sample text"], 140)
-    sample:SetPoint("TOPLEFT", 12, -140)
-    sample:SetScript("OnClick", function() BT:Test() end)
-    T.Tooltip(sample, nil, L["A few sample lines in every area, to see the look and where the areas are."])
-    local reset = FlatButton(card, L["Reset positions"], 120)
-    reset:SetPoint("LEFT", sample, "RIGHT", 8, 0)
-    reset:SetScript("OnClick", function()
-        BT:Confirm(L["Move all four text areas back to where they started?"], L["Reset positions"],
-            function() BT:ResetPositions() end)
-    end)
-    local resetAll = FlatButton(card, L["Reset all"], 90)
-    resetAll:SetPoint("LEFT", reset, "RIGHT", 8, 0)
-    resetAll:SetScript("OnClick", function() BT:ConfirmResetAll() end)
-    T.Tooltip(resetAll, nil, L["Every setting back to how it started: options, colors, places and the Spells list "
-        .. "(also /btf resetall). With \"Settings for this character only\" on, just this character's."])
-    refs.sampleButton, refs.resetButton, refs.resetAllButton = sample, reset, resetAll
 
-    local know = Card(p, L["Good to know"], 0, -186, PAGE_W, 124)
+    local know = Card(p, L["Good to know"], 0, -150, PAGE_W, 124)
     local text = Text(know, L["Your hits are read from the unit you hit: your target, and the mobs attacking you or your "
         .. "pet. Turn on enemy nameplates for the ones you aren't targeting.\n\n"
         .. "The game doesn't say whose hit it was: alone, your pet's hits show as yours.\n\n"
@@ -378,7 +369,7 @@ local function BuildGeneral(p, refs)
     -- Longer text (other languages) makes the card taller, and the next one moves down
     local knowH = math.max(124, 34 + TextHeight(text) + 10)
     know:SetHeight(knowH)
-    local share = Card(p, L["Share settings"], 0, -(196 + knowH), PAGE_W, 90)
+    local share = Card(p, L["Share settings"], 0, -(160 + knowH), PAGE_W, 90)
     local export = FlatButton(share, L["Export"], 90)
     export:SetPoint("TOPLEFT", 12, -28)
     export:SetScript("OnClick", function() BT:OpenShareWindow("export") end)
@@ -389,7 +380,7 @@ local function BuildGeneral(p, refs)
         .. "(your text areas stay where they are unless you choose)."]
     local note = CardNote(share, shareText, -58)
     local shareH = math.max(90, 58 + TextHeight(note) + 8)
-    if 196 + knowH + shareH > T.WINDOW.BODY_H then
+    if 160 + knowH + shareH > T.WINDOW.BODY_H then
         -- No room left on the page: the note goes on the buttons' tooltips instead
         note:Hide()
         shareH = 64
@@ -860,8 +851,55 @@ function BT:BuildConfig()
             if not BT.db.locked then BT:SetLocked(true) end
         end,
     })
+    self:FooterButtons(win, refs)
     for k, v in pairs(refs) do win[k] = v end
     self.config = win
+end
+
+-- Close looks unlike the buttons beside it: it only shuts the window
+local CLOSE_LOOK = { bg = { 0.16, 0.14, 0.13, 1 }, hi = { 0.25, 0.22, 0.20, 1 }, edge = C.edge, text = C.muted }
+local function CloseLook(b)
+    b.look = "close"
+    b.bg:SetColorTexture(unpack(CLOSE_LOOK.bg))
+    T.Border(b, CLOSE_LOOK.edge)
+    local fs = b:GetFontString()
+    if fs then fs:SetTextColor(CLOSE_LOOK.text[1], CLOSE_LOOK.text[2], CLOSE_LOOK.text[3]) end
+    function b:SetHover(on) self.bg:SetColorTexture(unpack(on and CLOSE_LOOK.hi or CLOSE_LOOK.bg)) end
+end
+
+-- Show sample text, Reset positions and Reset all, in the footer beside Close so they work from
+-- any tab (a player's ask, 1.43.0: test the look while going through the other tabs). They were
+-- on the General tab. The footer's hint makes way for them when there's no room for it (it goes
+-- on the sample button's tooltip then).
+function BT:FooterButtons(win, refs)
+    local foot, close, hint = win.footer, win.closeButton, win.footerHint
+    if not (foot and close) then return end
+    CloseLook(close)
+    local resetAll = FlatButton(foot, L["Reset all"], 90)
+    resetAll:SetPoint("RIGHT", close, "LEFT", -16, 0)
+    resetAll:SetScript("OnClick", function() BT:ConfirmResetAll() end)
+    T.Tooltip(resetAll, nil, L["Every setting back to how it started: options, colors, places and the Spells list "
+        .. "(also /btf resetall). With \"Settings for this character only\" on, just this character's."])
+    local reset = FlatButton(foot, L["Reset positions"], 120)
+    reset:SetPoint("RIGHT", resetAll, "LEFT", -8, 0)
+    reset:SetScript("OnClick", function()
+        BT:Confirm(L["Move all four text areas back to where they started?"], L["Reset positions"],
+            function() BT:ResetPositions() end)
+    end)
+    local sample = FlatButton(foot, L["Show sample text"], 140)
+    sample:SetPoint("RIGHT", reset, "LEFT", -8, 0)
+    sample:SetScript("OnClick", function() BT:Test() end)
+    local sampleTip = L["A few sample lines in every area, to see the look and where the areas are."]
+    -- (where the sample button starts, from the footer's left edge)
+    local function width(b) local w = b.GetWidth and b:GetWidth() return type(w) == "number" and w or 0 end
+    local left = (T.WINDOW.W - 2) - 14 - width(close) - 16 - width(resetAll) - 8 - width(reset) - 8 - width(sample)
+    local hintW = hint and TextWidth(hint) or 0
+    if hint and 14 + hintW + 12 > left then
+        hint:Hide()
+        sampleTip = sampleTip .. "\n\n" .. (hint:GetText() or "")
+    end
+    T.Tooltip(sample, nil, sampleTip)
+    refs.sampleButton, refs.resetButton, refs.resetAllButton = sample, reset, resetAll
 end
 
 function BT:OpenConfig()

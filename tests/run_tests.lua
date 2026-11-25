@@ -918,7 +918,9 @@ for _, area in ipairs({ "outgoing", "incoming", "notify", "heal" }) do
     for i = 1, 4 do BT:Emit(area, tostring(1000 + i), { 1, 1, 1 }) end
     assertEq(overlapping(area), 0, area .. ": with it, four hits at once all readable")
     local first = BT.areas[area].active[1]
-    assertEq(first.px == 0 and first.py == -BT:AreaHeight(BT.areas[area]) * 0.475, true,
+    -- (the random spot: the middle, or halfway into the box from a Left or Right edge)
+    local want = first.inward * 0.5 * (BT.AREAS[area].dir == 0 and 120 or 50)
+    assertEq(first.px == want and first.py == -BT:AreaHeight(BT.areas[area]) * 0.475, true,
         area .. ": the first keeps its own spot")
     for _, o in ipairs(BT.areas[area].active) do
         local h = BT:AreaHeight(BT.areas[area])
@@ -990,7 +992,7 @@ BT:ImportSettings('BTF1:{areas={outgoing={x=-500,y=40}}}')
 assertEq(BT.db.areas.outgoing.x, 230, "your text areas stay where they are")
 BT:ImportSettings('BTF1:{areas={outgoing={x=-500,y=40}}}', true)
 assertEq(BT.db.areas.outgoing.x, -500, "unless you ask for their places too")
-BT.db.areas.outgoing.x, BT.db.areas.outgoing.y = 230, 20
+BT.db.areas.outgoing.x, BT.db.areas.outgoing.y = 305, 20
 BT:ImportSettings(text)
 assertEq(BT.Deserialize('{a="x\\"y",b={1=2,2=-3.5}}').a, 'x"y', "quotes inside words")
 SlashCmdList.BATTLETEXTFOREVER("export")
@@ -3140,7 +3142,8 @@ clear()
 --
 -- A hit on your target is recorded twice, under its nameplate and then as
 -- "target": that's how the replay knows which mob your target is.
-local function replay(file, happenings)
+-- whoToo(who, target): more units to have about (your pet, and what it's on)
+local function replay(file, happenings, whoToo)
     local events = {}
     for line in read_file(ADDON_DIR .. "/tests/" .. file):gmatch("[^\r\n]+") do
         local time, what = line:match("^%s*([%d%.]+)%s%s(.*)$")
@@ -3212,6 +3215,7 @@ local function replay(file, happenings)
         local target = e.targetIs and mob(e.targetIs, e.time)
         STATE.who = { target = target, softenemy = target }
         for token, id in pairs(mobs) do STATE.who[token] = id end
+        if whoToo then whoToo(STATE.who, target) end
         if e.what:find("^hidden") then
             assertEq(log(e.what:match("(|K.-|k)")), true, "the line arrives")
         elseif e.what:find("^CAST") then
@@ -3755,6 +3759,49 @@ STATE.who = {}
 clear()
 end
 
+step("a ninth real fight: a hunter shooting, with a pet and hawks on the same mob")
+-- tests/real_fight9.txt (1.42.0, GitHub #41, every amount hidden)
+do
+STATE.class = "HUNTER"
+STATE.spellNames[75], STATE.spellNames[1293525], STATE.spellNames[20901] = "Auto Shot", "Summon Hawk", "Aimed Shot"
+STATE.spellNames[14319] = "Aspect of the Hawk"
+local function fight()
+    freshFight()
+    BT.flying, BT.hawks, BT.swings, BT.hands, BT.swungAt, BT.meleeAt = nil, nil, nil, nil, nil, nil
+    BT:RemakeSpellLists()
+    BT.db.debug, BT.recorded = true, {}
+    local out = replay("real_fight9.txt", nil, function(who, target) who.pettarget = target end)
+    local verdicts = {}
+    for _, r in ipairs(BT.recorded) do
+        local at, v = r:match("^%s*([%d%.]+)%s+nameplate1 [^:]+: (.+)$")
+        if v then verdicts[#verdicts + 1] = v end
+    end
+    BT.db.debug, BT.recorded = false, nil
+    return out, verdicts
+end
+STATE.pet, STATE.unit.pet = true, { friend = true }
+STATE.group = false
+fire("GROUP_ROSTER_UPDATE")
+-- Until 1.43.0 the pet's blow right after a shot took the shot's name (its dodge at 501.99 was
+-- "Auto Shot Dodge", its parry at 505.33 "Aimed Shot Parry") and the shot itself, landing with
+-- its line, showed as the pet's. Each of the eight lines in the recording comes with one shot.
+local out = fight()
+local named, wrong = {}, {}
+for _, text in ipairs(out) do
+    if not text:find("^%(") then
+        named[#named + 1] = text:match("^(.-Shot)") or text:match("^(Summon Hawk)") or text
+        if text:find("Dodge") or text:find("Parry") then wrong[#wrong + 1] = text end
+    end
+end
+assertEq(table.concat(named, ", "), "Auto Shot, Summon Hawk, Auto Shot, Auto Shot, Aimed Shot, Summon Hawk, Auto Shot, Auto Shot",
+    "every shot with its line named, and nothing else")
+assertEq(#wrong, 0, "no dodge or parry (the pet's) named after a shot: " .. table.concat(wrong, ", "))
+STATE.pet, STATE.unit.pet = false, nil
+STATE.class = "DRUID"
+STATE.who = {}
+clear()
+end
+
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
 log(hit("Bite", 17253, 60))
@@ -3763,10 +3810,10 @@ local act = BT.areas.outgoing.active
 assert(act[2].start > act[1].start and act[3].start > act[2].start, "each line starts after the one before")
 Advance(1)
 assert(act[1].__pos[2] < 0, "moving down")
-assert(act[1].__pos[1] > 0, "bowing outward")
+assert((act[1].__pos[1] - act[1].edgeX) > 0, "bowing outward")
 BT.db.outCurved = false
 Advance(0.1)
-assertEq(act[1].__pos[1], 0, "straight when curves are off")
+assertEq((act[1].__pos[1] - act[1].edgeX), 0, "straight when curves are off")
 BT.db.outCurved = true
 local downY = act[1].__pos[2]
 BT.db.outScrollUp = true
@@ -3775,7 +3822,7 @@ local upY = act[1].__pos[2]
 assert(upY < downY, "scrolling up: the line starts low in its area")
 Advance(0.5)
 assert(act[1].__pos[2] > upY, "and moves up")
-assert(act[1].__pos[1] > 0, "still bowing outward")
+assert((act[1].__pos[1] - act[1].edgeX) > 0, "still bowing outward")
 -- Each area has its own: Outgoing up, Incoming down
 local out = BT:Emit("outgoing", "5", { 1, 1, 1 })
 local inc = BT:Emit("incoming", "-30", { 1, 1, 1 })
@@ -3784,8 +3831,8 @@ assert(inc.__pos[2] > -BT:AreaHeight(BT.areas.incoming) / 2, "Incoming still scr
 assert(out.__pos[2] < -BT:AreaHeight(BT.areas.outgoing) / 2, "while Outgoing scrolls up from the bottom")
 BT.db.inCurved = false
 Advance(0.1)
-assertEq(inc.__pos[1], 0, "Incoming straight")
-assert(out.__pos[1] > 0, "Outgoing still curved")
+assertEq((inc.__pos[1] - inc.edgeX), 0, "Incoming straight")
+assert((out.__pos[1] - out.edgeX) > 0, "Outgoing still curved")
 BT.db.inCurved, BT.db.outScrollUp = true, false
 Advance(5)
 assertEq(#BT.areas.outgoing.active, 0, "gone after their time")
@@ -4057,11 +4104,93 @@ clear()
 step("moving and turning off")
 SlashCmdList.BATTLETEXTFOREVER("unlock")
 assertEq(BT.areas.outgoing.mover:IsShown(), true, "boxes to drag")
+-- A click picks a box, and the arrow keys nudge it a pixel at a time (a player's ask, 1.43.0)
+do
+    local a, pos = BT.areas.outgoing, BT.db.areas.outgoing
+    local x0, y0 = pos.x, pos.y
+    a.mover.__scripts.OnMouseDown(a.mover, "LeftButton")
+    local keys = BT.nudgeKeys
+    assertEq(BT.selectedArea == a and keys.__keyboard, true, "picked: the keys are listened to")
+    assertEq(a.mover.selected[1]:IsShown(), true, "with a gold edge")
+    keys.__scripts.OnKeyDown(keys, "RIGHT")
+    assertEq(keys.__propagate, false, "an arrow is kept from the game")
+    keys.__scripts.OnKeyDown(keys, "UP") keys.__scripts.OnKeyDown(keys, "UP")
+    assertEq((pos.x - x0) .. "," .. (pos.y - y0), "1,2", "one pixel a press")
+    STATE.shift = true
+    keys.__scripts.OnKeyDown(keys, "LEFT")
+    STATE.shift = nil
+    assertEq(pos.x - x0, -9, "ten with Shift")
+    keys.__scripts.OnKeyDown(keys, "W")
+    assertEq(keys.__propagate, true, "any other key goes on to the game")
+    assertEq((pos.x - x0) .. "," .. (pos.y - y0), "-9,2", "and moves nothing")
+    -- another box: that one; the same box again: let go
+    BT.areas.incoming.mover.__scripts.OnMouseDown(BT.areas.incoming.mover, "LeftButton")
+    assertEq(BT.selectedArea == BT.areas.incoming and not a.mover.selected[1]:IsShown(), true, "another box: picked instead")
+    BT.areas.incoming.mover.__scripts.OnMouseDown(BT.areas.incoming.mover, "LeftButton")
+    assertEq(tostring(BT.selectedArea) .. " " .. tostring(keys.__keyboard), "nil false", "clicked again: let go, the keys are the game's")
+    -- a fight starting lets go before the keys can't be given back (also with BattleText off)
+    a.mover.__scripts.OnMouseDown(a.mover, "LeftButton")
+    BT.db.enabled = false
+    fire("PLAYER_REGEN_DISABLED")
+    BT.db.enabled = true
+    assertEq(tostring(BT.selectedArea) .. " " .. tostring(keys.__keyboard), "nil false", "a fight: let go")
+    COMBAT = true
+    BLOCKED = {}
+    a.mover.__scripts.OnMouseDown(a.mover, "LeftButton")
+    keys.__scripts.OnKeyDown(keys, "RIGHT")
+    assertEq(BT.selectedArea == nil and #BLOCKED, 0, "in a fight a click picks nothing, and nothing protected is touched")
+    COMBAT = false
+    -- locking lets go
+    a.mover.__scripts.OnMouseDown(a.mover, "LeftButton")
+    SlashCmdList.BATTLETEXTFOREVER("lock")
+    assertEq(tostring(BT.selectedArea) .. " " .. tostring(keys.__keyboard), "nil false", "locked: let go")
+    pos.x, pos.y = x0, y0
+    BT:ApplyAreas()
+    SlashCmdList.BATTLETEXTFOREVER("unlock")
+end
 SlashCmdList.BATTLETEXTFOREVER("lock")
 assertEq(BT.areas.outgoing.mover:IsShown(), false, "locked again")
 BT.db.areas.outgoing.x = 400
 SlashCmdList.BATTLETEXTFOREVER("reset")
-assertEq(BT.db.areas.outgoing.x, 230, "positions reset")
+assertEq(BT.db.areas.outgoing.x, 305, "positions reset")
+-- Lines start at the box's edge (1.43.0; a player: "Pop Left shows on the right"). Saved places
+-- from before move by half a box, so the text stays where it was on screen.
+do
+    local old = { outAlign = "LEFT", inAlign = "RIGHT", healAlign = "LEFT", nAlign = "CENTER",
+        areas = { outgoing = { x = 230, y = 20 }, incoming = { x = -230, y = 20 }, heal = { x = 0, y = -190 },
+            notify = { x = 0, y = 170 } } }
+    BT:MoveOldSettings(old)
+    assertEq(old.areas.outgoing.x .. " " .. old.areas.incoming.x .. " " .. old.areas.heal.x .. " " .. old.areas.notify.x,
+        "305 -305 110 0", "old places moved by half a box toward the side the lines start on")
+    BT:MoveOldSettings(old)
+    assertEq(old.areas.outgoing.x, 305, "only once")
+    local fresh = {}
+    BT:MoveOldSettings(fresh)
+    assertEq(fresh.areas, nil, "a new player's places are the new ones")
+    local plain = { areas = { outgoing = { x = 230, y = 20 } } }
+    BT:MoveOldSettings(plain)
+    assertEq(plain.areas.outgoing.x, 305, "an alignment never changed counts as the area's own (Left)")
+    -- Left: the line starts at the box's left edge and runs right; Right: ends at its right edge
+    clear()
+    local half = BT:AreaWidth(BT.areas.outgoing) / 2
+    BT.db.outAlign = "LEFT"
+    local l = BT:Emit("outgoing", "12", { 1, 1, 1 })
+    BT.db.outAlign = "RIGHT"
+    local r = BT:Emit("outgoing", "34", { 1, 1, 1 })
+    BT.db.outCurved = false
+    Advance(0.5)
+    assertEq(l.anchor .. " " .. l.__pos[1], "LEFT " .. -half, "Left: at the box's left edge")
+    assertEq(r.anchor .. " " .. r.__pos[1], "RIGHT " .. half, "Right: at the box's right edge")
+    -- Pop from a side edge lands inside the box
+    BT.db.outStyle = "pop"
+    for i = 1, 20 do
+        BT.db.outAlign = i % 2 == 0 and "LEFT" or "RIGHT"
+        local o = BT:Emit("outgoing", tostring(i), { 1, 1, 1 })
+        assert(o.px * o.inward >= 0, "Pop goes into the box, never out of it")
+    end
+    BT.db.outStyle, BT.db.outAlign, BT.db.outCurved = "scroll", "LEFT", true
+    clear()
+end
 SlashCmdList.BATTLETEXTFOREVER("off")
 assertEq(STATE.filteredEvents, false, "turned off: the lines are left the way the game has them")
 Advance(3.1)
@@ -4301,6 +4430,17 @@ control("hideBlizzard").__scripts.OnClick(control("hideBlizzard"))
 assert(LOG[#LOG]:find("when this fight ends", 1, true), "said in chat")
 control("hideBlizzard").__scripts.OnClick(control("hideBlizzard"))
 COMBAT = false
+-- Show sample text, Reset positions and Reset all are in the footer beside Close (a player's ask,
+-- 1.43.0: test the look from any tab), and Close looks unlike them
+for _, name in ipairs({ "sampleButton", "resetButton", "resetAllButton" }) do
+    assertEq(win[name].__parent, win.footer, name .. ": in the footer")
+end
+assertEq(win.resetAllButton.__rel, win.closeButton, "beside Close")
+assertEq(win.closeButton.look, "close", "Close looks different")
+win.sampleButton.__scripts.OnClick(win.sampleButton)
+Advance(3)
+assert(#BT.areas.outgoing.active + #BT.areas.notify.active > 0, "Show sample text works from any tab")
+clear()
 -- Reset positions asks first
 BT.db.areas.notify.x = 77
 win.resetButton.__scripts.OnClick(win.resetButton)
@@ -5413,6 +5553,50 @@ assertEq(last("outgoing"), "14", "and no longer")
 on("nameplate3", 15, 2)
 assertEq(last("outgoing"), "14", "a mob that isn't after you, with nothing of yours there: not shown")
 clear()
+-- Consecration's tick with Retribution Aura on and no line of yours with it (the mob dying in
+-- that moment: a player's screenshot, a bare "6" under "7 Retribution Aura"). It waited for a
+-- blow on you as the aura's answer, none came, and it was shown with no name.
+do
+    STATE.buffs = { { name = "Retribution Aura", spellId = 10301 } }
+    fire("PLAYER_REGEN_ENABLED")
+    BT.db.shieldAmounts = {}
+    BT.db.debug, BT.recorded = true, {}
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-cons2", 26573)
+    Advance(1)
+    hidden(30) on("target", 6, 2)
+    Advance(1)
+    on("target", Secret(6), 2)   -- (the game sent no line for it)
+    Advance(1.5)
+    local why
+    for _, r in ipairs(BT.recorded) do why = r:match("target %(hidden amount%): (.+)$") or why end
+    assertEq(why, "tick of Consecration (nothing else came for it)", "named as Consecration's tick")
+    -- a blow on you just before, answered by the aura: the extra hit is still the tick
+    BT.recorded = {}
+    blow() on("target", Secret(7), 2)
+    Advance(0.2)
+    on("target", Secret(6), 2)
+    Advance(1.5)
+    local named = {}
+    for _, r in ipairs(BT.recorded) do
+        local what = r:match("target %(hidden amount%): (.+)$")
+        if what and not what:match("^waiting") then named[#named + 1] = what end
+    end
+    assertEq(table.concat(named, " / "), "shield of Retribution Aura / tick of Consecration (nothing else came for it)",
+        "the aura answers the blow, the other hit is Consecration's")
+    -- Consecration over: a lone Holy hit is shown as it is, as before
+    Advance(6)
+    BT.recorded = {}
+    on("target", Secret(6), 2)
+    Advance(1.5)
+    why = nil
+    for _, r in ipairs(BT.recorded) do why = r:match("target %(hidden amount%): (.+)$") or why end
+    assertEq(why, "nothing came for it: shown", "no spell of yours burning there: shown as it is")
+    BT.db.debug, BT.recorded = false, nil
+    STATE.buffs = {}
+    fire("PLAYER_REGEN_ENABLED")
+    BT.areaOn = nil
+    clear()
+end
 STATE.who.nameplate1, STATE.who.nameplate2, STATE.who.nameplate3 = nil, nil, nil
 STATE.unit.mobC = nil
 BT.areaOn = nil
@@ -5573,6 +5757,8 @@ do
     assertEq(#BT.itemProcs, 0, "no poison on yet")
     fire("UNIT_INVENTORY_CHANGED", "player")
     STATE.equipped[16].lines = { "|cff00ff00Instant Poison VI (30 min) (60 charges)|r" }
+    STATE.weaponEnchants = { [0] = { { hasEnchant = true, enchantType = 0, timeLeft = 1800000, charges = 60,
+        enchantID = 625 } } }
     Advance(0.1)
     fire("UNIT_INVENTORY_CHANGED", "player")
     Advance(0.2)
@@ -5580,6 +5766,26 @@ do
     Advance(0.2)
     assertEq(BT.itemProcs[1] and BT.itemProcs[1].name, "Instant Poison",
         "read after the poison went on, past its color codes, charges and time left")
+    -- Looting fires UNIT_INVENTORY_CHANGED too: with nothing you wear changed, the tooltips aren't
+    -- read again (a player's report: a small hitch with each item looted). Not even when the
+    -- poison's time and charges ran down.
+    do
+        local reads, realGet = 0, C_TooltipInfo.GetInventoryItem
+        C_TooltipInfo.GetInventoryItem = function(...) reads = reads + 1 return realGet(...) end
+        STATE.weaponEnchants[0][1].timeLeft, STATE.weaponEnchants[0][1].charges = 1700000, 55
+        for _ = 1, 3 do fire("UNIT_INVENTORY_CHANGED", "player") Advance(0.5) end
+        assertEq(reads, 0, "a loot: the gear isn't read again")
+        STATE.weaponEnchants[0][1].enchantID = 626
+        fire("UNIT_INVENTORY_CHANGED", "player") Advance(0.5)
+        assertEq(reads, 19, "another poison on the weapon: read again")
+        reads = 0
+        STATE.equipped[11] = { name = "Ring", id = 999 }
+        fire("UNIT_INVENTORY_CHANGED", "player") Advance(0.5)
+        assertEq(reads, 19, "a new piece put on: read again")
+        STATE.equipped[11] = nil
+        C_TooltipInfo.GetInventoryItem = realGet
+        fire("UNIT_INVENTORY_CHANGED", "player") Advance(0.5)
+    end
     -- No icon from the poison's spell: the one the game shows for the weapon's poison
     STATE.weaponEnchants = { [0] = { { hasEnchant = true, enchantType = 0, timeLeft = 1800000, charges = 60,
         enchantID = 625, enchantIconID = 136007 } } }
@@ -6040,6 +6246,55 @@ do
     STATE.equipped[16] = nil
     SetIcons(false)
     BT.hands, BT.meleeAt, BT.swungAt = nil, nil, nil
+    BT.db.merge = true
+    clear()
+end
+
+step("wanding doesn't show your melee weapon (GitHub #40)")
+-- A priest wanding saw their main hand's icon. A wand's miss (or resist) of its school was taken
+-- for a swing; and a swing in the same moment as Shoot's cast is that shot, whatever hand the
+-- game gives it.
+do
+    STATE.who.target = "mobA"
+    freshFight()
+    BT.db.merge = false
+    SetIcons(true)
+    STATE.spellNames[5019], STATE.spellIcons[5019], STATE.spellIcons[6603] = "Shoot", 135463, 135274
+    BT.iconCache = nil
+    STATE.equipped[16] = { name = "Mace", icon = 133476, lines = {} }
+    BT.hands, BT.meleeAt, BT.swungAt, BT.flying = nil, nil, nil, nil
+    -- the game calls the wand's swing a main hand one (0), in the frame of Shoot's cast
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-w1", 5019)
+    fire("PLAYER_SWING", 1.6, 0)
+    assertEq(BT.meleeAt, nil, "the swing with Shoot's cast isn't a melee one")
+    Advance(0.5)
+    wound(25, 32)
+    assertEq(last("outgoing"), "|T135463:0|t Shoot 25", "the wand's bolt, named")
+    Advance(1.1)
+    fire("PLAYER_SWING", 1.6, 0)   -- (the other way round: the swing first)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-w2", 5019)
+    assertEq(BT.meleeAt, nil, "nor one just before it")
+    Advance(0.5)
+    fire("UNIT_COMBAT", "target", "MISS", "", 0, 32)
+    assertEq(last("outgoing"):find("133476", 1, true), nil, "the wand's miss: not the mace's icon")
+    Advance(0.5)
+    fire("UNIT_COMBAT", "target", "RESIST", "", 0, 32)
+    assertEq((last("outgoing") or ""):find("133476", 1, true), nil, "nor a resist")
+    -- In melee the mace is still yours
+    clear()
+    Advance(3)
+    fire("PLAYER_SWING", 2.6, 0)
+    Advance(0.4)
+    wound(50, 1)
+    assertEq(last("outgoing"), "|T133476:0|t 50", "a real melee swing: the mace")
+    -- a miss of a magic school with nothing flying is still not a swing, even right after one
+    fire("PLAYER_SWING", 2.6, 0)
+    Advance(0.3)
+    fire("UNIT_COMBAT", "target", "MISS", "", 0, 32)
+    assertEq((last("outgoing") or ""):find("133476", 1, true), nil, "a magic miss: not the mace's")
+    STATE.equipped[16] = nil
+    SetIcons(false)
+    BT.hands, BT.meleeAt, BT.swungAt, BT.flying = nil, nil, nil, nil
     BT.db.merge = true
     clear()
 end
@@ -8472,6 +8727,12 @@ step("German fits the options window (buttons grow, controls make room for long 
         assert(b.__size[1] >= b:GetTextWidth() + 16, name .. " fits " .. tostring(b.__text))
     end
     assertEq(win.resetButton.__text, "Positionen zurücksetzen", "(in German)")
+    -- The footer: the buttons stay inside it, and the hint makes way when there's no room for it
+    local left = (ns.Theme.WINDOW.W - 2) - 14 - win.closeButton:GetWidth() - 16 - win.resetAllButton:GetWidth() - 8
+        - win.resetButton:GetWidth() - 8 - win.sampleButton:GetWidth()
+    assert(left >= 14, "the footer buttons fit (" .. left .. ")")
+    local hintW = win.footerHint:GetStringWidth()
+    assertEq(win.footerHint:IsShown(), 14 + hintW + 12 <= left, "the hint shows only with room for it")
     assert(win.resetButton.__size[1] > 120, "so it grew")
     assertEq(english.exportButton.__size[1], 90, "a short word keeps the usual width (English)")
     -- A sound list starts after its switch's label, keeping its right edge

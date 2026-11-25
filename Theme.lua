@@ -670,7 +670,7 @@ function T.Window(opts)
     local close = FlatButton(foot, type(CLOSE) == "string" and CLOSE or "Close", 90)   -- (the game's word, in its language)
     close:SetPoint("RIGHT", -14, 0)
     close:SetScript("OnClick", function() win:Hide() end)
-    win.footer = foot
+    win.footer, win.footerHint, win.closeButton = foot, hint, close
 
     win:ShowTab(opts.tabs[1].key)
     return win

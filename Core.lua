@@ -160,10 +160,12 @@ local DEFAULTS = {
     startReminder = true,   -- a line in chat after logging in, while Start hasn't been clicked
     loginMessage = true,    -- "BattleText Forever loaded. Type /btf for options." in chat at login
     minimapAngle = 215,
+    edgeAlign = true,       -- the areas' places are for lines that start at the box's edge (1.43.0)
     debug = false,
     areas = {
-        incoming = { x = -230, y = 20 },
-        outgoing = { x = 230, y = 20 },
+        -- (the side boxes' inner edges at 230 from the middle, where their lines start)
+        incoming = { x = -305, y = 20 },
+        outgoing = { x = 305, y = 20 },
         notify = { x = 0, y = 170 },
         heal = { x = 0, y = -190 },
     },
@@ -328,6 +330,19 @@ function BT:MoveOldSettings(db)
         db.routeInHeals = db.routeInHeals or "incoming"
     end
     db.healArea = nil
+    -- Until 1.43.0 a Left or Right area's lines started at the middle of its box. Now they start
+    -- at its edge: the box moves by half its width, so the text stays where it was on screen.
+    if type(db.areas) == "table" and not db.edgeAlign then
+        for key, def in pairs(self.AREAS) do
+            local pos = db.areas[key]
+            if type(pos) == "table" and type(pos.x) == "number" then
+                local align = db[def.prefix .. "Align"] or DEFAULTS[def.prefix .. "Align"] or def.justify
+                local half = (def.dir == 0 and 220 or 150) / 2
+                if align == "LEFT" then pos.x = pos.x + half elseif align == "RIGHT" then pos.x = pos.x - half end
+            end
+        end
+    end
+    db.edgeAlign = true
     for old, new in pairs(SPLIT_SETTINGS) do
         if db[old] ~= nil then
             for _, key in ipairs(new) do
