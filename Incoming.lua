@@ -96,13 +96,22 @@ local function Partials(info, noBlocked)
     return " |cffb0b0b0(" .. table.concat(parts, ", ") .. ")|r"
 end
 
--- The game's own short word for a way of missing: "Dodge", "Parry"
+-- The short word for a way of missing: "Dodge", "Parry"
 local MISS_TEXT = { MISS = "Miss", DODGE = "Dodge", PARRY = "Parry", BLOCK = "Block", RESIST = "Resist",
     ABSORB = "Absorb", IMMUNE = "Immune", EVADE = "Evade", DEFLECT = "Deflect", REFLECT = "Reflect",
     MISFIRE = "Misfire" }
+-- A translation in Locales wins (GitHub #47: a Korean player still saw one in English), then
+-- the game's own word, then the English
 local function MissText(missType)
     missType = missType or "MISS"
-    return Str(_G[missType]) or MISS_TEXT[missType] or MISS_TEXT.MISS
+    if not MISS_TEXT[missType] then missType = "MISS" end
+    local words = { MISS = L["Miss"], DODGE = L["Dodge"], PARRY = L["Parry"], BLOCK = L["Block"],
+        RESIST = L["Resist"], ABSORB = L["Absorb"], IMMUNE = L["Immune"], EVADE = L["Evade"],
+        DEFLECT = L["Deflect"], REFLECT = L["Reflect"], MISFIRE = L["Misfire"] }
+    local english = MISS_TEXT[missType]
+    if words[missType] ~= english then return words[missType] end
+    local game = Str(_G[missType])
+    return (game and game ~= "") and game or english
 end
 BT.MissText = MissText
 

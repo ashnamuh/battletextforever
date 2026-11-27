@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.47.1
+
+- **The miss words can be translated** (GitHub #47, thanks to ashnamuh). "Block", "Dodge", "Parry", "Miss", "Resist", "Immune" and the rest used to come only from the game's own words, so translators couldn't change them and a Korean player still saw one in English. They're now in the language files like everything else: a translation there is used first, then the game's own word, then the English.
+- **Show sample uses your game's spell names.** The sample lines (Claw, Moonfire, Rejuvenation, Healing Touch) were always in English. Now they show in your game's language.
+- Translators: "Thrill of Adventure" and the newer lines (icon picker, friendly names, /btf report) are in the language files waiting to be filled in.
+
 ## 1.47.0
 
 - **Pick a spell's icon from a grid.** Clicking a spell's icon on the Spells tab now opens an icon picker, like Outfitter Forever's, so you don't have to type a spell's name or ID anymore. Choose from your spells' icons, the game's ability icons, item icons, or all of them. The search box finds icons by spell name or by part of the icon's name (like "sword"). Click an icon and press Use, or just double-click it. "Its own icon" (or a right-click on the spell's icon on the list) puts the usual icon back.

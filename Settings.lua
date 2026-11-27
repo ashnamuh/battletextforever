@@ -480,16 +480,16 @@ function BT:ApplyFriendPlates(restore)
     end
 end
 
--- A few sample lines, to see the look and place the areas
+-- A few sample lines, to see the look and place the areas (spells by ID, so in the game's language)
 function BT:Test()
     local C = self.TEXT_COLORS
     local samples = {
         function() self:ShowCombat({ kind = "damage", fromMe = true, melee = true, amount = 27, unit = "Physical" }) end,
-        function() self:ShowCombat({ kind = "damage", fromMe = true, spell = "Claw", amount = 50, unit = "Physical" }) end,
+        function() self:ShowCombat({ kind = "damage", fromMe = true, spell = SpellName(1082) or "Claw", amount = 50, unit = "Physical" }) end,
         function() self:Emit(self:Area("InDamage"), "-34", C.inDamage) end,
-        function() self:ShowCombat({ kind = "damage", fromMe = true, spell = "Moonfire", amount = 112, unit = "Arcane", crit = true }) end,
-        function() self:Emit(self:HealArea("incoming"), "+120 Rejuvenation", C.heal) end,
-        function() self:ShowCombat({ kind = "heal", fromMe = true, spell = "Healing Touch", amount = 214 }) end,
+        function() self:ShowCombat({ kind = "damage", fromMe = true, spell = SpellName(8921) or "Moonfire", amount = 112, unit = "Arcane", crit = true }) end,
+        function() self:Emit(self:HealArea("incoming"), "+120 " .. (SpellName(774) or "Rejuvenation"), C.heal) end,
+        function() self:ShowCombat({ kind = "heal", fromMe = true, spell = SpellName(5185) or "Healing Touch", amount = 214 }) end,
         function() self:ShowCombat({ kind = "miss", fromMe = true, melee = true, missType = "DODGE" }) end,
         function()
             local color, school = self:IncomingSchool(nil, 32)

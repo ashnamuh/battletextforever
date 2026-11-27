@@ -1825,20 +1825,37 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 0, 1)
 assertEq(last("outgoing"), "Miss", "a hit for nothing is a miss")
 fire("UNIT_COMBAT", "target", "WOUND", "ABSORB", 0, 1)
 assertEq(last("outgoing"), "Absorb", "or says what stopped it")
+-- The miss word: a translation in Locales wins, then the game's word, then English (GitHub #47)
+do local L, blockWord = ns.L, rawget(_G, "BLOCK")
+rawset(_G, "BLOCK", "Blocken")
+fire("UNIT_COMBAT", "target", "BLOCK", "", 0, 1)
+assertEq(last("outgoing"), "Blocken", "a block in the game's word")
+L["Block"] = "방어"
+fire("UNIT_COMBAT", "target", "BLOCK", "", 0, 1)
+assertEq(last("outgoing"), "방어", "a translated miss word wins over the game's")
+fire("UNIT_COMBAT", "target", "WOUND", "BLOCK", 0, 1)
+assertEq(last("outgoing"), "방어", "also on a wound for nothing that was blocked")
+rawset(L, "Block", nil)
+rawset(_G, "BLOCK", Secret("Block"))
+assertEq(BT.MissText("BLOCK"), "Block", "a hidden game word falls back to English")
+rawset(_G, "BLOCK", "")
+assertEq(BT.MissText("BLOCK"), "Block", "and so does an empty one")
+rawset(_G, "BLOCK", blockWord)
+assertEq(BT.MissText("SOMETHING_NEW"), "Miss", "an unknown way of missing is a miss") end
 BT.db.outMisses = false
 fire("UNIT_COMBAT", "target", "PARRY", "", 0, 1)
-assertEq(#lines("outgoing"), 3, "misses turned off")
+assertEq(#lines("outgoing"), 6, "misses turned off")
 BT.db.outMisses = true
 BT.db.minDamage = 40
 fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
-assertEq(#lines("outgoing"), 3, "hits below \"Hide hits below\" are hidden")
+assertEq(#lines("outgoing"), 6, "hits below \"Hide hits below\" are hidden")
 BT.db.minDamage = 0
 BT.db.outDamage = false
 fire("UNIT_COMBAT", "target", "WOUND", "", 27, 1)
-assertEq(#lines("outgoing"), 3, "damage turned off")
+assertEq(#lines("outgoing"), 6, "damage turned off")
 BT.db.outDamage = true
 fire("UNIT_COMBAT", "target", "ENERGIZE", "", 10, 1)
-assertEq(#lines("outgoing"), 3, "a mob gaining power is nothing of yours")
+assertEq(#lines("outgoing"), 6, "a mob gaining power is nothing of yours")
 clear()
 -- Someone else's fight: you target a mob another player tagged and is fighting
 local mobA, wasSeen = STATE.unit[STATE.who.target], BT.hiddenSeen
