@@ -657,6 +657,7 @@ function Methods:SetScale(s) self.__scale = s end
 function Methods:SetJustifyH(j) self.__justify = j end
 function Methods:SetShadowOffset(x, y) self.__shadow = { x, y } end
 function Methods:SetHitRectInsets(l, r, t, b) self.__hitRect = { l, r, t, b } end
+function Methods:SetWordWrap(on) self.__wrap = on end
 -- (about 7 pixels a letter: close enough to place things by)
 function Methods:GetStringWidth() return #tostring(self.__text or "") * 7 end
 function Methods:GetTextWidth() return #tostring(self.__text or "") * 7 end

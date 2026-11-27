@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.45.0
+
+- **BattleText speaks Spanish** (GitHub #42, thanks to Javat00). The options window, on-screen words like "+Combate" and "disponible" (ready), chat messages and the fight summary now show in Spanish on a Spanish game. The same translation is used for Latin American Spanish too. A few lines added in 1.44.0 (the friendly names option on the Healing tab) still show in English until they're translated.
+- **Accented letters in the options window's card titles.** Titles are written in capitals, and accented letters stayed small ("OPCIONES BáSICAS"). Now they're capitals too ("OPCIONES BÁSICAS"), in every language, Russian included.
+- **Longer words fit better.** On the Text tab the lists move over to make room for a long label like "Contorno de críticos", and a long sound label (like "Sonido de golpe de gracia") goes on two lines instead of being cut off.
+
 ## 1.44.0
 
 - **Your heals on players outside your group show now** (GitHub #29). Mouseover Penance (or Flash Heal, Holy Light and the like) on a stranger in the open world showed nothing. The game only tells addons about a heal on a player outside your group while that player has a nameplate, and friendly nameplates are off by default. Two changes fix it:

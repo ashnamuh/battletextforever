@@ -138,7 +138,7 @@ Found a bug or have an idea? Please [submit it on GitHub](https://github.com/sev
 
 ## Translations
 
-BattleText shows its options, chat messages and on-screen words in your game's language when a translation is in (spell and item names always are, since they come from the game). Anything not translated yet shows in English. Korean (thanks to Jaemok) and Simplified Chinese (thanks to Sanchez_3000) are in. To help with your language, fill in its file in the addon's `Locales` folder (`deDE.lua` German, `frFR.lua` French, `esES.lua`/`esMX.lua` Spanish, `itIT.lua` Italian, `ptBR.lua` Portuguese, `ruRU.lua` Russian, `koKR.lua` Korean, `zhCN.lua`/`zhTW.lua` Chinese). Each line is the English text, then yours after the `=`. Send it on CurseForge or GitHub.
+BattleText shows its options, chat messages and on-screen words in your game's language when a translation is in (spell and item names always are, since they come from the game). Anything not translated yet shows in English. Korean (thanks to Jaemok), Simplified Chinese (thanks to Sanchez_3000), German (thanks to ogogo1) and Spanish (thanks to Javat00) are in. To help with your language, fill in its file in the addon's `Locales` folder (`deDE.lua` German, `frFR.lua` French, `esES.lua`/`esMX.lua` Spanish, `itIT.lua` Italian, `ptBR.lua` Portuguese, `ruRU.lua` Russian, `koKR.lua` Korean, `zhCN.lua`/`zhTW.lua` Chinese). Each line is the English text, then yours after the `=`. Send it on CurseForge or GitHub.
 
 ## Support the addon
 

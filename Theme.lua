@@ -198,6 +198,19 @@ function T.MenuArrow(button, inset)
     return arrow
 end
 
+-- Upper case for any language: string.upper only changes A-Z, so accented Latin letters
+-- (á é ñ ö ...) and Cyrillic ones are changed here too ("Opciones básicas" -> "OPCIONES BÁSICAS").
+function T.Upper(s)
+    s = s:upper()
+    s = s:gsub("\195([\160-\190])", function(c)
+        if c ~= "\183" then return "\195" .. string.char(c:byte() - 32) end   -- not the division sign
+    end)
+    s = s:gsub("\208([\176-\191])", function(c) return "\208" .. string.char(c:byte() - 32) end)   -- а-п
+    s = s:gsub("\209([\128-\143])", function(c) return "\208" .. string.char(c:byte() + 32) end)   -- р-я
+    s = s:gsub("\209([\144-\159])", function(c) return "\208" .. string.char(c:byte() - 16) end)   -- ё ...
+    return s
+end
+
 -- Card: a panel with a small orange uppercase title. Content starts at y = -28.
 function T.Card(parent, title, x, y, w, h)
     local f = CreateFrame("Frame", nil, parent)
@@ -205,7 +218,7 @@ function T.Card(parent, title, x, y, w, h)
     f:SetSize(w, h)
     Fill(f, C.card)
     Border(f, C.line)
-    f.title = Text(f, title and title:upper() or "", "GameFontNormalSmall", C.orange)
+    f.title = Text(f, title and T.Upper(title) or "", "GameFontNormalSmall", C.orange)
     f.title:SetPoint("TOPLEFT", 12, -10)
     return f
 end

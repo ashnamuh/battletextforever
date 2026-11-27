@@ -8952,6 +8952,47 @@ step("German fits the options window (buttons grow, controls make room for long 
     clear()
 end)()
 
+step("Spanish fits the options window (GitHub #42, Javat00), and card titles are upper case in any language")
+;(function()
+    local Upper = ns.Theme.Upper
+    assertEq(Upper("Opciones básicas"), "OPCIONES BÁSICAS", "Spanish: accented letters too (string.upper leaves them)")
+    assertEq(Upper("Añadir un hechizo"), "AÑADIR UN HECHIZO", "and ñ")
+    assertEq(Upper("Größe"), "GRÖßE", "German")
+    assertEq(Upper("Здоровье ёж"), "ЗДОРОВЬЕ ЁЖ", "Russian")
+    assertEq(Upper("a ÷ b"), "A ÷ B", "a sign stays as it is")
+    -- The Spanish file, read into L for a second options window (Latin American Spanish is the same file)
+    assertEq(read_file(ADDON_DIR .. "/Locales/esMX.lua"):match("\n\n%-%- Core.*"),
+        read_file(ADDON_DIR .. "/Locales/esES.lua"):match("\n\n%-%- Core.*"), "esMX has the same lines as esES")
+    local found = {}
+    local chunk = assert(loadstring(read_file(ADDON_DIR .. "/Locales/esES.lua")))
+    setfenv(chunk, setmetatable({ GetLocale = function() return "esES" end }, { __index = _G }))
+    chunk(ADDON, { L = setmetatable({}, { __newindex = function(_, k, v) found[k] = v end }) })
+    local L = ns.L
+    for k, v in pairs(found) do L[k] = v end
+    local english = BT.config
+    BT.config = nil
+    BT:BuildConfig()
+    local win = BT.config
+    assertEq(english.critOutlineDropdown.__pos[1], 110, "English: the Text tab's lists at their usual place")
+    local labelRight = 12 + #"Contorno de críticos" * 7
+    assert(win.critOutlineDropdown.__pos[1] >= labelRight + 8, "Spanish: they start after \"Contorno de críticos\"")
+    assertEq(win.fontDropdown.__pos[1], win.critOutlineDropdown.__pos[1], "all four lists line up")
+    assert(win.critOutlineDropdown.__pos[1] + 220 <= ns.Theme.WINDOW.PAGE_W - 12, "and stay inside the card")
+    -- A sound list with a long label: the label goes on two lines instead of being cut short
+    local kill = win.killSoundDropdown
+    assertEq(kill.__size[1], 80, "the kill sound list keeps its least width")
+    local killLabel = found["Kill sound"]
+    assertEq(killLabel, "Sonido de golpe de gracia", "(in Spanish)")
+    local wrapped = false
+    for _, f in ipairs(ALL_FRAMES) do
+        if f.__text == killLabel and f.__wrap == true then wrapped = true end
+    end
+    assert(wrapped, "the label wraps")
+    for k in pairs(found) do rawset(L, k, nil) end
+    BT.config = english
+    clear()
+end)()
+
 step("spell lists made again once in another language, if a name was missing at login (review L6)")
 ;(function()
     local names = STATE.spellNames

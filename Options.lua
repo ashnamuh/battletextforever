@@ -35,8 +35,8 @@ local function AfterLabel(sw, swX, x, right, least)
     local at = math.max(x, labelLeft + math.ceil(type(w) == "number" and w or 0) + 8)
     if right - at < least then
         at = right - least
-        sw.label:SetWidth(at - 8 - labelLeft)
-        sw.label:SetWordWrap(false)
+        sw.label:SetWidth(at - 8 - labelLeft)   -- a long label goes on two lines (Spanish "Sonido de golpe de gracia")
+        sw.label:SetWordWrap(true)
     end
     return at, right - at
 end
@@ -404,27 +404,31 @@ local function BuildText(p, refs)
     local outlineTip = L["None, a thin or thick dark edge round the letters, or a drop shadow instead. "
         .. "Picking one shows a sample line."]
 
-    T.RowLabel(card, L["Font"], 12, -30)
-    refs.fontDropdown = Dropdown(card, DROP_X, -30, 220, fontKeys, function(k) k = BT:FontShown(k) return k == "Default" and L["Default"] or k end, "font",
+    -- The lists start after the longest of their labels (Spanish "Contorno de críticos")
+    local rowLabels = { T.RowLabel(card, L["Font"], 12, -30), T.RowLabel(card, L["Outline"], 12, -60),
+        T.RowLabel(card, L["Crit font"], 12, -90), T.RowLabel(card, L["Crit outline"], 12, -120) }
+    local dropX = DROP_X
+    for _, fs in ipairs(rowLabels) do
+        local w = fs.GetStringWidth and fs:GetStringWidth()
+        if type(w) == "number" then dropX = math.max(dropX, 12 + math.ceil(w) + 12) end
+    end
+    refs.fontDropdown = Dropdown(card, dropX, -30, 220, fontKeys, function(k) k = BT:FontShown(k) return k == "Default" and L["Default"] or k end, "font",
         function(name) BT:SetFont(name) end, L["The letters of every line. Picking one shows a sample line in it. "
         .. "Fonts your other addons share (through LibSharedMedia, like many UI packs) are at the end of the list. "
         .. "On a Russian, Korean or Chinese game, only the fonts that have its letters are listed."])
     refs.fontDropdown.menuScroll = 20 * 12   -- twelve rows, then it scrolls
-    T.RowLabel(card, L["Outline"], 12, -60)
-    refs.outlineDropdown = Dropdown(card, DROP_X, -60, 220, outlineKeys, outlineName, "outline",
+    refs.outlineDropdown = Dropdown(card, dropX, -60, 220, outlineKeys, outlineName, "outline",
         function(flags) BT:SetOutline("outline", flags) end, L["Normal lines: %s"]:format(outlineTip))
-    T.RowLabel(card, L["Crit font"], 12, -90)
     local critFontKeys = { "" }
     for _, k in ipairs(fontKeys) do critFontKeys[#critFontKeys + 1] = k end
-    refs.critFontDropdown = Dropdown(card, DROP_X, -90, 220, critFontKeys, function(k)
+    refs.critFontDropdown = Dropdown(card, dropX, -90, 220, critFontKeys, function(k)
             if k == "" then return L["Same as other lines"] end
             k = BT:FontShown(k)
             return k == "Default" and L["Default"] or k
         end, "critFont", function(name) BT:SetCritFont(name) end,
         L["A font of their own for crits, so they stand out from the rest. Picking one shows a crit in it."])
     refs.critFontDropdown.menuScroll = 20 * 12
-    T.RowLabel(card, L["Crit outline"], 12, -120)
-    refs.critOutlineDropdown = Dropdown(card, DROP_X, -120, 220, outlineKeys, outlineName, "critOutline",
+    refs.critOutlineDropdown = Dropdown(card, dropX, -120, 220, outlineKeys, outlineName, "critOutline",
         function(flags) BT:SetOutline("critOutline", flags) end, L["Crits: %s"]:format(outlineTip))
 
     local size = Card(p, L["Size"], 0, -164, PAGE_W, 190)
