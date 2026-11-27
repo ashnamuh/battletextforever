@@ -521,5 +521,58 @@ function BT:SetSpellRule(rule, field, value)
     self.rulesByName = nil
 end
 
+-- An icon for a spell on the Spells tab (GitHub #44: Deep Wounds' ticks wore your weapon's icon):
+-- what's typed is a spell's ID or name (that spell's icon; by name, only one the game knows), or an
+-- icon's file name as Wowhead shows it (ability_backstab). Returns the icon (a file ID, or a path),
+-- or nil. A path keeps to letters, digits, _ - and the folder's \ (no | or :, which would break
+-- the |T...|t it goes in).
+local ICON_PATH = "Interface\\Icons\\"
+function BT:IconFrom(text)
+    text = type(text) == "string" and text:match("^%s*(.-)%s*$") or ""
+    if text == "" or #text > 60 then return nil end
+    local spell = tonumber(text) or text
+    if C_Spell and C_Spell.GetSpellTexture then
+        local ok, tex = pcall(C_Spell.GetSpellTexture, spell)
+        if ok and not IsSecret(tex) and tex then
+            tex = Num(tex) or Str(tex)
+            if tex then return tex end
+        end
+    end
+    if type(spell) == "string" and spell:find("_", 1, true) and spell:match("^[%w_%-]+$") then
+        return ICON_PATH .. spell
+    end
+    return nil
+end
+
+-- A rule's icon as it may go in text: a file ID, or a path of the safe letters (from IconFrom,
+-- or from shared settings text: SafeIcon is checked again there)
+function BT.SafeIcon(icon)
+    if type(icon) == "number" then return icon > 0 and icon == math.floor(icon) and icon or nil end
+    if type(icon) == "string" and #icon <= 80 and icon:match("^[%w_%-\\/]+$") then return icon end
+    return nil
+end
+
+-- Sets (or with nothing typed, takes off) a spell's own icon. Returns true, or nil and why not.
+function BT:SetSpellIcon(rule, text)
+    text = type(text) == "string" and text:match("^%s*(.-)%s*$") or ""
+    if text == "" then
+        rule.icon, rule.iconFrom = nil, nil
+        self.rulesByName = nil
+        return true
+    end
+    local icon = self:IconFrom(text)
+    if not icon then return nil, L["no icon found for %s: try the spell's ID"]:format(text) end
+    rule.icon, rule.iconFrom = icon, text
+    self.rulesByName = nil
+    return true
+end
+
+-- The icon you gave a spell on the Spells tab, as text (|T...|t), or nil
+function BT:RuleIcon(name)
+    local rule = self:SpellRule(name)
+    local icon = rule and BT.SafeIcon(rule.icon)
+    return icon and self:IconTag(icon) or nil
+end
+
 -- Shared with the files loaded after this one
 S.INTERRUPT_SPELLS = INTERRUPT_SPELLS

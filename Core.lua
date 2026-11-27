@@ -145,7 +145,7 @@ local DEFAULTS = {
     nDispels = true,          -- "Dispelled Corruption" when you take something off (Cleanse, Purge...)
     nCooldowns = true,        -- "Kick ready" when a spell of yours comes off its cooldown
     nInterrupts = true,       -- "Interrupted Frostbolt" when you stop an enemy's cast
-    spellRules = {},          -- spells you hide or recolor (Spells tab): { { name =, hide =, color = { r, g, b } } }
+    spellRules = {},          -- spells you hide, recolor or give an icon (Spells tab): { { name =, hide =, color = { r, g, b }, icon =, iconFrom = } }
     soundCrit = false,        -- a sound when you crit
     soundKill = false,        -- a sound on a killing blow
     critSound = "UI_PROFESSION_CRAFTING_RESULT_CRIT",   -- which ones (keys of BT.SOUNDS)

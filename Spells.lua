@@ -62,6 +62,13 @@ local FLYING_DOTS = { [1978] = true }
 -- ticks do have their lines, two ticks named by their lines take it off (BT.tickLines).
 local NO_LINE_DOTS = { [1079] = 12, [1822] = 9 }
 local LINE_UNSURE_DOTS = { [1822] = true }
+-- Deep Wounds (warrior talent, WoW Forever spell 12834, "Your critical strikes cause your opponent
+-- to Bleed ... over 12 sec"): the bleed is cast by the game's server (12162, a script with no aura),
+-- not by you, so nothing started a damage over time for it and its ticks showed as swings with
+-- your weapon's icon (GitHub #44). A melee crit of yours starts (or starts over) a bleed on that
+-- mob instead (NoteDeepWound): { talent, the bleed's spell (name and icon), English name, seconds
+-- between ticks, how long it lasts }. Its beat on Forever isn't known; 3 seconds as before.
+local DEEP_WOUNDS = { 12834, 12162, "Deep Wounds", 3, 12 }
 local STING_FLIGHT = 1.5
 -- Attacks on your next swing, which replace it: { first rank's ID, English name }
 local NEXT_SWING_SPELLS = {
@@ -618,4 +625,4 @@ S.STING_FLIGHT, S.UNSEALED_WRATH, S.FLIGHT_TIME, S.HAWK_TIME, S.HAWK_MOST, S.MAI
 S.ATTACK_SPELL, S.THROW_TIME, S.AREA_SLACK, S.VIGIL_TIME, S.LIFE_TAP, S.LIFE_TAP_TIME = ATTACK_SPELL, THROW_TIME, AREA_SLACK, VIGIL_TIME, LIFE_TAP, LIFE_TAP_TIME
 S.LIFE_TAP_BEFORE, S.LIFE_TAP_LOOK, S.PERIODIC_SPELLS, S.NEXT_SWING_SPELLS, S.SHIELD_SPELLS, S.SEAL_SPELLS = LIFE_TAP_BEFORE, LIFE_TAP_LOOK, PERIODIC_SPELLS, NEXT_SWING_SPELLS, SHIELD_SPELLS, SEAL_SPELLS
 S.JUDGEMENT, S.SELF_BUFFS, S.FLIGHT_SPELLS, S.HAWK_SPELL, S.THROWN_ITEMS, S.AREA_SPELLS = JUDGEMENT, SELF_BUFFS, FLIGHT_SPELLS, HAWK_SPELL, THROWN_ITEMS, AREA_SPELLS
-S.HEAL_OR_HARM, S.LIGHTS_VIGIL, S.PRAYER_OF_MENDING = HEAL_OR_HARM, LIGHTS_VIGIL, PRAYER_OF_MENDING
+S.HEAL_OR_HARM, S.LIGHTS_VIGIL, S.PRAYER_OF_MENDING, S.DEEP_WOUNDS = HEAL_OR_HARM, LIGHTS_VIGIL, PRAYER_OF_MENDING, DEEP_WOUNDS

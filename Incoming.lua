@@ -107,9 +107,13 @@ end
 BT.MissText = MissText
 
 -- A spell's icon and name as one section of the options shows them
--- (section: "out", "in" or "heal"); either is left out when it's turned off
+-- (section: "out", "in" or "heal"); either is left out when it's turned off. A spell given an
+-- icon on the Spells tab wears that one.
 function BT:SpellParts(section, icon, name)
     local db = self.db
+    -- (an icon of your own for it, from the Spells tab, even where the game has none)
+    local own = name and self:RuleIcon(name)
+    if own then icon = own end
     return db[section .. "Icons"] and icon or "", db[section .. "Names"] and name or nil
 end
 

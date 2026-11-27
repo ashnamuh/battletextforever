@@ -287,7 +287,7 @@ function BT:ReadSettings(text)
                     end
                 end
             elseif k == "spellRules" then
-                -- (a list of { name =, hide =, color = }: anything else in it is left out)
+                -- (a list of { name =, hide =, color =, icon =, iconFrom = }: anything else in it is left out)
                 took = {}
                 for _, r in ipairs(v) do
                     if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and #r.name <= 60 then
@@ -295,7 +295,9 @@ function BT:ReadSettings(text)
                         local color = type(c) == "table" and type(c[1]) == "number" and type(c[2]) == "number"
                             and type(c[3]) == "number"
                             and { Clamp(c[1], { 0, 1 }), Clamp(c[2], { 0, 1 }), Clamp(c[3], { 0, 1 }) } or nil
-                        took[#took + 1] = { name = r.name, hide = r.hide == true, color = color }
+                        local icon = BT.SafeIcon(r.icon)
+                        took[#took + 1] = { name = r.name, hide = r.hide == true, color = color, icon = icon,
+                            iconFrom = icon and type(r.iconFrom) == "string" and #r.iconFrom <= 60 and r.iconFrom or nil }
                     end
                 end
             elseif k == "areas" then

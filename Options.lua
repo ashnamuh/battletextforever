@@ -706,8 +706,9 @@ local function BuildColors(p)
         -72 - rows * 26)
 end
 
--- Spells you hide or recolor: type a name and Add; each one on the list has Hide,
--- a color square (right-click: its usual color again) and Remove
+-- Spells you hide, recolor or give an icon: type a name and Add; each one on the list has its icon
+-- (click: type a spell for its icon; right-click: its own again), Hide, a color square
+-- (right-click: its usual color again) and Remove
 local RULE_ROW = 28
 local function BuildSpells(p, refs)
     local card = Card(p, L["Add a spell"], 0, 0, PAGE_W, 92)
@@ -739,10 +740,56 @@ local function BuildSpells(p, refs)
         local row = CreateFrame("Frame", nil, scroll.child)
         row:SetSize(PAGE_W - 40, RULE_ROW)
         row:SetPoint("TOPLEFT", 0, -(i - 1) * RULE_ROW)
+        -- Its icon, at the start of the row (GitHub #44): click and type a spell's name or ID (or
+        -- an icon's name) for the icon it shows with; right-click: its own icon again
+        local ic = CreateFrame("Button", nil, row)
+        ic:SetSize(20, 20)
+        ic:SetPoint("LEFT", 2, 0)
+        ic.tex = ic:CreateTexture(nil, "ARTWORK")
+        ic.tex:SetAllPoints()
+        T.Border(ic, C.edge)
+        ic:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        T.Tooltip(ic, L["Icon"], L["Click and type a spell's name or ID: this spell shows with that spell's icon. "
+            .. "An icon's name from Wowhead (like ability_backstab) works too. Right-click: its own icon again."])
+        row.icon = ic
         row.name = Text(row, "", "GameFontHighlight")
-        row.name:SetPoint("LEFT", 2, 0)
-        row.name:SetWidth(170)
+        row.name:SetPoint("LEFT", ic, "RIGHT", 8, 0)
+        row.name:SetWidth(142)
         row.name:SetJustifyH("LEFT")
+        -- (typed in a box over the name; Enter sets it, Escape leaves it as it was)
+        local ib = T.EditBox(row, 142)
+        ib:SetPoint("LEFT", ic, "RIGHT", 6, 0)
+        ib:SetMaxLetters(60)
+        ib:Hide()
+        row.iconBox = ib
+        local function closeBox()
+            ib:Hide()
+            row.name:Show()
+        end
+        ib:SetScript("OnEnterPressed", function(self)
+            local ok, why = BT:SetSpellIcon(row.rule, self:GetText())
+            if not ok then Print(why .. ".") end
+            self:ClearFocus()
+            closeBox()
+            render()
+        end)
+        ib:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+            closeBox()
+        end)
+        ib:SetScript("OnEditFocusLost", closeBox)
+        ic:SetScript("OnClick", function(_, button)
+            if button == "RightButton" then
+                BT:SetSpellIcon(row.rule, "")
+                closeBox()
+                render()
+                return
+            end
+            row.name:Hide()
+            ib:SetText(row.rule.iconFrom or "")
+            ib:Show()
+            ib:SetFocus()
+        end)
         row.hide = T.LabeledSwitch(row, L["Hide"], 180, -4)
         row.hide:SetScript("OnClick", function(self)
             BT:SetSpellRule(row.rule, "hide", not self:IsOn())
@@ -799,6 +846,10 @@ local function BuildSpells(p, refs)
             local row = rows[i] or Row(i)
             row.rule = rule
             row.name:SetText(rule.name)
+            -- (the one you gave it; else its own, when the game knows the name; else a question mark)
+            local own = BT.SafeIcon(rule.icon)
+            row.icon.tex:SetTexture(own or BT:IconFrom(rule.name) or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row.icon.tex:SetAlpha(own and 1 or 0.5)
             row.hide:SetOn(rule.hide == true)
             local c = rule.color or BT.TEXT_COLORS.spell
             row.swatch.fill:SetColorTexture(c[1], c[2], c[3], 1)

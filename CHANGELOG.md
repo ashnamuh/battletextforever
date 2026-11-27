@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.46.0
+
+- **Deep Wounds ticks get their own name and icon** (GitHub #44, thanks to lich906). Warriors with the Deep Wounds talent saw its bleed ticks as plain white hits with their main hand weapon's icon. The game starts the bleed by itself when you crit, so BattleText never saw a "cast" for it. Now each of your melee crits starts Deep Wounds on that mob, and its ticks show as "Deep Wounds" with the talent's icon, and can be hidden with "DoTs and area spells" (Outgoing tab) or on the Spells tab like any other bleed.
+- **Pick your own icon for any spell** (Spells tab). Each spell on your list now has its icon at the start of the row. Click it, type a spell's name or ID (or an icon's name from Wowhead, like ability_backstab) and press Enter: that spell shows with that icon from then on, in your lines, with Masque, in the Line order you set, and in the fight summary. Right-click puts its own icon back. Handy for any spell whose icon you don't like, or one that has none.
+
 ## 1.45.0
 
 - **BattleText speaks Spanish** (GitHub #42, thanks to Javat00). The options window, on-screen words like "+Combate" and "disponible" (ready), chat messages and the fight summary now show in Spanish on a Spanish game. The same translation is used for Latin American Spanish too. A few lines added in 1.44.0 (the friendly names option on the Healing tab) still show in English until they're translated.

@@ -11,7 +11,7 @@ local SWING_RECENT, EXTRA_TIME, EXTRA_HITS, TICK_SLACK, TICK_CLOSE, DOT_TIME = S
 local UNNAMED_KEEP, BEAT_LEAST, BEAT_MOST, FLAG_NOTES, STING_FLIGHT, UNSEALED_WRATH = S.UNNAMED_KEEP, S.BEAT_LEAST, S.BEAT_MOST, S.FLAG_NOTES, S.STING_FLIGHT, S.UNSEALED_WRATH
 local FLIGHT_TIME, HAWK_TIME, HAWK_MOST, RANGED_SPELLS, MAIN_HAND, ATTACK_SPELL = S.FLIGHT_TIME, S.HAWK_TIME, S.HAWK_MOST, S.RANGED_SPELLS, S.MAIN_HAND, S.ATTACK_SPELL
 local THROW_TIME, AREA_SLACK, VIGIL_TIME, LIFE_TAP, LIFE_TAP_TIME, LIFE_TAP_BEFORE = S.THROW_TIME, S.AREA_SLACK, S.VIGIL_TIME, S.LIFE_TAP, S.LIFE_TAP_TIME, S.LIFE_TAP_BEFORE
-local LIFE_TAP_LOOK, SpellName = S.LIFE_TAP_LOOK, S.SpellName
+local LIFE_TAP_LOOK, SpellName, DEEP_WOUNDS = S.LIFE_TAP_LOOK, S.SpellName, S.DEEP_WOUNDS
 
 -- A Holy hit that lands with your swing on the same unit, while a seal that adds
 -- damage is on you, is the seal's. The swing's own hit can come up to a second after its
@@ -1452,7 +1452,26 @@ function BT:SilentTick(h)
         if math.abs(since - math.floor(since / dot.period + 0.5) * dot.period) > TICK_CLOSE then return nil end
     end
     if (dot.silent or 0) >= math.floor(dot.noLine / dot.period + 0.5) then return nil end
+    if dot.sameTicks and dot.tick and h.n and h.n ~= dot.tick then return nil end
     return dot
+end
+
+-- A melee crit of yours (a swing, or a physical blow you cast; not a shot) with the Deep Wounds
+-- talent: the mob bleeds for DEEP_WOUNDS' time, starting over on each crit. Its ticks are named
+-- like any bleed of yours: by the line behind them, or by their beat when they have none (as Rake,
+-- switched off once two ticks came with their lines). After its first tick, a hit for another
+-- amount isn't one (its ticks are all alike): a swing that lands on its beat stays a swing.
+function BT:NoteDeepWound(h, swing, spell)
+    if h.kind ~= "damage" or not h.crit or not h.key then return end
+    local mask = Num(h.school)
+    if mask ~= nil and mask ~= 1 then return end
+    if not swing and not (spell and not spell.auto and not self:IsRangedName(spell.name)) then return end
+    if not self:KnowsSpell(DEEP_WOUNDS[1]) then return end
+    local name = SpellName(DEEP_WOUNDS[2]) or DEEP_WOUNDS[3]
+    self.dots = self.dots or {}
+    self.dots[h.key] = self.dots[h.key] or {}
+    self.dots[h.key][name] = { id = DEEP_WOUNDS[2], name = name, at = h.time, period = DEEP_WOUNDS[4], school = 1, heal = false,
+        noLine = DEEP_WOUNDS[5], lineUnsure = true, sameTicks = true }
 end
 
 -- Ways a spell can fail to hurt that a swing can't (so a miss of that kind is a spell's)
@@ -2507,10 +2526,11 @@ function BT:ShowUnitHit(h, what, spell, area)
     local mask = Num(h.school)
     local swing = what == "hit" and not spell
         and ((h.kind == "miss" and (mask == nil or mask == 1)) or (h.kind == "damage" and mask == 1))
-    local petSwing
+    local petSwing, notYourSwing
     if swing then
         local hand = self:SwingHand(h)
         local owner, notYours = self:SwingOwner(h, hand)
+        notYourSwing = notYours
         if owner then
             petSwing, icon = owner, ""
             h.petSwing = true   -- (not an unknown tick of yours: NoteUnnamed)
@@ -2520,6 +2540,12 @@ function BT:ShowUnitHit(h, what, spell, area)
             icon = self:SwingIcon(hand)
         end
     end
+    if not petSwing and (swing or what == "cast") then
+        self:NoteDeepWound(h, swing and not notYourSwing, what == "cast" and spell)
+    end
+    -- (an icon of your own for it, from the Spells tab: the fight summary shows it too)
+    local own = spellName and self:RuleIcon(spellName)
+    if own then icon = own end
     if h.kind == "damage" or h.kind == "heal" then
         self:CountFight(h.kind, h.n)
         self:CountSpell((petSwing or "")

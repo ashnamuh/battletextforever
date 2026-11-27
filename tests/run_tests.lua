@@ -2486,6 +2486,87 @@ do
 end
 BT.dots, BT.tickLines = nil, nil
 clear()
+-- Deep Wounds (GitHub #44): a warrior's melee crit makes the mob bleed, cast by the game, not you.
+-- Its ticks showed as swings with your weapon's icon; your crit now starts the bleed, named by
+-- its beat (no line) or by the line behind it, at most four ticks over its 12 seconds
+do
+STATE.spellNames[12162], STATE.spellIcons[12162] = "Deep Wounds", 132090
+STATE.knownSpells[12834] = true
+local function dwFresh() BT.dots, BT.swings, BT.swungAt, BT.tickLines = nil, nil, nil, nil clear() end
+dwFresh()
+hidden(80)
+fire("PLAYER_SWING", 3.6, 0) wound(60, 1, "CRITICAL")
+assertEq(last("outgoing"), "60", "your white crit")
+for k = 1, 4 do
+    Advance(3)
+    BT.hiddenAt = GetTime()   -- (other lines of yours still arriving)
+    wound(7)
+    assertEq(last("outgoing"), "Deep Wounds 7", "Deep Wounds' tick " .. k .. " with no line: named by its beat")
+end
+SetIcons(true)
+dwFresh()
+fire("PLAYER_SWING", 3.6, 0) wound(60, 1, "CRITICAL")
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(7)
+assert(last("outgoing"):find("132090", 1, true), "with its own icon, not the weapon's (" .. last("outgoing") .. ")")
+SetIcons(false)
+Advance(3)
+BT.hiddenAt = GetTime()
+fire("PLAYER_SWING", 3.6, 0) wound(41)
+assert(not last("outgoing"):find("Deep Wounds", 1, true), "a swing on its beat for another amount stays a swing")
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(7)
+assertEq(last("outgoing"), "Deep Wounds 7", "the next tick is still named")
+Advance(6)
+BT.hiddenAt = GetTime()
+wound(7)
+assert(not (last("outgoing") or ""):find("Deep Wounds", 1, true), "past its 12 seconds: not Deep Wounds")
+-- A crit starts it over (its ticks counted from the new crit); a cast blow's crit (Mortal Strike) too
+dwFresh()
+STATE.spellNames[12294] = "Mortal Strike"
+cast(12294) hidden(81) wound(90, 1, "CRITICAL")
+assertEq(last("outgoing"), "Mortal Strike 90", "your blow crits")
+Advance(3)
+wound(9) hidden(82)
+assertEq(last("outgoing"), "Deep Wounds 9", "a cast blow's crit starts it too")
+Advance(1)
+fire("PLAYER_SWING", 3.6, 0) hidden(83) wound(55, 1, "CRITICAL")
+Advance(2)
+BT.hiddenAt = GetTime()
+wound(9)
+assert(not (last("outgoing") or ""):find("Deep Wounds", 1, true), "on the old crit's beat, after a new crit: not a tick")
+Advance(1)
+wound(9) hidden(84)
+assertEq(last("outgoing"), "Deep Wounds 9", "on the new crit's beat, with its line behind it: Deep Wounds")
+-- Not without the talent, not from a plain hit, not from a shot
+dwFresh()
+STATE.knownSpells[12834] = nil
+fire("PLAYER_SWING", 3.6, 0) hidden(85) wound(60, 1, "CRITICAL")
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(7)
+assert(not (last("outgoing") or ""):find("Deep Wounds", 1, true), "no Deep Wounds talent: no bleed")
+STATE.knownSpells[12834] = true
+dwFresh()
+fire("PLAYER_SWING", 3.6, 0) hidden(86) wound(60)
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(7)
+assert(not (last("outgoing") or ""):find("Deep Wounds", 1, true), "a hit that isn't a crit starts no bleed")
+dwFresh()
+STATE.spellNames[2764] = "Throw"
+cast(2764) hidden(87) wound(60, 1, "CRITICAL")
+Advance(3)
+BT.hiddenAt = GetTime()
+wound(7)
+assert(not (last("outgoing") or ""):find("Deep Wounds", 1, true), "a thrown weapon's crit starts no bleed (melee only)")
+dwFresh()
+STATE.knownSpells[12834] = nil
+BT.dots = nil
+clear()
+end
 -- Without the lines, a bleed's tick can't be told from a swing; another school's can
 BT.hiddenSeen, BT.hiddenAt = nil, nil
 cast(1822)
@@ -9301,6 +9382,106 @@ step("line order: {icon} {damage} {name} (CurseForge, xSky7)")
     clear()
 end)()
 ---------------------------------------------------------------------------
+step("an icon of your own for a spell (Spells tab, GitHub #44)")
+;(function()
+    clear()
+    wipe(BT.db.spellRules)
+    BT.rulesByName = nil
+    STATE.spellIcons[12162], STATE.spellIcons[1822] = 132090, 132122
+    STATE.spellNames[12162] = "Deep Wounds"
+    -- What can be typed: a spell's ID or name, or an icon's name as Wowhead shows it
+    assertEq(BT:IconFrom(" 12162 "), 132090, "by spell ID")
+    assertEq(BT:IconFrom("Rake"), nil, "a name the game doesn't place gives nothing")
+    STATE.spellIcons.Rake = 132122
+    assertEq(BT:IconFrom("Rake"), 132122, "by name, for a spell the game knows")
+    assertEq(BT:IconFrom("ability_backstab"), "Interface\\Icons\\ability_backstab", "an icon's file name")
+    assertEq(BT:IconFrom("Not A Spell"), nil, "nothing for anything else")
+    assertEq(BT:IconFrom("bad|cff_x"), nil, "no | in an icon's name")
+    assertEq(BT:IconFrom(""), nil, "nor nothing")
+    assertEq(BT.SafeIcon("Interface\\Icons\\x:0|t|cffff0000"), nil, "a path that would break the line isn't used")
+    -- On your lines
+    local rule = BT:AddSpellRule("Claw")
+    local ok, why = BT:SetSpellIcon(rule, "Not A Spell")
+    assertEq(ok, nil, "a name with no icon isn't taken")
+    assert(why:find("Not A Spell", 1, true), "and chat says which")
+    assertEq(BT:SetSpellIcon(rule, "12162"), true, "an ID is")
+    assertEq(rule.icon .. " " .. rule.iconFrom, "132090 12162", "kept with what was typed")
+    SetNames(true) SetIcons(true)
+    Advance(1)
+    log(hit("Claw", 16827, 51))
+    assertEq(last("outgoing"), "|T132090:0|t Claw 51", "Claw shows with the icon given it")
+    BT.db.outFormat = "{damage} {name} {icon}"
+    Advance(1)
+    log(hit("Claw", 16827, 52))
+    assertEq(last("outgoing"), "52 Claw |T132090:0|t", "where Line order puts the icon")
+    BT.db.outFormat = BT.LINE_FORMAT
+    BT.db.iconZoom = true
+    Advance(1)
+    log(hit("Claw", 16827, 53))
+    assertEq(last("outgoing"), "|T132090:0:0:0:0:64:64:5:59:5:59|t Claw 53", "Icon zoom too")
+    BT.db.iconZoom = false
+    SetIcons(false)
+    Advance(1)
+    log(hit("Claw", 16827, 54))
+    assertEq(last("outgoing"), "Claw 54", "icons off: none")
+    SetIcons(true)
+    -- (a spell the game has no icon for still gets one)
+    local thrill = BT:AddSpellRule("Fire Spit")
+    BT:SetSpellIcon(thrill, "ability_backstab")
+    assertEq(BT:SpellParts("in", "", "Fire Spit"), "|TInterface\\Icons\\ability_backstab:0|t ", "a spell without one of its own")
+    assertEq(BT:SpellParts("in", "|T1:0|t ", "Fireball"), "|T1:0|t ", "a spell not given one keeps its own")
+    -- Masque puts its skinned icon over it, like any other
+    local masqueGroup = { AddButton = function() end }
+    rawset(_G, "LibStub", function(name) return name == "Masque" and { Group = function() return masqueGroup end } or nil end)
+    BT.masque = nil
+    Advance(1)
+    log(hit("Claw", 16827, 55))
+    local line = BT.areas.outgoing.active[#BT.areas.outgoing.active]
+    assertEq(line.icons and line.icons[1].Icon.__texture, 132090, "with Masque: the skinned icon is the one given")
+    rawset(_G, "LibStub", nil)
+    BT.masque = nil
+    clear()
+    -- Shared with Export and Import, checked on the way in
+    local t = assert(BT:ReadSettings(BT:ExportSettings()))
+    assertEq(t.spellRules[1].icon .. " " .. t.spellRules[1].iconFrom, "132090 12162", "the icon goes with the settings")
+    assertEq(t.spellRules[2].icon, "Interface\\Icons\\ability_backstab", "a named one too")
+    t = assert(BT:ReadSettings("BTF1:" .. BT.Serialize({ spellRules = { { name = "Claw", icon = "x:0|t|Hbad", iconFrom = "x" },
+        { name = "Rake", icon = -5 } } })))
+    assertEq(tostring(t.spellRules[1].icon) .. tostring(t.spellRules[1].iconFrom) .. tostring(t.spellRules[2].icon),
+        "nilnilnil", "an icon that would break the line isn't taken")
+    -- The Spells tab: click the icon, type, Enter; right-click: its own again
+    BT:OpenConfig()
+    local win = BT.config
+    win:ShowTab("spells")
+    BT:RefreshConfig()
+    local row = win.spellRows[1]
+    assertEq(row.icon.tex.__texture, 132090, "the row shows the icon given")
+    assertEq(row.iconBox:IsShown(), false, "the box is closed")
+    row.icon.__scripts.OnClick(row.icon, "LeftButton")
+    assertEq(row.iconBox:IsShown() and row.iconBox:GetText(), "12162", "a click opens the box with what was typed")
+    assertEq(row.name:IsShown(), false, "over the name")
+    row.iconBox:SetText("Rake")
+    row.iconBox.__scripts.OnEnterPressed(row.iconBox)
+    assertEq(rule.icon, 132122, "Enter sets it")
+    assertEq(row.icon.tex.__texture, 132122, "and the row shows it")
+    assertEq(row.iconBox:IsShown() or not row.name:IsShown(), false, "the box closes, the name is back")
+    row.icon.__scripts.OnClick(row.icon, "LeftButton")
+    row.iconBox:SetText("12162")
+    row.iconBox.__scripts.OnEscapePressed(row.iconBox)
+    assertEq(rule.icon, 132122, "Escape leaves it as it was")
+    STATE.spellIcons.Claw = 132140   -- (the game knows Claw by name)
+    row.icon.__scripts.OnClick(row.icon, "RightButton")
+    assertEq(rule.icon, nil, "right-click: its own icon again")
+    assertEq(row.icon.tex.__texture, 132140, "the row shows Claw's own")
+    STATE.spellIcons.Rake, STATE.spellIcons.Claw = nil, nil
+    wipe(BT.db.spellRules)
+    BT.rulesByName = nil
+    BT:RefreshConfig()
+    win:Hide()
+    SetIcons(false)
+    clear()
+end)()
+
 step("your hits and misses over the enemy's nameplate (Layout tab: Enemy nameplates)")
 ;(function()
     clear()

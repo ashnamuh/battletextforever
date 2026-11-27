@@ -22,7 +22,7 @@ BattleText Forever puts the fight on your screen: your hits scroll on one side, 
 - **Interrupts**: "Interrupted Frostbolt" when you or your pet stop an enemy's cast.
 - **Dispels**: "Dispelled Deadly Poison" when you cleanse a friend or yourself, "Purged ..." when you take a buff off an enemy, "Stole ..." with Spellsteal. Tick one box in the Combat Log for it: right-click the Combat Log tab, then Settings, Message Types, Auras, **Dispels**. Without that box, BattleText shows the cure spell you cast ("Cleanse") but can't tell what it took off.
 - **Fight summary**: when a fight ends, your damage, DPS and healing ("4,820 damage (127 DPS), 1,200 healed in 38s"). Type `/btf last` to see that fight spell by spell: hits, crits, total, share and biggest hit.
-- **Your own rules for a spell**: hide a spell you don't want to see, or give it a color of its own (Spells tab).
+- **Your own rules for a spell**: hide a spell you don't want to see, or give it a color or an icon of its own (Spells tab).
 - **Four text areas** you can drag anywhere on screen, each with its own movement (Scroll, Pop, Fountain or Horizontal), and your pick of which kinds of text go to which area.
 - **Your look**: 23 fonts (plus any your other addons share through LibSharedMedia; on a Russian game, the ones with Russian letters), a separate font for crits if you like, an outline (thin or thick) or a drop shadow, text and crit size, a smallest crit (smaller ones show as normal hits), bigger text for bigger hits, short numbers (12.3k), scroll speed and distance, your own colors, and for each area its own size, opacity and direction (up or down, straight or curved), and left, centered or right text for the side areas.
 - **Your choice of what's shown.** Turn any kind of text off, hide your auto attacks, icons and spell names per area, hide small hits and heals, and hide the game's own numbers so nothing shows twice. Put a line's parts in your own order, like `{icon} {damage} {name}`.
@@ -60,7 +60,7 @@ The options have the same look as TauntMaster Forever, ToppedOff Forever and Out
 | **Healing** | Heals you get, heals you do, show overhealing, icons, names, show who you healed, hide heals below a number, line order; Appearance: size, opacity, movement and scroll upward |
 | **Notifications** | Show: combat, killing blows, experience, reputation, honor, loot, money, skill ups, seals, buffs, ability alerts, combo points, dispels, fight summary, cooldowns ready, interrupts, icons, crit sound and kill sound (each with its own pick of sound). Appearance: size, opacity, movement and scroll upward |
 | **Layout** | Which area each kind of text shows in: your hits, your misses, heals you do, damage you take, attacks you avoid, heals you get, power gains, notifications. Your hits and misses can also go over the enemy's nameplate, with left/right and up/down sliders |
-| **Spells** | Type a spell's name to put it on your list, then hide it or give it its own color |
+| **Spells** | Type a spell's name to put it on your list, then hide it or give it its own color or icon (click the icon, type a spell's name or ID) |
 | **Colors** | The color of your hits, spells, misses, damage you take, avoids, power gains, heals, notifications, combat and killing blows, experience, loot, seals, buffs, ability alerts, combo points, dispels, low health and low mana; reset colors |
 
 ### Keybindings

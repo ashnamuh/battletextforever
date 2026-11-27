@@ -19,7 +19,7 @@ Your hits scroll on one side, the damage you take on the other, heals under your
 - **Fight summary**: damage, DPS and healing when a fight ends. `/btf last` shows it spell by spell.
 - **Low health and low mana warnings**, with a sound.
 - **Crit and killing blow sounds** if you want them.
-- **Make it yours**: four text areas you can drag anywhere, each with its own movement (Scroll, Pop, Fountain or Horizontal). 23 fonts (plus LibSharedMedia), sizes, colors, outlines, short numbers (12.3k), your own line order (`{icon} {damage} {name}`), and hide or recolor any spell.
+- **Make it yours**: four text areas you can drag anywhere, each with its own movement (Scroll, Pop, Fountain or Horizontal). 23 fonts (plus LibSharedMedia), sizes, colors, outlines, short numbers (12.3k), your own line order (`{icon} {damage} {name}`), and hide, recolor or change the icon of any spell.
 - **Numbers over enemy nameplates** if you want: your hits can pop up over the mob you hit instead of scrolling at the side, with sliders to line them up with custom nameplates.
 - **Masque support**: if you use Masque, the spell icons take your Masque skin.
 - **Per-character settings** if you want them, and share your settings with a friend as a line of text.
