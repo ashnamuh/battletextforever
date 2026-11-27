@@ -3802,6 +3802,51 @@ STATE.who = {}
 clear()
 end
 
+step("a tenth real fight: the same hunter, with the pet's and hawks' lines arriving too")
+-- tests/real_fight10.txt (1.43.0, GitHub #41, every amount hidden, SENT lines left out). After the
+-- first fight, every shot showed as the pet's: the pet's and hawks' blows, shown as "(Pet)", were
+-- also kept as unnamed hits of yours, so thick that every shot's hit seemed on the beat of an
+-- unknown tick (OnUnnamedBeat) and lost its name.
+do
+STATE.class = "HUNTER"
+STATE.spellNames[75], STATE.spellNames[1293525], STATE.spellNames[20901] = "Auto Shot", "Summon Hawk", "Aimed Shot"
+STATE.spellNames[14323] = "Hunter's Mark"
+STATE.pet, STATE.unit.pet = true, { friend = true }
+STATE.group = false
+fire("GROUP_ROSTER_UPDATE")
+freshFight()
+BT.flying, BT.hawks, BT.swings, BT.hands, BT.swungAt, BT.meleeAt, BT.unnamed = nil, nil, nil, nil, nil, nil, nil
+BT:RemakeSpellLists()
+-- (the recording starts mid-fight: you'd been shooting already)
+local out = replay("real_fight10.txt", { { at = 0, fn = function() BT.swungAt = GetTime() end } },
+    function(who, target) who.pettarget = target end)
+local named, pets, glancing = {}, 0, {}
+for _, text in ipairs(out) do
+    if text:find("^%(") then
+        pets = pets + 1
+    else
+        named[#named + 1] = (text:gsub("%s+$", ""))
+    end
+end
+assertEq(table.concat(named, ", "), "Summon Hawk, Auto Shot, Aimed Shot Miss, Auto Shot, Summon Hawk, Auto Shot, "
+    .. "Auto Shot, Aimed Shot, Summon Hawk, Auto Shot, Auto Shot, Auto Shot, Aimed Shot",
+    "each shot and hawk dive names one hit")
+assertEq(pets, 45, "the rest are the pet's (and hawks')")
+-- A glancing blow is a melee auto attack's: never a shot's, even with a line just ahead of it
+BT.flying = { { name = "Auto Shot", id = 75, key = "glance-mob", at = GetTime() - 0.4, school = 1, auto = true } }
+BT.credits, BT.hiddenSeen = { GetTime() }, true
+STATE.unit.glanceMob = { enemy = true, guid = "glance-mob" }
+local h = { unit = "glanceMob", key = "glance-mob", kind = "damage", action = "WOUND", flag = "GLANCING", school = 1, time = GetTime() }
+assertEq(BT:FlightFor(h), nil, "a glancing blow isn't the shot's")
+h.flag = ""
+assertEq(BT:FlightFor(h) ~= nil, true, "a plain hit is")
+BT.flying, BT.credits, STATE.unit.glanceMob = nil, nil, nil
+STATE.pet, STATE.unit.pet = false, nil
+STATE.class = "DRUID"
+STATE.who = {}
+clear()
+end
+
 step("lines scroll, keep their distance and go away")
 log(hit("Claw", 16827, 50))
 log(hit("Bite", 17253, 60))
@@ -4384,7 +4429,7 @@ for _, f in ipairs(ALL_FRAMES) do
         end
     end
 end
-assertEq(switches, 62, "the switches are there")
+assertEq(switches, 63, "the switches are there")
 -- A switch's label is part of it: its click area stretches over the text
 for _, f in ipairs(ALL_FRAMES) do
     if f.isSwitch and f.key and inWindow(f) then
@@ -8606,6 +8651,153 @@ step("mouseover heals when SENT's name matches no one (GitHub #29, open world, P
     STATE.who, STATE.unit, STATE.group = whoWas, unitWas, groupWas
     BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent = nil, nil, nil, nil, nil
     clear()
+end)()
+
+step("heals on a player outside your group (GitHub #29: mouseover Penance on a stranger)")
+;(function()   -- (a function: the file is near Lua's limit of locals)
+    clear()
+    local whoWas, unitWas, groupWas, classWas = STATE.who, STATE.unit, STATE.group, STATE.class
+    STATE.who = {}
+    STATE.unit = { stranger = { guid = "Player-5555-0STRANG1", name = "Strangey" } }
+    STATE.group, STATE.class = false, "PRIEST"
+    STATE.spellNames[1240720], STATE.spellIcons[1240720] = "Penance", 237545
+    STATE.spellNames[1240723], STATE.spellIcons[1240723] = "Penance", 237545
+    STATE.spellNames[1243], STATE.spellIcons[1243] = "Power Word: Fortitude", 135987
+    STATE.helpful = STATE.helpful or {}
+    STATE.helpful[1243] = true
+    BT.db.healNames, BT.db.healIcons, BT.db.healWho, BT.db.healArea = true, false, false, false
+    BT.hiddenSeen, BT.hiddenAt, BT.credits = true, GetTime(), {}
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent, BT.strangerHeal = nil, nil, nil, nil, nil, nil
+    local function sent(name, id) fire("UNIT_SPELLCAST_SENT", "player", name, "Cast-s" .. id, id) end
+    local function cast(id) fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-" .. id, id) end
+    local function penance(plate)
+        -- The player's log (708.65 on): SENT and both casts in one frame, then each tick's cast, and
+        -- 0.12 to 0.24s later its hidden line (with a nameplate, UNIT_COMBAT in the line's frame)
+        STATE.who.mouseover = "stranger"
+        sent("Strangey", 1240720)
+        cast(1240720)
+        cast(1240723)
+        assertEq(BT.sent and BT.sent.unit, "mouseover", "a stranger has no lasting name: the mouse's")
+        STATE.who.mouseover = nil
+        for i, wait in ipairs({ 0.24, 0.12, 0.14 }) do
+            if i > 1 then cast(1240723) end
+            Advance(wait)
+            if plate then fire("UNIT_COMBAT", "nameplate1", "HEAL", "", 49 + i, 1) end
+            hidden(147 + i)
+            Advance(1 - wait)
+        end
+    end
+    Advance(1)
+    -- 1. No nameplate: the game sends nothing but the locked lines. They show, as they are.
+    penance(false)
+    assertEq(table.concat(lines("outgoing"), " / "), "|Ky148|k / |Ky149|k / |Ky150|k",
+        "each tick's combat log line, shown as the game wrote it")
+    assertEq(#lines("incoming"), 0, "and nothing on you")
+    clear()
+    -- With icons on, Penance's icon before it
+    BT.db.healIcons = true
+    penance(false)
+    assert(last("outgoing"):find("^|T.-|t ?|Ky150|k$"), "the spell's icon, then the line: " .. tostring(last("outgoing")))
+    BT.db.healIcons = false
+    clear()
+    -- 2. With their nameplate up: the game's heals come, named as before, and no line is shown
+    STATE.who.nameplate1 = "stranger"
+    penance(true)
+    assertEq(table.concat(lines("outgoing"), " / "), "Penance +50 / Penance +51 / Penance +52",
+        "the nameplate's heals, named, and no line twice")
+    STATE.who.nameplate1 = nil
+    clear()
+    -- 3. Not a heal (a buff on them): its line isn't shown
+    STATE.who.mouseover = "stranger"
+    sent("Strangey", 1243)
+    cast(1243)
+    STATE.who.mouseover = nil
+    Advance(0.15)
+    hidden(160)
+    Advance(0.5)
+    assertEq(#lines("outgoing"), 0, "a buff's line isn't a heal")
+    -- 4. A line long after the cast isn't the heal's
+    STATE.who.mouseover = "stranger"
+    sent("Strangey", 1240720)
+    cast(1240720)
+    cast(1240723)
+    STATE.who.mouseover = nil
+    Advance(0.8)
+    hidden(161)
+    Advance(0.5)
+    assertEq(#lines("outgoing"), 0, "a line 0.8s after the cast isn't its heal")
+    clear()
+    -- 5. Heals you do turned off: nothing
+    BT.db.outHeals = false
+    penance(false)
+    assertEq(#lines("outgoing"), 0, "heals you do off: no lines")
+    BT.db.outHeals = true
+    clear()
+    STATE.who, STATE.unit, STATE.group, STATE.class = whoWas, unitWas, groupWas, classWas
+    BT.areaOn, BT.dots, BT.selfHots, BT.mending, BT.sent, BT.strangerHeal = nil, nil, nil, nil, nil, nil
+end)()
+
+step("healers get the names over friendly players (GitHub #29)")
+;(function()
+    local cv = STATE.cvars
+    local classWas = STATE.class
+    local P, N = "nameplateShowFriendlyPlayers", "nameplateShowOnlyNameForFriendlyPlayerUnits"
+    local function fresh(on, names)
+        cv[P], cv[N] = on, names
+        BT.db.friendPlatesSet, BT.db.savedPlateCVars, BT.db.friendPlates = nil, nil, true
+    end
+    STATE.class = "PRIEST"
+    fresh("0", "0")
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "11", "a priest gets friendly player nameplates, names only")
+    assertEq(BT.db.friendPlatesSet, true, "once")
+    -- The player turns them off again (Shift-V): they stay off
+    cv[P] = "0"
+    BT:ApplySettings()
+    assertEq(cv[P], "0", "turned off by the player: left off")
+    -- Turning the option off puts back what BattleText changed
+    fresh("0", "0")
+    BT:ApplySettings()
+    BT.db.friendPlates = false
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "00", "the option off: the nameplate settings as they were")
+    assertEq(BT.db.friendPlatesSet, nil, "and on again would turn them on again")
+    -- Already on, with health bars: the player's look is left alone, and so is it when the option goes off
+    fresh("1", "0")
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "10", "already showing: unchanged")
+    BT.db.friendPlates = false
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "10", "and still unchanged with the option off")
+    -- BattleText turned off: put back too
+    fresh("0", "0")
+    BT:ApplySettings()
+    BT.db.enabled = false
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "00", "BattleText off: put back")
+    BT.db.enabled = true
+    -- Not a healer: nothing changes
+    STATE.class = "WARRIOR"
+    fresh("0", "0")
+    BT:ApplySettings()
+    assertEq(cv[P] .. cv[N], "00", "a warrior's nameplates are left alone")
+    -- In a fight it waits for the fight to end (nameplate settings can't change then)
+    STATE.class = "DRUID"
+    fresh("0", "0")
+    COMBAT = true
+    BT:ApplySettings()
+    assertEq(cv[P], "0", "not in a fight")
+    COMBAT = false
+    fire("PLAYER_REGEN_ENABLED")
+    assertEq(cv[P] .. cv[N], "11", "after it")
+    -- Reset all puts them back first (then turns them on again, as a new start would)
+    BT.db.friendPlates = false
+    BT:ApplySettings()
+    cv[P], cv[N] = nil, nil
+    BT.db.friendPlatesSet, BT.db.savedPlateCVars, BT.db.friendPlates = nil, nil, true
+    BT:ApplySettings()
+    assertEq(BT.db.friendPlatesSet, nil, "a game without the setting: nothing done")
+    STATE.class = classWas
 end)()
 
 step("a font of their own for crits")

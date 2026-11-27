@@ -574,6 +574,12 @@ local function BuildHealing(p)
     Slider(card, L["Hide heals below"], 12, -142, "minHeal", { step = 5, zero = L["Off"], enabledIf = anyHeals,
         tip = L["Heals for less than this aren't shown. A heal whose number the game hides always shows "
             .. "(turn off \"Unnamed heals on you\" for other people's)."] })
+    Setting(card, L["Names over friendly players"], COL2, -142, "friendPlates",
+        L["Healers: the game only tells addons about your heal on a player outside your group while that player "
+        .. "has a nameplate. With this on, BattleText turns on the game's friendly player nameplates once, showing "
+        .. "only their names (no health bars), so those heals show as numbers. Without a nameplate, the game's own "
+        .. "combat log line for the heal shows instead. Turning this off puts your nameplate settings back."],
+        function() return BT.db.outHeals end)
     LineOrder(card, -192, "healFormat", L["your heals"], function() return BT.db.outHeals end)
     AreaLook(p, -238, "heal", false, function() return BT:AreaUsed("heal") end, L["Nothing shows here (Layout tab)"])
 end

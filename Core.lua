@@ -156,6 +156,7 @@ local DEFAULTS = {
     lowHealthSound = "RAID_WARNING",
     lowManaSound = "READY_CHECK",
     hideBlizzard = false,
+    friendPlates = true,      -- healers: the game's friendly player nameplates on, names only (ApplyFriendPlates)
     minimap = true,
     startReminder = true,   -- a line in chat after logging in, while Start hasn't been clicked
     loginMessage = true,    -- "BattleText Forever loaded. Type /btf for options." in chat at login

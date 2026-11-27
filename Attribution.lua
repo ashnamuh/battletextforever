@@ -857,6 +857,7 @@ function BT:OnSpellcast(spellId)
     if self.db.debug then self:Record("CAST " .. tostring(id) .. " " .. tostring(Str(name))) end
     self:CastTo(id, name)
     self:NoteHelpfulCast(id, name)
+    self:NoteStrangerHeal(id, name)
     self:Queue({ cast = true, id = id, name = name })
     self.actedInFight = true
     self:NoteAction(GetTime())
@@ -1479,6 +1480,9 @@ end
 -- for the bolt, and the bolt itself landed with no name.
 function BT:NoteUnnamed(h)
     if h.kind ~= "damage" or not h.key then return end
+    -- (your pet's and hawks' blows aren't: with them on the mob, physical hits came so thick that
+    -- every shot seemed on such a beat and none was named, GitHub #41)
+    if h.petSwing then return end
     self.unnamed = self.unnamed or {}
     local id = h.key .. ":" .. tostring(Num(h.school))
     local list = self.unnamed[id] or {}
@@ -1534,6 +1538,8 @@ function BT:FlightFor(h)
     -- landed after as the pet's). Once the lines are arriving, your shot's hit comes with its
     -- line and the pet's don't: only a hit with a line of yours just ahead of it is the shot's.
     local petsToo = self.hiddenSeen and PetOn(h.unit)
+    -- (only a melee auto attack glances: your pet's or a hawk's blow, never a shot or a spell)
+    if how == "GLANCING" then return nil end
     for i, f in ipairs(list) do
         if f.key == h.key and h.time > f.at and h.time - f.at <= FLIGHT_TIME
                 and not (petsToo and not f.wand and f.school == 1 and not self:LineJustBefore(h.time)) then
@@ -2507,6 +2513,7 @@ function BT:ShowUnitHit(h, what, spell, area)
         local owner, notYours = self:SwingOwner(h, hand)
         if owner then
             petSwing, icon = owner, ""
+            h.petSwing = true   -- (not an unknown tick of yours: NoteUnnamed)
         elseif notYours then
             icon = self:IconText(ATTACK_SPELL)
         else
@@ -2590,6 +2597,7 @@ function BT:OnUnitHit(unit, action, flag, amount, school)
     -- its own event. Of what happens to your pet, only its heals are shown.
     if Flag(UnitIsUnit, unit, "player") then return end
     action, flag = Str(action), Str(flag)
+    if action == "HEAL" and self.strangerHeal then self:StrangerHealHeard(unit) end
     local myPet = Flag(UnitIsUnit, unit, "pet")
     if myPet and (unit ~= "pet" or action ~= "HEAL") then return end
     local secret, n, now = IsSecret(amount), Num(amount), GetTime()
@@ -2704,6 +2712,59 @@ function BT:RecordUnitHit(unit, action, flag, amount, secret, school, why)
         why and (": " .. why) or ""))
 end
 
+-- A heal of yours on a player outside your group (GitHub #29: mouseover Penance on a stranger in the
+-- open world). The game sends UNIT_COMBAT only for units it has a name for: you, your target and
+-- focus, your group, nameplates. A stranger under the mouse is none of those once the cast is
+-- sent (UNIT_COMBAT never comes for "mouseover"), so with friendly nameplates off each tick gave
+-- nothing but its combat log line, and nothing showed. The line is a |K string: it can be shown
+-- but not read (COMBAT_LOG_MESSAGE: "A preformatted combat log message protected by a |K string
+-- wrapper"). So when a heal that lands as it's cast (HealsOnCast) goes to such a player, the first
+-- line of yours just after it is shown as it is ("Your Penance heals Bob for 312."), unless the
+-- game's heal on them comes after all (a nameplate, or they're your target): then that shows, named,
+-- as before. BattleText turns on friendly players' names (ApplyFriendPlates) so that's the usual case.
+local STRANGER_LINE_TIME = 0.5   -- a heal's line comes this soon after its cast (Penance's ticks: 0.12 to 0.24s)
+local STRANGER_WAIT = 0.3        -- the game's heal on them, if any, comes by this long after the line (same frame, in the log)
+function BT:NoteStrangerHeal(id, name)
+    local d, now = self.dest, GetTime()
+    local s = d and d.at == now and d.sent
+    if not (s and s.help and not s.me and s.unit == "mouseover" and s.guid and self:HealsOnCast(name)) then return end
+    self.strangerHeal = { at = now, guid = s.guid, id = id, name = name }
+end
+
+-- The game's own heal on a unit: if it's the player that heal went to, it shows from it
+function BT:StrangerHealHeard(unit)
+    local w = self.strangerHeal
+    if not w or w.heard or GetTime() - w.at > STRANGER_LINE_TIME + STRANGER_WAIT then return end
+    local ok, guid = pcall(UnitGUID, unit)
+    guid = ok and Str(guid) or nil
+    if guid and guid == w.guid then w.heard = true end
+end
+
+function BT:StrangerLine(message, now)
+    local w = self.strangerHeal
+    if not w or w.line or now < w.at or now - w.at > STRANGER_LINE_TIME then return end
+    if IsSecret(message) or type(message) ~= "string" then return end
+    w.line = message
+    local function show()
+        if w.heard then
+            if self.db.debug then self:Record("STRANGER heal " .. tostring(w.name) .. ": the game's heal came, shown from it") end
+            return
+        end
+        if self.db.debug then self:Record("STRANGER heal " .. tostring(w.name) .. ": no heal event for them, the line shown") end
+        self:ShowStrangerLine(w)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(STRANGER_WAIT, show) else show() end
+end
+
+function BT:ShowStrangerLine(w)
+    local db = self.db
+    if not db.outHeals then return end
+    local icon = (db.healIcons and w.id) and self:IconText(w.id) or ""
+    local rule = self:SpellRule(w.name)
+    if rule and rule.hide then return end
+    self:Emit(self:HealArea("outgoing"), icon .. w.line, (rule and rule.color) or self.TEXT_COLORS.heal)
+end
+
 -- A finished combat log line from the game
 function BT:OnCombatLogMessage(message, _, _, _, order)
     -- Old lines replayed when the Combat Log window refills aren't news
@@ -2721,6 +2782,7 @@ function BT:OnCombatLogMessage(message, _, _, _, order)
     if hidden then
         if self.db.debug then self:Record("hidden  " .. (Str(message) or "(a hidden value)")) end
         self:NoteHiddenLine(GetTime())
+        self:StrangerLine(message, GetTime())
         return
     end
     local info = Parser:Parse(message)

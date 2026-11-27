@@ -1,0 +1,262 @@
+ 634.76  hidden  |Ky100|k
+ 635.22  hidden  |Ky101|k
+ 635.36  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 635.36  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 635.36  UNIT_COMBAT softenemy WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 635.36    nameplate1 (hidden amount): shown
+ 635.70  hidden  |Ky102|k
+ 635.70  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 635.70  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 635.70  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 635.70    nameplate1 (hidden amount): shown
+ 636.21  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 636.21  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 636.21  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 636.21    nameplate1 (hidden amount): shown
+ 636.44  CAST 14323 Hunter's Mark
+ 636.57  hidden  |Ky103|k
+ 636.92  hidden  |Ky104|k
+ 637.00  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 637.00  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 637.00  UNIT_COMBAT softenemy WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 637.00    nameplate1 (hidden amount): shown
+ 637.33  hidden  |Ky105|k
+ 637.33  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 637.33  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 637.33  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 637.33    nameplate1 (hidden amount): shown
+ 637.61  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 637.61  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 637.61  UNIT_COMBAT softenemy WOUND  (hidden amount) school 1: same hit, under another name
+ 637.61    nameplate1 (hidden amount): shown
+ 637.86  hidden  |Ky106|k
+ 637.99  CAST 1293525 Summon Hawk
+ 638.29  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 638.29  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 638.29    nameplate1 (hidden amount): shown
+ 638.91  hidden  |Ky107|k
+ 638.91  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 638.91  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 638.91  hidden  |Ky108|k
+ 638.91  hidden  |Ky109|k
+ 638.91    nameplate1 (hidden amount): shown
+ 639.03  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 639.03  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 639.03    nameplate1 (hidden amount): shown
+ 639.16  hidden  |Ky110|k
+ 639.16  hidden  |Ky111|k
+ 639.51  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 639.51  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 639.51    nameplate1 (hidden amount): shown
+ 639.60  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 639.60  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 639.60    nameplate1 (hidden amount): shown
+ 639.76  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 639.76  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 639.76    nameplate1 (hidden amount): shown
+ 640.04  CAST 75 Auto Shot
+ 640.04  SWING 2
+ 640.42  hidden  |Ky112|k
+ 640.54  hidden  |Ky107|k
+ 640.54  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 640.54  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 640.54    nameplate1 (hidden amount): shown
+ 640.68  hidden  |Ky113|k
+ 640.68  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 640.68  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 640.68    nameplate1 (hidden amount): shown
+ 641.24  hidden  |Ky114|k
+ 641.36  CAST 20901 Aimed Shot
+ 641.42  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 641.42  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 641.42    nameplate1 (hidden amount): shown
+ 641.77  hidden  |Ky115|k
+ 641.94  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 641.94  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 641.94    nameplate1 (hidden amount): shown
+ 642.13  hidden  |Ky116|k
+ 642.13  UNIT_COMBAT nameplate1 MISS  (hidden amount) school 1
+ 642.13  UNIT_COMBAT target MISS  (hidden amount) school 1: same hit, under another name
+ 642.13    nameplate1 (hidden amount): shown
+ 642.43  UNIT_COMBAT nameplate1 MISS  (hidden amount) school 1
+ 642.43  UNIT_COMBAT target MISS  (hidden amount) school 1: same hit, under another name
+ 642.43  hidden  |Ky117|k
+ 642.43    nameplate1 (hidden amount): shown
+ 642.77  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 642.77  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 642.77    nameplate1 (hidden amount): shown
+ 643.02  hidden  |Ky110|k
+ 643.42  hidden  |Ky118|k
+ 643.79  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 643.79  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 643.79    nameplate1 (hidden amount): shown
+ 643.81  hidden  |Ky119|k
+ 643.81  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 643.81  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 643.81    nameplate1 (hidden amount): shown
+ 644.08  CAST 75 Auto Shot
+ 644.08  SWING 2
+ 644.12  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 644.12  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 644.12    nameplate1 (hidden amount): shown
+ 644.18  CAST 1293525 Summon Hawk
+ 644.29  hidden  |Ky120|k
+ 644.58  hidden  |Ky121|k
+ 644.58  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 644.58  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 644.58    nameplate1 (hidden amount): shown
+ 645.06  UNIT_COMBAT nameplate1 WOUND BLOCK_REDUCED (hidden amount) school 1
+ 645.06  UNIT_COMBAT target WOUND BLOCK_REDUCED (hidden amount) school 1: same hit, under another name
+ 645.06    nameplate1 (hidden amount): shown
+ 645.15  hidden  |Ky108|k
+ 645.15  hidden  |Ky122|k
+ 645.22  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 645.22  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 645.22    nameplate1 (hidden amount): shown
+ 645.43  hidden  |Ky123|k
+ 645.43  UNIT_COMBAT nameplate1 PARRY  (hidden amount) school 1
+ 645.43  UNIT_COMBAT target PARRY  (hidden amount) school 1: same hit, under another name
+ 645.43    nameplate1 (hidden amount): shown
+ 645.65  hidden  |Ky101|k
+ 645.65  hidden  |Ky118|k
+ 645.85  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 645.85  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 645.85    nameplate1 (hidden amount): shown
+ 646.08  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 646.08  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 646.08    nameplate1 (hidden amount): shown
+ 646.24  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 646.24  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 646.24    nameplate1 (hidden amount): shown
+ 646.65  CAST 75 Auto Shot
+ 646.65  SWING 2
+ 646.92  hidden  |Ky124|k
+ 647.05  hidden  |Ky125|k
+ 647.07  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 647.07  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 647.07    nameplate1 (hidden amount): shown
+ 647.35  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 647.35  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 647.35    nameplate1 (hidden amount): shown
+ 647.44  hidden  |Ky126|k
+ 647.87  hidden  |Ky127|k
+ 647.87  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 647.87  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 647.87    nameplate1 (hidden amount): shown
+ 647.96  hidden  |Ky128|k
+ 648.04  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 648.04  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 648.04    nameplate1 (hidden amount): shown
+ 648.66  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 648.66  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 648.66    nameplate1 (hidden amount): shown
+ 649.19  CAST 75 Auto Shot
+ 649.19  SWING 2
+ 649.19  CAST 20901 Aimed Shot
+ 649.19  CAST 14323 Hunter's Mark
+ 649.64  hidden  |Ky125|k
+ 649.64  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 649.64  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 649.64  hidden  |Ky129|k
+ 649.64  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 649.64  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 649.64  hidden  |Ky130|k
+ 649.64    nameplate1 (hidden amount): shown
+ 649.64    nameplate1 (hidden amount): shown
+ 650.11  hidden  |Ky131|k
+ 650.23  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 650.23  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 650.23    nameplate1 (hidden amount): shown
+ 650.29  hidden  |Ky132|k
+ 650.68  CAST 1293525 Summon Hawk
+ 650.81  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 650.81  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 650.81    nameplate1 (hidden amount): shown
+ 651.14  hidden  |Ky133|k
+ 651.14  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 651.14  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 651.14    nameplate1 (hidden amount): shown
+ 651.28  UNIT_COMBAT nameplate1 PARRY  (hidden amount) school 1
+ 651.28  UNIT_COMBAT target PARRY  (hidden amount) school 1: same hit, under another name
+ 651.28    nameplate1 (hidden amount): shown
+ 651.52  hidden  |Ky134|k
+ 651.70  CAST 75 Auto Shot
+ 651.70  SWING 2
+ 651.70  hidden  |Ky108|k
+ 651.70  hidden  |Ky135|k
+ 651.72  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 651.72  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 651.72    nameplate1 (hidden amount): shown
+ 651.92  hidden  |Ky122|k
+ 652.16  hidden  |Ky136|k
+ 652.16  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 652.16  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 652.16    nameplate1 (hidden amount): shown
+ 652.28  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 652.28  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 652.28    nameplate1 (hidden amount): shown
+ 652.40  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 652.40  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 652.40    nameplate1 (hidden amount): shown
+ 652.52  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 652.52  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 652.52    nameplate1 (hidden amount): shown
+ 652.90  hidden  |Ky137|k
+ 653.53  hidden  |Ky138|k
+ 653.53  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 653.53  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 653.53    nameplate1 (hidden amount): shown
+ 653.90  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 653.90  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 653.90    nameplate1 (hidden amount): shown
+ 653.95  hidden  |Ky139|k
+ 654.15  hidden  |Ky140|k
+ 654.15  hidden  |Ky141|k
+ 654.15  CAST 75 Auto Shot
+ 654.15  SWING 2
+ 654.60  hidden  |Ky125|k
+ 654.60  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 654.60  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 654.60    nameplate1 (hidden amount): shown
+ 654.65  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 654.65  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 654.65    nameplate1 (hidden amount): shown
+ 654.75  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 654.75  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 654.75    nameplate1 (hidden amount): shown
+ 654.92  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 654.92  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 654.92    nameplate1 (hidden amount): shown
+ 655.09  hidden  |Ky142|k
+ 655.09  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 655.09  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 655.09    nameplate1 (hidden amount): shown
+ 655.51  hidden  |Ky143|k
+ 655.94  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 655.94  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 655.94    nameplate1 (hidden amount): shown
+ 656.14  hidden  |Ky144|k
+ 656.36  hidden  |Ky145|k
+ 656.52  hidden  |Ky146|k
+ 656.68  CAST 75 Auto Shot
+ 656.68  SWING 2
+ 656.83  UNIT_COMBAT nameplate1 WOUND GLANCING (hidden amount) school 1
+ 656.83  UNIT_COMBAT target WOUND GLANCING (hidden amount) school 1: same hit, under another name
+ 656.83    nameplate1 (hidden amount): shown
+ 656.85  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 656.85  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 656.85    nameplate1 (hidden amount): shown
+ 656.96  UNIT_COMBAT nameplate1 WOUND CRITICAL (hidden amount) school 1
+ 656.96  UNIT_COMBAT target WOUND CRITICAL (hidden amount) school 1: same hit, under another name
+ 656.96    nameplate1 (hidden amount): shown
+ 657.03  CAST 20901 Aimed Shot
+ 657.03  CAST 1293525 Summon Hawk
+ 657.17  hidden  |Ky147|k
+ 657.17  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 657.17  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 657.17    nameplate1 (hidden amount): shown
+ 657.43  hidden  |Ky148|k
+ 657.43  hidden  |Ky149|k
+ 657.46  UNIT_COMBAT nameplate1 WOUND  (hidden amount) school 1
+ 657.46  UNIT_COMBAT target WOUND  (hidden amount) school 1: same hit, under another name
+ 657.46    nameplate1 (hidden amount): shown

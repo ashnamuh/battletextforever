@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.44.0
+
+- **Your heals on players outside your group show now** (GitHub #29). Mouseover Penance (or Flash Heal, Holy Light and the like) on a stranger in the open world showed nothing. The game only tells addons about a heal on a player outside your group while that player has a nameplate, and friendly nameplates are off by default. Two changes fix it:
+  - **Healers get names over friendly players.** For priests, paladins, druids and shamans, BattleText turns on the game's friendly player nameplates once, showing only their names (no health bars). Then those heals show like any other: "+312 Penance". If you already had friendly nameplates on, nothing changes. If you turn them off again yourself (Shift-V or the game's options), they stay off. Don't want it? Turn off "Names over friendly players" on the Healing tab and your nameplate settings go back to how they were.
+  - **Without a nameplate, the game's own line shows.** If the player still has no nameplate (you turned them off, or they're too far away), the game's combat log line for your heal shows instead, like "Your Penance heals Bob for 312." It's the whole sentence because the game locks that line: addons can put it on screen but can't take the number out of it.
+- **Hunters: your shots keep their names after the first fight** (GitHub #41). With your pet and hawks on the mob, every Auto Shot and Aimed Shot after the first fight showed as your pet's. BattleText mistook the pet's and hawks' many blows for a hidden damage-over-time effect of yours, and then refused to name any shot that landed in step with it. Your pet's and hawks' hits don't count for that anymore, so each shot gets its name again. A glancing blow is never taken for a shot either, since only melee attacks glance.
+
 ## 1.43.0
 
 - **Left and Right alignment work the right way round.** Lines used to start from the middle of their window, so "Left" text sat in the right half of the box (and "Pop Left" popped on the right). Now Left lines up with the window's left edge and Right with its right edge. Your windows shift over once by half their width when you update, so your text stays exactly where it was on screen.

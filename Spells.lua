@@ -294,6 +294,29 @@ local function NameSet(ids, english)
     return out
 end
 
+-- Heals that land as they're cast, on the friend they're cast on: Penance's ticks (each one its
+-- own cast, GitHub #29), Holy Shock, and the plain heals of each class (first ranks' IDs). For a
+-- heal on a player outside your group (StrangerHeal): only these are sure to have a heal as their
+-- line. Not Chain Heal (one line for each player it jumps to), not Regrowth (its heal over time's
+-- line can come first), not a buff or a shield.
+local DIRECT_HEALS = { 2050, 2054, 2060, 2061, 5185, 635, 19750, 331, 8004 }
+local DIRECT_HEALS_ENGLISH = { "Lesser Heal", "Heal", "Greater Heal", "Flash Heal", "Healing Touch", "Holy Light",
+    "Flash of Light", "Healing Wave", "Lesser Healing Wave" }
+local PENANCE = { 402174, 1240720, 1240723 }
+function BT:HealsOnCast(name)
+    if not name then return false end
+    if not self.directHeals then
+        local set = NameSet(PENANCE, "Penance")
+        for _, id in ipairs(DIRECT_HEALS) do
+            local n = SpellName(id)
+            if n then set[n] = true end
+        end
+        for _, n in ipairs(DIRECT_HEALS_ENGLISH) do set[n] = true end
+        self.directHeals = set
+    end
+    return self.directHeals[name] == true or self:HealsOrHarms(name)
+end
+
 -- Holy Shock and the like: a heal on a friend, damage on an enemy (HEAL_OR_HARM)
 function BT:HealsOrHarms(name)
     if not name then return false end

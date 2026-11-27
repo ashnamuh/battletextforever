@@ -35,6 +35,7 @@ function BT:ApplySettings()
     self:UpdateStartButton()
     self:UpdateMinimapButton()
     self:ApplyBlizzardText()
+    self:ApplyFriendPlates()
     if self.db.enabled then self:KeepLogFlowing() else self:StopLogFlowing() end
 end
 
@@ -53,6 +54,7 @@ end
 function BT:SetOwnSettings(on)
     if on == self:OwnSettings() then return end
     self:ApplyBlizzardText(true)   -- put the game's numbers back while the settings change hands
+    self:ApplyFriendPlates(true)
     local char = BattleTextForeverCharDB
     if on then
         -- The ones this character had before, if it had its own; else a copy of the shared ones
@@ -79,6 +81,7 @@ end
 -- The game's own numbers are put back first, as they were before BattleText hid them.
 function BT:ResetAll()
     self:ApplyBlizzardText(true)
+    self:ApplyFriendPlates(true)
     local db = self.db
     for k in pairs(db) do db[k] = nil end
     FillDefaults(db, DEFAULTS)
@@ -431,6 +434,50 @@ function BT:ApplyBlizzardText(restore)
     end
 end
 
+-- Heals on players outside your group (GitHub #29). The game tells addons about a heal only on a
+-- unit it has a name for, and a player outside your group has one only while their nameplate is
+-- up ("nameplateN"): with friendly nameplates off, mouseover Penance on a stranger gave no numbers
+-- (StrangerHeal in Attribution.lua shows the locked combat log line then). So for a class that
+-- heals others, BattleText turns on the game's friendly player nameplates, names only (no health
+-- bars: Interface > Nameplates "Friendly Players" and "Show Only Name", Gethe forever
+-- Blizzard_SettingsDefinitions_Frame/Nameplates.lua). Once only: a player who turns them off
+-- again (Interface options, Shift-V) keeps them off, and their own look (bars on) is left alone.
+-- Turning the option off (or BattleText off) puts back the two settings as they were before.
+-- Nameplate settings can't change in a fight, so it waits for the fight to end.
+local PLATES_ON, PLATES_NAMES = "nameplateShowFriendlyPlayers", "nameplateShowOnlyNameForFriendlyPlayerUnits"
+local HEALER_CLASSES = { PRIEST = true, PALADIN = true, DRUID = true, SHAMAN = true }
+local function CVarNow(cvar)
+    local ok, value = pcall(GetCVar, cvar)
+    return ok and Str(value) or nil
+end
+function BT:HealsOthers()
+    local ok, _, class = pcall(UnitClass, "player")
+    return ok and HEALER_CLASSES[Str(class) or ""] == true
+end
+function BT:ApplyFriendPlates(restore)
+    if not (GetCVar and SetCVar) or InCombatLockdown() then return end
+    local db = self.db
+    local want = not restore and db.enabled and db.friendPlates and db.outHeals and self:HealsOthers()
+    if want then
+        if db.friendPlatesSet then return end
+        local shown = CVarNow(PLATES_ON)
+        if not shown then return end   -- (a game without that setting)
+        db.friendPlatesSet = true
+        if shown == "1" then return end   -- (they're on already, as the player likes them)
+        db.savedPlateCVars = { [PLATES_ON] = shown, [PLATES_NAMES] = CVarNow(PLATES_NAMES) }
+        if CVarNow(PLATES_NAMES) then pcall(SetCVar, PLATES_NAMES, "1") end
+        pcall(SetCVar, PLATES_ON, "1")
+        Print(L["turned on the names over friendly players, so your heals on players outside your group can show. "
+            .. "Turn it off on the Healing tab."])
+    elseif db.friendPlatesSet then
+        local saved = db.savedPlateCVars
+        if saved then
+            for cvar, value in pairs(saved) do pcall(SetCVar, cvar, value) end
+        end
+        db.friendPlatesSet, db.savedPlateCVars = nil, nil
+    end
+end
+
 -- A few sample lines, to see the look and place the areas
 function BT:Test()
     local C = self.TEXT_COLORS
@@ -762,6 +809,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         BT:CheckAutoStart()
         BT:SetStartMacro()
         BT:ApplyBlizzardText()
+        BT:ApplyFriendPlates()   -- (logged in during a fight: nameplate settings wait for it to end)
         BT:ScanItemShields()   -- (gear changed in the fight is read now)
     elseif event == "PLAYER_LOGOUT" then
         BT:ApplyBlizzardText(true)
