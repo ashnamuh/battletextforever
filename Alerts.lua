@@ -567,6 +567,16 @@ function BT:SetSpellIcon(rule, text)
     return true
 end
 
+-- Sets a spell's own icon to one picked in the icon picker (a file ID or path; name: the spell
+-- it's from, if it's one, shown again when the picker opens)
+function BT:SetSpellIconTo(rule, icon, name)
+    icon = BT.SafeIcon(icon)
+    if not icon then return nil end
+    rule.icon, rule.iconFrom = icon, type(name) == "string" and #name <= 60 and name or nil
+    self.rulesByName = nil
+    return true
+end
+
 -- The icon you gave a spell on the Spells tab, as text (|T...|t), or nil
 function BT:RuleIcon(name)
     local rule = self:SpellRule(name)

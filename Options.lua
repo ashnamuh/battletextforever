@@ -740,8 +740,8 @@ local function BuildSpells(p, refs)
         local row = CreateFrame("Frame", nil, scroll.child)
         row:SetSize(PAGE_W - 40, RULE_ROW)
         row:SetPoint("TOPLEFT", 0, -(i - 1) * RULE_ROW)
-        -- Its icon, at the start of the row (GitHub #44): click and type a spell's name or ID (or
-        -- an icon's name) for the icon it shows with; right-click: its own icon again
+        -- Its icon, at the start of the row (GitHub #44): click to pick another from the icon picker;
+        -- right-click: its own icon again
         local ic = CreateFrame("Button", nil, row)
         ic:SetSize(20, 20)
         ic:SetPoint("LEFT", 2, 0)
@@ -749,47 +749,20 @@ local function BuildSpells(p, refs)
         ic.tex:SetAllPoints()
         T.Border(ic, C.edge)
         ic:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        T.Tooltip(ic, L["Icon"], L["Click and type a spell's name or ID: this spell shows with that spell's icon. "
-            .. "An icon's name from Wowhead (like ability_backstab) works too. Right-click: its own icon again."])
+        T.Tooltip(ic, L["Icon"], L["Click to pick the icon this spell shows with. Right-click: its own icon again."])
+        ic:SetScript("OnClick", function(_, button)
+            if button == "RightButton" then
+                BT:SetSpellIcon(row.rule, "")
+                render()
+                return
+            end
+            BT:OpenIconPicker(row.rule, function() render() end)
+        end)
         row.icon = ic
         row.name = Text(row, "", "GameFontHighlight")
         row.name:SetPoint("LEFT", ic, "RIGHT", 8, 0)
         row.name:SetWidth(142)
         row.name:SetJustifyH("LEFT")
-        -- (typed in a box over the name; Enter sets it, Escape leaves it as it was)
-        local ib = T.EditBox(row, 142)
-        ib:SetPoint("LEFT", ic, "RIGHT", 6, 0)
-        ib:SetMaxLetters(60)
-        ib:Hide()
-        row.iconBox = ib
-        local function closeBox()
-            ib:Hide()
-            row.name:Show()
-        end
-        ib:SetScript("OnEnterPressed", function(self)
-            local ok, why = BT:SetSpellIcon(row.rule, self:GetText())
-            if not ok then Print(why .. ".") end
-            self:ClearFocus()
-            closeBox()
-            render()
-        end)
-        ib:SetScript("OnEscapePressed", function(self)
-            self:ClearFocus()
-            closeBox()
-        end)
-        ib:SetScript("OnEditFocusLost", closeBox)
-        ic:SetScript("OnClick", function(_, button)
-            if button == "RightButton" then
-                BT:SetSpellIcon(row.rule, "")
-                closeBox()
-                render()
-                return
-            end
-            row.name:Hide()
-            ib:SetText(row.rule.iconFrom or "")
-            ib:Show()
-            ib:SetFocus()
-        end)
         row.hide = T.LabeledSwitch(row, L["Hide"], 180, -4)
         row.hide:SetScript("OnClick", function(self)
             BT:SetSpellRule(row.rule, "hide", not self:IsOn())
@@ -1009,6 +982,274 @@ local function Popup(name, w, h)
     close:SetPoint("RIGHT", -8, 0)
     close:SetScript("OnClick", function() f:Hide() end)
     f.header, f.close = header, close
+    return f
+end
+
+---------------------------------------------------------------------------
+-- The icon picker (Spells tab, GitHub #44; laid out like Outfitter Forever's): click a spell's
+-- icon on the list and pick one from a grid. Sets: your spellbook's icons (with the spell's own
+-- first), the game's ability icons and item icons (GetMacroIcons / GetMacroItemIcons, the macro
+-- window's lists), or all of them. The search box keeps the icons whose spell or file name has
+-- what's typed in it; a spell's name or ID the game knows puts that spell's icon first.
+-- Only one grid of buttons is made: scrolling shows other icons on the same buttons.
+---------------------------------------------------------------------------
+local PICK_COLS, PICK_ROWS, PICK_SIZE, PICK_GAP = 10, 6, 36, 6
+local PICK_SETS = { "spells", "abilities", "items", "all" }
+local PICK_LABELS = { spells = L["Your spells"], abilities = L["Abilities"], items = L["Items"], all = L["All icons"] }
+
+-- An icon's file name (ability_backstab), for its tooltip and the search: a texture given a file
+-- ID tells its path (the trick Outfitter uses); nil when the game won't say
+local namer
+local function IconFileName(tex)
+    if type(tex) == "string" then return (tex:match("([^\\/]+)$") or tex):lower() end
+    if not namer then namer = UIParent:CreateTexture(nil, "BACKGROUND") end
+    namer:SetTexture(tex)
+    local ok, path = pcall(namer.GetTexture, namer)
+    if ok and type(path) == "string" and not BT.IsSecret(path) then return (path:match("([^\\/]+)$") or path):lower() end
+    return nil
+end
+
+-- The icons of a set, each once: { { tex =, name = (a spell's name, if it's one) }, ... }
+local pickCache = {}
+local function SpellbookIcons()
+    local out, seen = {}, {}
+    local book = C_SpellBook
+    local bank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+    local okN, lines = pcall(book and book.GetNumSpellBookSkillLines or error)
+    for li = 1, (okN and type(lines) == "number") and lines or 0 do
+        local okL, info = pcall(book.GetSpellBookSkillLineInfo, li)
+        if okL and type(info) == "table" and type(info.itemIndexOffset) == "number" then
+            for i = info.itemIndexOffset + 1, info.itemIndexOffset + (info.numSpellBookItems or 0) do
+                local okT, tex = pcall(book.GetSpellBookItemTexture, i, bank)
+                local okName, name = pcall(book.GetSpellBookItemName, i, bank)
+                tex = okT and not BT.IsSecret(tex) and tex or nil
+                if tex and not seen[tex] then
+                    seen[tex] = true
+                    out[#out + 1] = { tex = tex, name = okName and type(name) == "string" and name or nil }
+                end
+            end
+        end
+    end
+    return out
+end
+local function MacroIcons(which)
+    if pickCache[which] then return pickCache[which] end
+    local list = {}
+    local okA = which ~= "items" and GetMacroIcons and pcall(GetMacroIcons, list)
+    local okI = which ~= "abilities" and GetMacroItemIcons and pcall(GetMacroItemIcons, list)
+    local out, seen = {}, {}
+    for _, tex in ipairs(list) do
+        if (type(tex) == "number" or type(tex) == "string") and not seen[tex] then
+            seen[tex] = true
+            out[#out + 1] = { tex = tex }
+        end
+    end
+    if okA or okI then pickCache[which] = out end
+    return out
+end
+
+-- A spell's name from what was typed (its ID, or the name itself)
+local function SpellNameOf(text)
+    local id = tonumber(text)
+    if not id then return text end
+    local ok, name = pcall(C_Spell and C_Spell.GetSpellName or error, id)
+    return ok and type(name) == "string" and not BT.IsSecret(name) and name or nil
+end
+
+local picker
+local function IconPicker()
+    if picker then return picker end
+    local W = 24 + PICK_COLS * (PICK_SIZE + PICK_GAP) - PICK_GAP + 14
+    local gridH = PICK_ROWS * (PICK_SIZE + PICK_GAP) - PICK_GAP
+    local f = Popup("BattleTextForeverIconPicker", W, COPY_HEADER + 12 + 26 + 10 + 22 + 12 + gridH + 12 + 44)
+    picker = f
+    local y = -(COPY_HEADER + 12)
+    -- The sets, as tabs in a row
+    f.setButtons = {}
+    local x = 12
+    for _, key in ipairs(PICK_SETS) do
+        local b = FlatButton(f, PICK_LABELS[key], 90, 24)
+        b:SetPoint("TOPLEFT", x, y)
+        x = x + (b:GetWidth() or 90) + 6
+        b:SetScript("OnClick", function() f:ShowSet(key) end)
+        b:SetScript("OnLeave", function(self) self:SetHover(self.isOn == true) end)
+        f.setButtons[key] = b
+    end
+    y = y - 36
+    local searchLabel = Text(f, L["Search"], "GameFontHighlight")
+    searchLabel:SetPoint("TOPLEFT", 12, y - 4)
+    local search = T.EditBox(f, 220)
+    search:SetPoint("TOPLEFT", 12 + TextWidth(searchLabel) + 10, y)
+    search:SetMaxLetters(60)
+    T.Tooltip(search, L["Search"], L["A spell's name, or part of an icon's name (like sword). A spell's name or ID the game knows shows its icon first."])
+    f.search = search
+    f.selectedText = Text(f, "", "GameFontHighlightSmall", C.muted)
+    f.selectedText:SetPoint("LEFT", search, "RIGHT", 10, 0)
+    f.selectedText:SetPoint("RIGHT", f, "RIGHT", -14, 0)
+    f.selectedText:SetJustifyH("LEFT")
+    f.selectedText:SetWordWrap(false)
+    y = y - 34
+
+    -- The grid, and its scroll bar
+    local grid = CreateFrame("Frame", nil, f)
+    grid:SetPoint("TOPLEFT", 12, y)
+    grid:SetSize(PICK_COLS * (PICK_SIZE + PICK_GAP) - PICK_GAP, gridH)
+    f.grid = grid
+    local bar = CreateFrame("Slider", nil, f)
+    bar:SetOrientation("VERTICAL")
+    bar:SetWidth(6)
+    bar:SetPoint("TOPLEFT", grid, "TOPRIGHT", 8, 0)
+    bar:SetPoint("BOTTOMLEFT", grid, "BOTTOMRIGHT", 8, 0)
+    T.Fill(bar, C.offTrack)
+    local thumb = bar:CreateTexture(nil, "OVERLAY")
+    thumb:SetSize(6, 40)
+    thumb:SetColorTexture(unpack(C.btnEdge))
+    bar:SetThumbTexture(thumb)
+    bar:SetMinMaxValues(0, 0)
+    bar:SetValueStep(1)
+    f.bar = bar
+    f.buttons = {}
+    for i = 1, PICK_COLS * PICK_ROWS do
+        local b = CreateFrame("Button", nil, grid)
+        b:SetSize(PICK_SIZE, PICK_SIZE)
+        local col, row = (i - 1) % PICK_COLS, math.floor((i - 1) / PICK_COLS)
+        b:SetPoint("TOPLEFT", col * (PICK_SIZE + PICK_GAP), -row * (PICK_SIZE + PICK_GAP))
+        b.tex = b:CreateTexture(nil, "ARTWORK")
+        b.tex:SetPoint("TOPLEFT", 2, -2)
+        b.tex:SetPoint("BOTTOMRIGHT", -2, 2)
+        b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.edge = T.Border(b, C.edge)
+        b.picked = CreateFrame("Frame", nil, b)
+        b.picked:SetAllPoints()
+        T.Border(b.picked, C.gold)
+        b.picked:Hide()
+        b:SetScript("OnClick", function(self) f:Pick(self.entry) end)
+        b:SetScript("OnDoubleClick", function(self) f:Pick(self.entry) f:Use() end)
+        b:SetScript("OnEnter", function(self)
+            if not self.entry then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(self.entry.name or IconFileName(self.entry.tex) or tostring(self.entry.tex), 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        f.buttons[i] = b
+    end
+    local function scrollBy(delta)
+        local lo, hi = bar:GetMinMaxValues()
+        bar:SetValue(math.max(lo or 0, math.min(hi or 0, (bar:GetValue() or 0) - delta)))
+    end
+    grid:EnableMouseWheel(true)
+    grid:SetScript("OnMouseWheel", function(_, delta) scrollBy(delta) end)
+    bar:SetScript("OnValueChanged", function(_, v) f:Draw(math.floor((v or 0) + 0.5)) end)
+
+    -- Footer: what it's for, its own icon back, Cancel, Use
+    local use = FlatButton(f, L["Use"], 90, 24)
+    use:SetPoint("BOTTOMRIGHT", -14, 12)
+    use:SetScript("OnClick", function() f:Use() end)
+    local cancel = FlatButton(f, L["Cancel"], 90, 24)
+    cancel:SetPoint("RIGHT", use, "LEFT", -8, 0)
+    cancel:SetScript("OnClick", function() f:Hide() end)
+    local own = FlatButton(f, L["Its own icon"], 110, 24)
+    own:SetPoint("BOTTOMLEFT", 12, 12)
+    own:SetScript("OnClick", function()
+        BT:SetSpellIcon(f.rule, "")
+        f:Hide()
+        if f.done then f.done() end
+    end)
+    T.Tooltip(own, L["Its own icon"], L["Takes off the icon you picked: the spell shows with its usual icon again."])
+    f.use, f.cancel, f.own = use, cancel, own
+
+    function f:ShowSet(key)
+        self.set = key
+        for k, b in pairs(self.setButtons) do
+            b.isOn = k == key
+            b:SetHover(b.isOn)
+            local fs = b:GetFontString()
+            if fs then fs:SetTextColor(unpack(b.isOn and C.gold or C.muted)) end
+        end
+        self:Filter()
+    end
+    -- What's shown: the set, kept to the search, a spell found by what's typed first
+    function f:Filter()
+        local base
+        if self.set == "spells" then
+            base = {}
+            local mine = BT:IconFrom(self.rule.name)
+            if mine then base[1] = { tex = mine, name = self.rule.name } end
+            for _, e in ipairs(SpellbookIcons()) do
+                if e.tex ~= mine then base[#base + 1] = e end
+            end
+        else
+            base = MacroIcons(self.set)
+        end
+        local text = (self.search:GetText() or ""):match("^%s*(.-)%s*$"):lower()
+        local list = base
+        if text ~= "" then
+            list = {}
+            local found = BT:IconFrom(text)
+            if found then list[1] = { tex = found, name = SpellNameOf(text) } end
+            for _, e in ipairs(base) do
+                if e.tex ~= found and ((e.name and e.name:lower():find(text, 1, true))
+                        or (IconFileName(e.tex) or ""):find(text, 1, true)) then
+                    list[#list + 1] = e
+                end
+            end
+        end
+        self.list = list
+        local rows = math.ceil(#list / PICK_COLS)
+        self.bar:SetMinMaxValues(0, math.max(0, rows - PICK_ROWS))
+        self.bar:SetShown(rows > PICK_ROWS)
+        self.bar:SetValue(0)
+        self:Draw(0)
+    end
+    function f:Draw(top)
+        self.top = top or self.top or 0
+        for i, b in ipairs(self.buttons) do
+            local e = self.list and self.list[self.top * PICK_COLS + i]
+            b.entry = e
+            if e then
+                b.tex:SetTexture(e.tex)
+                b.picked:SetShown(self.chosen ~= nil and e.tex == self.chosen.tex)
+                b:Show()
+            else
+                b:Hide()
+            end
+        end
+    end
+    function f:Pick(e)
+        if not e then return end
+        self.chosen = e
+        self.selectedText:SetText(e.name or IconFileName(e.tex) or "")
+        self.use:SetEnabled(true)
+        self:Draw()
+    end
+    function f:Use()
+        local e = self.chosen
+        if not e then return end
+        BT:SetSpellIconTo(self.rule, e.tex, e.name)
+        self:Hide()
+        if self.done then self.done() end
+    end
+    search:SetScript("OnTextChanged", function() f:Filter() end)
+    search:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+        if f.list and f.list[1] then f:Pick(f.list[1]) end
+    end)
+    return f
+end
+
+-- Opens the picker for a spell on the Spells tab; done() runs once its icon changed
+function BT:OpenIconPicker(rule, done)
+    local f = IconPicker()
+    f.rule, f.done = rule, done
+    f.title:SetText(L["Icon for %s"]:format(rule.name))
+    f.chosen = nil
+    local own = BT.SafeIcon(rule.icon)
+    if own then f.chosen = { tex = own, name = rule.iconFrom } end
+    f.selectedText:SetText(f.chosen and (f.chosen.name or IconFileName(own) or "") or "")
+    f.search:SetText("")
+    f:ShowSet("spells")
+    f:Show()
     return f
 end
 

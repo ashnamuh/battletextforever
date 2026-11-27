@@ -9449,30 +9449,75 @@ step("an icon of your own for a spell (Spells tab, GitHub #44)")
         { name = "Rake", icon = -5 } } })))
     assertEq(tostring(t.spellRules[1].icon) .. tostring(t.spellRules[1].iconFrom) .. tostring(t.spellRules[2].icon),
         "nilnilnil", "an icon that would break the line isn't taken")
-    -- The Spells tab: click the icon, type, Enter; right-click: its own again
+    -- The Spells tab: click the icon, pick one from the grid (as in Outfitter Forever), Use;
+    -- right-click: its own again
+    STATE.spellBook = { { name = "Claw", icon = 132140 }, { name = "Rake", icon = 132122 },
+        { name = "Shred", icon = 136231 }, { name = "Rip", icon = 132152 } }
+    STATE.macroIcons, STATE.macroItemIcons = {}, { 135274, 135275 }
+    for i = 1, 100 do STATE.macroIcons[i] = 136000 + i end
+    STATE.iconPaths[136007] = "Interface\\Icons\\Ability_Sword_Swing"
+    STATE.spellIcons.Claw = 132140   -- (the game knows Claw by name)
     BT:OpenConfig()
     local win = BT.config
     win:ShowTab("spells")
     BT:RefreshConfig()
     local row = win.spellRows[1]
     assertEq(row.icon.tex.__texture, 132090, "the row shows the icon given")
-    assertEq(row.iconBox:IsShown(), false, "the box is closed")
     row.icon.__scripts.OnClick(row.icon, "LeftButton")
-    assertEq(row.iconBox:IsShown() and row.iconBox:GetText(), "12162", "a click opens the box with what was typed")
-    assertEq(row.name:IsShown(), false, "over the name")
-    row.iconBox:SetText("Rake")
-    row.iconBox.__scripts.OnEnterPressed(row.iconBox)
-    assertEq(rule.icon, 132122, "Enter sets it")
+    local f = _G.BattleTextForeverIconPicker
+    assertEq(f and f:IsShown(), true, "a click opens the icon picker")
+    assertEq(f.title:GetText(), "Icon for Claw", "for that spell")
+    local function shown()
+        local out = {}
+        for _, b in ipairs(f.buttons) do if b:IsShown() then out[#out + 1] = b.tex.__texture end end
+        return table.concat(out, " ")
+    end
+    -- (Claw's own icon first, then the rest of your spellbook, each once)
+    assertEq(shown(), "132140 132122 136231 132152", "your spells' icons to start with")
+    f.setButtons.abilities.__scripts.OnClick(f.setButtons.abilities)
+    assertEq(select(2, shown():gsub("%d+", "")), 60, "the game's ability icons: a page of 60")
+    assertEq(f.bar:IsShown(), true, "with a scroll bar for the rest")
+    f.grid.__scripts.OnMouseWheel(f.grid, -1)
+    assertEq(f.buttons[1].tex.__texture, 136011, "the mouse wheel scrolls a row")
+    f.bar:SetValue(999)
+    f.grid.__scripts.OnMouseWheel(f.grid, -1)
+    assertEq(f.buttons[1].tex.__texture, 136041, "no further than the last page")
+    f.setButtons.items.__scripts.OnClick(f.setButtons.items)
+    assertEq(shown(), "135274 135275", "item icons")
+    f.setButtons.all.__scripts.OnClick(f.setButtons.all)
+    assertEq(f.buttons[1].tex.__texture, 136001, "all of them")
+    f.search:SetText("sword") f.search.__scripts.OnTextChanged(f.search)
+    assertEq(shown(), "136007", "the search keeps icons by their file name")
+    f.setButtons.spells.__scripts.OnClick(f.setButtons.spells)
+    f.search:SetText("ra") f.search.__scripts.OnTextChanged(f.search)
+    assertEq(shown(), "132122", "and your spells by name")
+    f.search:SetText("12162") f.search.__scripts.OnTextChanged(f.search)
+    assertEq(shown(), "132090", "a spell's ID shows its icon")
+    f.search:SetText("") f.search.__scripts.OnTextChanged(f.search)
+    f.buttons[2].__scripts.OnClick(f.buttons[2])
+    assertEq(f.buttons[2].picked:IsShown(), true, "a click picks one")
+    assertEq(rule.icon, 132090, "not used yet")
+    f.cancel.__scripts.OnClick(f.cancel)
+    assertEq(f:IsShown() or rule.icon ~= 132090, false, "Cancel leaves it as it was")
+    row.icon.__scripts.OnClick(row.icon, "LeftButton")
+    f.buttons[2].__scripts.OnClick(f.buttons[2])
+    f.use.__scripts.OnClick(f.use)
+    assertEq(tostring(rule.icon) .. " " .. tostring(rule.iconFrom), "132122 Rake", "Use: the picked one, from Rake")
+    assertEq(f:IsShown(), false, "the picker closes")
     assertEq(row.icon.tex.__texture, 132122, "and the row shows it")
-    assertEq(row.iconBox:IsShown() or not row.name:IsShown(), false, "the box closes, the name is back")
     row.icon.__scripts.OnClick(row.icon, "LeftButton")
-    row.iconBox:SetText("12162")
-    row.iconBox.__scripts.OnEscapePressed(row.iconBox)
-    assertEq(rule.icon, 132122, "Escape leaves it as it was")
-    STATE.spellIcons.Claw = 132140   -- (the game knows Claw by name)
+    assertEq(f.buttons[2].picked:IsShown(), true, "opened again: the icon in use is picked")
+    f.buttons[3].__scripts.OnDoubleClick(f.buttons[3])
+    assertEq(rule.icon .. " " .. tostring(f:IsShown()), "136231 false", "a double-click uses it at once")
+    row.icon.__scripts.OnClick(row.icon, "LeftButton")
+    f.own.__scripts.OnClick(f.own)
+    assertEq(tostring(rule.icon) .. " " .. tostring(f:IsShown()), "nil false", "Its own icon: the usual one again")
+    BT:SetSpellIconTo(rule, 136231, "Shred")
     row.icon.__scripts.OnClick(row.icon, "RightButton")
-    assertEq(rule.icon, nil, "right-click: its own icon again")
+    assertEq(rule.icon, nil, "right-click on the row: its own icon again")
     assertEq(row.icon.tex.__texture, 132140, "the row shows Claw's own")
+    assertEq(BT:SetSpellIconTo(rule, "x:0|t"), nil, "an icon that would break the line isn't taken")
+    STATE.spellBook, STATE.macroIcons, STATE.macroItemIcons, STATE.iconPaths = {}, {}, {}, {}
     STATE.spellIcons.Rake, STATE.spellIcons.Claw = nil, nil
     wipe(BT.db.spellRules)
     BT.rulesByName = nil

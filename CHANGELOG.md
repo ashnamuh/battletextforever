@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.47.0
+
+- **Pick a spell's icon from a grid.** Clicking a spell's icon on the Spells tab now opens an icon picker, like Outfitter Forever's, so you don't have to type a spell's name or ID anymore. Choose from your spells' icons, the game's ability icons, item icons, or all of them. The search box finds icons by spell name or by part of the icon's name (like "sword"). Click an icon and press Use, or just double-click it. "Its own icon" (or a right-click on the spell's icon on the list) puts the usual icon back.
+
 ## 1.46.0
 
 - **Deep Wounds ticks get their own name and icon** (GitHub #44, thanks to lich906). Warriors with the Deep Wounds talent saw its bleed ticks as plain white hits with their main hand weapon's icon. The game starts the bleed by itself when you crit, so BattleText never saw a "cast" for it. Now each of your melee crits starts Deep Wounds on that mob, and its ticks show as "Deep Wounds" with the talent's icon, and can be hidden with "DoTs and area spells" (Outgoing tab) or on the Spells tab like any other bleed.

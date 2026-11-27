@@ -282,6 +282,13 @@ BT.config:ShowTab("spells")
 BT.config.spellBox:SetText("Spiked Shell Band")
 BT.config.spellAdd.__scripts.OnClick(BT.config.spellAdd)
 Dump("options-spells", BT.config)
+-- The icon picker (a click on a spell's icon on the Spells tab)
+STATE.spellBook = { { name = "Claw", icon = 132140 }, { name = "Rake", icon = 132122 } }
+for i = 1, 80 do STATE.macroIcons[i] = 136000 + i end
+local picker = BT:OpenIconPicker(BT.db.spellRules[1], function() end)
+picker.setButtons.abilities.__scripts.OnClick(picker.setButtons.abilities)
+picker.buttons[3].__scripts.OnClick(picker.buttons[3])
+Dump("icon-picker", picker)
 
 local f = assert(io.open(arg and arg[1] or "tests/render-out.json", "w"))
 f:write("[" .. table.concat(out, ",\n") .. "]")

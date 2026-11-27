@@ -186,6 +186,8 @@ function Methods:SetWidth(w) protectedCheck(self, "SetWidth") self.__size = { w,
 function Methods:SetHeight(h) protectedCheck(self, "SetHeight") self.__size = { self.__size and self.__size[1] or 0, h } end
 function Methods:SetValue(v) self.__value = v if self.__scripts.OnValueChanged then self.__scripts.OnValueChanged(self, issecretvalue(v) and 0 or v) end end
 function Methods:SetMinMaxValues(a, b) self.__min, self.__max = a, b end
+function Methods:GetMinMaxValues() return self.__min, self.__max end
+function Methods:GetValue() return self.__value end
 function Methods:RegisterEvent(e)
     -- WoW: Forever refuses these to addons
     if e == "COMBAT_LOG_EVENT" or e == "COMBAT_LOG_EVENT_UNFILTERED" then
@@ -201,6 +203,11 @@ function Methods:GetFontString() return self.__fontString end
 function Methods:SetEnabled(v) self.__enabled = v end
 function Methods:SetDesaturated(v) self.__desat = v end
 function Methods:SetTexture(t) self.__texture = t end
+-- (a texture given a file ID tells its path: STATE.iconPaths[id])
+function Methods:GetTexture()
+    local t = self.__texture
+    return type(t) == "number" and STATE.iconPaths[t] or t
+end
 function Methods:StartMoving() protectedCheck(self, "StartMoving") self.__moving = true end
 function Methods:StopMovingOrSizing() protectedCheck(self, "StopMovingOrSizing") self.__moving = false end
 
@@ -236,6 +243,9 @@ STATE = {
         floatingCombatTextEnergyGains_v2 = "1", floatingCombatTextPeriodicEnergyGains_v2 = "1" },
     filteredEvents = false,       -- C_CombatLog.SetFilteredEventsEnabled
     spellIcons = { [16827] = 132140, [8921] = 136096 },   -- by spell ID
+    iconPaths = {},               -- an icon's file ID: its path (a texture's GetTexture)
+    macroIcons = {}, macroItemIcons = {},   -- GetMacroIcons / GetMacroItemIcons
+    spellBook = {},               -- your spellbook: { { name =, icon = }, ... } in one skill line
     spellNames = { [2643] = "Multi-Shot", [19434] = "Aimed Shot", [16827] = "Claw", [8921] = "Moonfire", [1082] = "Claw", [1822] = "Rake", [1079] = "Rip", [5221] = "Shred", [6785] = "Ravage",
         [467] = "Thorns", [782] = "Thorns", [1075] = "Thorns", [324] = "Lightning Shield", [5570] = "Insect Swarm",
         [768] = "Cat Form", [6807] = "Maul", [5185] = "Healing Touch", [774] = "Rejuvenation",
@@ -465,6 +475,16 @@ function UnitPowerPercent(unit, kind, unmodified, curve)
     if curve then v = curve:Evaluate(v) end
     return hidden and Secret(v) or v
 end
+function GetMacroIcons(t) for _, v in ipairs(STATE.macroIcons) do t[#t + 1] = v end end
+function GetMacroItemIcons(t) for _, v in ipairs(STATE.macroItemIcons) do t[#t + 1] = v end end
+C_SpellBook = {
+    GetNumSpellBookSkillLines = function() return 1 end,
+    GetSpellBookSkillLineInfo = function(i)
+        return i == 1 and { itemIndexOffset = 0, numSpellBookItems = #STATE.spellBook, name = "General" } or nil
+    end,
+    GetSpellBookItemTexture = function(i) return STATE.spellBook[i] and STATE.spellBook[i].icon end,
+    GetSpellBookItemName = function(i) return STATE.spellBook[i] and STATE.spellBook[i].name end,
+}
 C_Spell = {
     GetSpellTexture = function(spell) return STATE.spellIcons[spell] end,
     GetSpellName = function(id) return STATE.spellNames[id] end,
